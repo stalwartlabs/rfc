@@ -1,0 +1,2854 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>JMAP Object Metadata</title>
+<meta content="Mauro De Gennaro" name="author">
+<meta content="
+       This document defines a new extension to the JSON Meta Application Protocol (JMAP) that introduces a standardized mechanism for managing metadata associated with JMAP objects. The JMAP Object Metadata extension allows clients and servers to store, retrieve, and synchronize arbitrary metadata and annotations on any JMAP data type in a consistent manner. It defines a generic annotation model as well as specific mappings for accessing IMAP metadata and WebDAV “dead properties” where applicable. This extension facilitates interoperability between JMAP and existing metadata frameworks while allowing vendor-specific extensions in a structured and discoverable way. 
+    " name="description">
+<meta content="xml2rfc 3.31.0" name="generator">
+<meta content="Internet-Draft" name="keyword">
+<meta content="draft-degennaro-jmap-object-metadata-00" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.31.0
+    Python 3.13.3
+    ConfigArgParse 1.7.1
+    google-i18n-address 3.1.1
+    intervaltree 3.1.0
+    Jinja2 3.1.6
+    lxml 6.0.2
+    platformdirs 4.5.0
+    pycountry 24.6.1
+    PyYAML 6.0.3
+    requests 2.32.5
+    wcwidth 0.2.14
+-->
+<link href="draft.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">/*
+
+  NOTE: Changes at the bottom of this file overrides some earlier settings.
+
+  Once the style has stabilized and has been adopted as an official RFC style,
+  this can be consolidated so that style settings occur only in one place, but
+  for now the contents of this file consists first of the initial CSS work as
+  provided to the RFC Formatter (xml2rfc) work, followed by itemized and
+  commented changes found necessary during the development of the v3
+  formatters.
+
+*/
+
+/* fonts */
+@import url('https://static.ietf.org/fonts/noto-sans/import.css'); /* Sans-serif */
+@import url('https://static.ietf.org/fonts/noto-serif/import.css'); /* Serif (print) */
+@import url('https://static.ietf.org/fonts/roboto-mono/import.css'); /* Monospace */
+
+:root {
+  --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
+  --font-serif: 'Noto Serif', 'Times', 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', Courier, 'Courier New', monospace;
+}
+
+@viewport {
+  zoom: 1.0;
+}
+@-ms-viewport {
+  width: extend-to-zoom;
+  zoom: 1.0;
+}
+/* general and mobile first */
+html {
+}
+body {
+  max-width: 90%;
+  margin: 1.5em auto;
+  color: #222;
+  background-color: #fff;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  overflow-wrap: break-word;
+}
+.ears {
+  display: none;
+}
+
+/* headings */
+#title, h1, h2, h3, h4, h5, h6 {
+  margin: 1em 0 0.5em;
+  font-weight: bold;
+  line-height: 1.3;
+}
+#title {
+  clear: both;
+  border-bottom: 1px solid #ddd;
+  margin: 0 0 0.5em 0;
+  padding: 1em 0 0.5em;
+}
+.author {
+  padding-bottom: 4px;
+}
+h1 {
+  font-size: 26px;
+  margin: 1em 0;
+}
+h2 {
+  font-size: 22px;
+  margin-top: -20px;  /* provide offset for in-page anchors */
+  padding-top: 33px;
+}
+h3 {
+  font-size: 18px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h4 {
+  font-size: 16px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h5, h6 {
+  font-size: 14px;
+}
+#n-copyright-notice {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1em;
+  margin-bottom: 1em;
+}
+/* general structure */
+p {
+  padding: 0;
+  margin: 0 0 1em 0;
+  text-align: left;
+}
+div, span {
+  position: relative;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+@media print {
+  svg {
+    max-height: 850px;
+    max-width: 660px;
+  }
+}
+svg[font-family~="serif" i], svg [font-family~="serif" i] {
+  font-family: var(--font-serif);
+}
+svg[font-family~="sans-serif" i], svg [font-family~="sans-serif" i] {
+  font-family: var(--font-sans);
+}
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  display: table;
+  border: none;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 1em 2em;
+}
+ol ol, ul ul, ol ul, ul ol {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+ul.ulBare, li.ulBare {
+  margin-left: 0em !important;
+}
+ul.compact, .ulCompact,
+ol.compact, .olCompact {
+  line-height: 100%;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+/* 
+dl.nohang > dt {
+  float: none;
+}
+*/
+dl > dd {
+  margin-bottom: .8em;
+  min-height: 1.3em;
+}
+dl.compact > dd, .dlCompact > dd {
+  margin-bottom: 0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0em;
+}
+
+/* links */
+a {
+  text-decoration: none;
+}
+a[href] {
+  color: #22e; /* Arlen: WCAG 2019 */
+}
+a[href]:hover {
+  background-color: #f2f2f2;
+}
+figcaption a[href],
+a[href].selfRef {
+  color: #222;
+}
+/* XXX probably not this:
+a.selfRef:hover {
+  background-color: transparent;
+  cursor: default;
+} */
+
+/* Figures */
+tt, code, pre {
+  background-color: #f9f9f9;
+  font-family: var(--font-mono);
+}
+pre {
+  border: 1px solid #eee;
+  margin: 0;
+  padding: 1em;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption {
+  font-style: italic;
+  margin: 0 0 1em 0;
+}
+@media screen {
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+    max-width: calc(100% - 22px);
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 1.2em 2em;
+}
+blockquote {
+  background-color: #f9f9f9;
+  color: #111; /* Arlen: WCAG 2019 */
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin: 1em 0;
+}
+blockquote > *:last-child {
+  margin-bottom: 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+.xref {
+  overflow-wrap: normal;
+}
+
+/* tables */
+table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  border: 1px solid #eee;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5em 0.75em;
+}
+th {
+  text-align: left;
+  background-color: #e9e9e9;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f5f5f5;
+}
+table caption {
+  font-style: italic;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+table p {
+  /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
+     be allowed within tables more generally, it would be far better to select on a class. */
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  color: #666; /* Arlen: AHDJ 2019 */
+  text-decoration: none;
+  visibility: hidden;
+  user-select: none;
+  -ms-user-select: none;
+  -o-user-select:none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media screen {
+  aside:hover > a.pilcrow,
+  p:hover > a.pilcrow,
+  blockquote:hover > a.pilcrow,
+  div:hover > a.pilcrow,
+  li:hover > a.pilcrow,
+  pre:hover > a.pilcrow {
+    visibility: visible;
+  }
+  a.pilcrow:hover {
+    background-color: transparent;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid #eee;
+}
+.bcp14 {
+  font-variant: small-caps;
+}
+
+.role {
+  font-variant: all-small-caps;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: 0.9em;
+}
+#identifiers dt {
+  width: 3em;
+  clear: left;
+}
+#identifiers dd {
+  float: left;
+  margin-bottom: 0;
+}
+/* Fix PDF info block run off issue */
+@media print {
+  #identifiers dd {
+    max-width: 100%;
+  }
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #666; /* Arlen: WCAG 2019 */
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc  {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+nav.toc ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+nav.toc li {
+  line-height: 1.3em;
+  margin: 0.75em 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 7em;
+}
+.references dd {
+  margin-left: 8em;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.refSubseries {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+.index ul {
+  margin: 0 0 0 1em;
+  padding: 0;
+  list-style: none;
+}
+.index ul ul {
+  margin: 0;
+}
+.index li {
+  margin: 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  padding-bottom: 5px;
+}
+.indexIndex {
+  margin: 0.5em 0 1em;
+}
+.index a {
+  font-weight: 700;
+}
+/* make the index two-column on all but the smallest screens */
+@media (min-width: 600px) {
+  .index ul {
+    -moz-column-count: 2;
+    -moz-column-gap: 20px;
+  }
+  .index ul ul {
+    -moz-column-count: 1;
+    -moz-column-gap: 0;
+  }
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  font-family: var(--font-sans);
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+
+/* temporary notes */
+.rfcEditorRemove::before {
+  position: absolute;
+  top: 0.2em;
+  right: 0.2em;
+  padding: 0.2em;
+  content: "The RFC Editor will remove this note";
+  color: #9e2a00; /* Arlen: WCAG 2019 */
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+}
+.rfcEditorRemove {
+  position: relative;
+  padding-top: 1.8em;
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  border-radius: 3px;
+}
+.cref {
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 1023px) {
+  body {
+    padding-top: 2em;
+  }
+  #title {
+    padding: 1em 0;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: -18px;  /* provide offset for in-page anchors */
+    padding-top: 38px;
+  }
+  #identifiers dd {
+    max-width: 60%;
+  }
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    background-color: inherit;
+    border-bottom: 1px solid #ccc;
+  }
+  #toc h2 {
+    margin: -1px 0 0 0;
+    padding: 4px 0 4px 6px;
+    padding-right: 1em;
+    min-width: 190px;
+    font-size: 1.1em;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 6px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 1024px) {
+  body {
+    max-width: 724px;
+    margin: 42px auto;
+    padding-left: 1.5em;
+    padding-right: 29em;
+  }
+  #toc {
+    position: fixed;
+    top: 42px;
+    right: 42px;
+    width: 25%;
+    margin: 0;
+    padding: 0 1em;
+    z-index: 1;
+  }
+  #toc h2 {
+    border-top: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 1em;
+    font-weight: normal;
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 0;
+    overflow: auto;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre {
+    page-break-inside: avoid;
+  }
+  figure {
+    overflow: scroll;
+  }
+  .breakable pre {
+    break-inside: auto;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  h2+*, h3+*, h4+*, h5+*, h6+* {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+/* This is commented out here, as the string-set: doesn't
+   pass W3C validation currently */
+/*
+.ears thead .left {
+  string-set: ears-top-left content();
+}
+
+.ears thead .center {
+  string-set: ears-top-center content();
+}
+
+.ears thead .right {
+  string-set: ears-top-right content();
+}
+
+.ears tfoot .left {
+  string-set: ears-bottom-left content();
+}
+
+.ears tfoot .center {
+  string-set: ears-bottom-center content();
+}
+
+.ears tfoot .right {
+  string-set: ears-bottom-right content();
+}
+*/
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+  /* The following is commented out here, but set appropriately by in code, as
+     the content depends on the document */
+  /*
+  @top-left {
+    content: 'Internet-Draft';
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-left {
+    content: string(ears-top-left);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-center {
+    content: string(ears-top-center);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-right {
+    content: string(ears-top-right);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @bottom-left {
+    content: string(ears-bottom-left);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-center {
+    content: string(ears-bottom-center);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-right {
+      content: '[Page ' counter(page) ']';
+      vertical-align: top;
+      border-top: solid 1px #ccc;
+  }
+  */
+
+}
+
+/* Changes introduced to fix issues found during implementation */
+/* Make sure links are clickable even if overlapped by following H* */
+a {
+  z-index: 2;
+}
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Leave room in document info to show Internet-Draft on one line */
+#identifiers dt {
+  width: 8em;
+}
+
+/* Don't waste quite as much whitespace between label and value in doc info */
+#identifiers dd {
+  margin-left: 1em;
+}
+
+/* Give floating toc a background color (needed when it's a div inside section */
+#toc {
+  background-color: white;
+}
+
+/* Make the collapsed ToC header render white on gray also when it's a link */
+@media screen and (max-width: 1023px) {
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+}
+
+/* Give the bottom of the ToC some whitespace */
+@media screen and (min-width: 1024px) {
+  #toc {
+    padding: 0 0 1em 1em;
+  }
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* prevent monospace from becoming overly large */
+tt, code, pre {
+  font-size: 95%;
+}
+
+/* Fix the height/width aspect for ascii art*/
+.sourcecode pre,
+.art-text pre {
+  line-height: 1.12;
+}
+
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin-right: 0.5em;
+}
+
+/* Fix the dl styling to match the RFC 7992 attributes */
+dl > dt,
+dl.dlParallel > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+
+/* Provide styling for table cell text alignment */
+table td.text-left,
+table th.text-left {
+  text-align: left;
+}
+table td.text-center,
+table th.text-center {
+  text-align: center;
+}
+table td.text-right,
+table th.text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 30em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Provide table alignment support.  We can't use the alignX classes above
+   since they do unwanted things with caption and other styling. */
+table.right {
+ margin-left: auto;
+ margin-right: 0;
+}
+table.center {
+ margin-left: auto;
+ margin-right: auto;
+}
+table.left {
+ margin-left: 0;
+ margin-right: auto;
+}
+
+/* Give the table caption label the same styling as the figcaption */
+caption a[href] {
+  color: #222;
+}
+
+@media print {
+  .toplink {
+    display: none;
+  }
+
+  /* avoid overwriting the top border line with the ToC header */
+  #toc {
+    padding-top: 1px;
+  }
+
+  /* Avoid page breaks inside dl and author address entries */
+  .vcard {
+    page-break-inside: avoid;
+  }
+
+}
+/* Tweak the bcp14 keyword presentation */
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+/* Tweak the invisible space above H* in order not to overlay links in text above */
+ h2 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 31px;
+ }
+ h3 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+ h4 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+/* Float artwork pilcrow to the right */
+@media screen {
+  .artwork a.pilcrow {
+    display: block;
+    line-height: 0.7;
+    margin-top: 0.15em;
+  }
+}
+/* Make pilcrows on dd visible */
+@media screen {
+  dd:hover > a.pilcrow {
+    visibility: visible;
+  }
+}
+/* Make the placement of figcaption match that of a table's caption
+   by removing the figure's added bottom margin */
+.alignLeft.art-text,
+.alignCenter.art-text,
+.alignRight.art-text {
+   margin-bottom: 0;
+}
+.alignLeft,
+.alignCenter,
+.alignRight {
+  margin: 1em 0 0 0;
+}
+/* In print, the pilcrow won't show on hover, so prevent it from taking up space,
+   possibly even requiring a new line */
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+/* Styling for the external metadata */
+div#external-metadata {
+  background-color: #eee;
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  display: none;
+}
+div#internal-metadata {
+  padding: 0.5em;                       /* to match the external-metadata padding */
+}
+/* Styling for title RFC Number */
+h1#rfcnum {
+  clear: both;
+  margin: 0 0 -1em;
+  padding: 1em 0 0 0;
+}
+/* Make .olPercent look the same as <ol><li> */
+dl.olPercent > dd {
+  margin-bottom: 0.25em;
+  min-height: initial;
+}
+/* Give aside some styling to set it apart */
+aside {
+  border-left: 1px solid #ddd;
+  margin: 1em 0 1em 2em;
+  padding: 0.2em 2em;
+}
+aside > dl,
+aside > ol,
+aside > ul,
+aside > table,
+aside > p {
+  margin-bottom: 0.5em;
+}
+/* Additional page break settings */
+@media print {
+  figcaption, table caption {
+    page-break-before: avoid;
+  }
+}
+/* Font size adjustments for print */
+@media print {
+  body  { font-size: 10pt;      line-height: normal; max-width: 96%; }
+  h1    { font-size: 1.72em;    padding-top: 1.5em; } /* 1*1.2*1.2*1.2 */
+  h2    { font-size: 1.44em;    padding-top: 1.5em; } /* 1*1.2*1.2 */
+  h3    { font-size: 1.2em;     padding-top: 1.5em; } /* 1*1.2 */
+  h4    { font-size: 1em;       padding-top: 1.5em; }
+  h5, h6 { font-size: 1em;      margin: initial; padding: 0.5em 0 0.3em; }
+}
+/* Sourcecode margin in print, when there's no pilcrow */
+@media print {
+  .artwork,
+  .artwork > pre,
+  .sourcecode {
+    margin-bottom: 1em;
+  }
+}
+/* Avoid narrow tables forcing too narrow table captions, which may render badly */
+table {
+  min-width: 20em;
+}
+/* ol type a */
+ol.type-a { list-style-type: lower-alpha; }
+ol.type-A { list-style-type: upper-alpha; }
+ol.type-i { list-style-type: lower-roman; }
+ol.type-I { list-style-type: upper-roman; }
+/* Apply the print table and row borders in general, on request from the RPC,
+and increase the contrast between border and odd row background slightly */
+table {
+  border: 1px solid #ddd;
+}
+td {
+  border-top: 1px solid #ddd;
+}
+tr {
+  break-inside: avoid;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f8f8f8;
+}
+/* Use style rules to govern display of the TOC. */
+@media screen and (max-width: 1023px) {
+  #toc nav { display: none; }
+  #toc.active nav { display: block; }
+}
+/* Add support for keepWithNext */
+.keepWithNext {
+  break-after: avoid-page;
+  break-after: avoid-page;
+}
+/* Add support for keepWithPrevious */
+.keepWithPrevious {
+  break-before: avoid-page;
+}
+/* Change the approach to avoiding breaks inside artwork etc. */
+figure, pre, table, .artwork, .sourcecode  {
+  break-before: auto;
+  break-after: auto;
+}
+/* Avoid breaks between <dt> and <dd> */
+dl {
+  break-before: auto;
+  break-inside: auto;
+}
+dt {
+  break-before: auto;
+  break-after: avoid-page;
+}
+dd {
+  break-before: avoid-page;
+  break-after: auto;
+  orphans: 3;
+  widows: 3
+}
+span.break, dd.break {
+  margin-bottom: 0;
+  min-height: 0;
+  break-before: auto;
+  break-inside: auto;
+  break-after: auto;
+}
+/* Undo break-before ToC */
+@media print {
+  #toc {
+    break-before: auto;
+  }
+}
+/* Text in compact lists should not get extra bottom margin space,
+   since that would makes the list not compact */
+ul.compact p, .ulCompact p,
+ol.compact p, .olCompact p {
+ margin: 0;
+}
+/* But the list as a whole needs the extra space at the end */
+section ul.compact,
+section .ulCompact,
+section ol.compact,
+section .olCompact {
+  margin-bottom: 1em;                    /* same as p not within ul.compact etc. */
+}
+/* The tt and code background above interferes with for instance table cell
+   backgrounds.  Changed to something a bit more selective. */
+tt, code {
+  background-color: transparent;
+}
+p tt, p code, li tt, li code, dt tt, dt code {
+  background-color: #f8f8f8;
+}
+/* Tweak the pre margin -- 0px doesn't come out well */
+pre {
+   margin-top: 0.5px;
+}
+/* Tweak the compact list text */
+ul.compact, .ulCompact,
+ol.compact, .olCompact,
+dl.compact, .dlCompact {
+  line-height: normal;
+}
+/* Don't add top margin for nested lists */
+li > ul, li > ol, li > dl,
+dd > ul, dd > ol, dd > dl,
+dl > dd > dl {
+  margin-top: initial;
+}
+/* Elements that should not be rendered on the same line as a <dt> */
+/* This should match the element list in writer.text.TextWriter.render_dl() */
+dd > div.artwork:first-child,
+dd > aside:first-child,
+dd > blockquote:first-child,
+dd > figure:first-child,
+dd > ol:first-child,
+dd > div.sourcecode:first-child,
+dd > table:first-child,
+dd > ul:first-child {
+  clear: left;
+}
+/* fix for weird browser behaviour when <dd/> is empty */
+dt+dd:empty::before{
+  content: "\00a0";
+}
+/* Make paragraph spacing inside <li> smaller than in body text, to fit better within the list */
+li > p {
+  margin-bottom: 0.5em
+}
+/* Don't let p margin spill out from inside list items */
+li > p:last-of-type:only-child {
+  margin-bottom: 0;
+}
+</style>
+<link href="rfc-local.css" rel="stylesheet" type="text/css">
+<script type="application/javascript">async function addMetadata(){try{const e=document.styleSheets[0].cssRules;for(let t=0;t<e.length;t++)if(/#identifiers/.exec(e[t].selectorText)){const a=e[t].cssText.replace("#identifiers","#external-updates");document.styleSheets[0].insertRule(a,document.styleSheets[0].cssRules.length)}}catch(e){console.log(e)}const e=document.getElementById("external-metadata");if(e)try{var t,a="",o=function(e){const t=document.getElementsByTagName("meta");for(let a=0;a<t.length;a++)if(t[a].getAttribute("name")===e)return t[a].getAttribute("content");return""}("rfc.number");if(o){t="https://www.rfc-editor.org/rfc/rfc"+o+".json";try{const e=await fetch(t);a=await e.json()}catch(e){t=document.URL.indexOf("html")>=0?document.URL.replace(/html$/,"json"):document.URL+".json";const o=await fetch(t);a=await o.json()}}if(!a)return;e.style.display="block";const s="",d="https://datatracker.ietf.org/doc",n="https://datatracker.ietf.org/ipr/search",c="https://www.rfc-editor.org/info",l=a.doc_id.toLowerCase(),i=a.doc_id.slice(0,3).toLowerCase(),f=a.doc_id.slice(3).replace(/^0+/,""),u={status:"Status",obsoletes:"Obsoletes",obsoleted_by:"Obsoleted By",updates:"Updates",updated_by:"Updated By",see_also:"See Also",errata_url:"Errata"};let h="<dl style='overflow:hidden' id='external-updates'>";["status","obsoletes","obsoleted_by","updates","updated_by","see_also","errata_url"].forEach(e=>{if("status"==e){a[e]=a[e].toLowerCase();var t=a[e].split(" "),o=t.length,w="",p=1;for(let e=0;e<o;e++)p<o?w=w+r(t[e])+" ":w+=r(t[e]),p++;a[e]=w}else if("obsoletes"==e||"obsoleted_by"==e||"updates"==e||"updated_by"==e){var g,m="",b=1;g=a[e].length;for(let t=0;t<g;t++)a[e][t]&&(a[e][t]=String(a[e][t]).toLowerCase(),m=b<g?m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>, ":m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>",b++);a[e]=m}else if("see_also"==e){var y,L="",C=1;y=a[e].length;for(let t=0;t<y;t++)if(a[e][t]){a[e][t]=String(a[e][t]);var _=a[e][t].slice(0,3),v=a[e][t].slice(3).replace(/^0+/,"");L=C<y?"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>, ":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>, ":"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>",C++}a[e]=L}else if("errata_url"==e){var R="";R=a[e]?R+"<a href='"+a[e]+"'>Errata exist</a> | <a href='"+d+"/"+l+"'>Datatracker</a>| <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>":"<a href='"+d+"/"+l+"'>Datatracker</a> | <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>",a[e]=R}""!=a[e]?"Errata"==u[e]?h+=`<dt>More info:</dt><dd>${a[e]}</dd>`:h+=`<dt>${u[e]}:</dt><dd>${a[e]}</dd>`:"Errata"==u[e]&&(h+=`<dt>More info:</dt><dd>${a[e]}</dd>`)}),h+="</dl>",e.innerHTML=h}catch(e){console.log(e)}else console.log("Could not locate metadata <div> element");function r(e){return e.charAt(0).toUpperCase()+e.slice(1)}}window.removeEventListener("load",addMetadata),window.addEventListener("load",addMetadata);</script>
+</head>
+<body class="xml2rfc">
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">JMAP Object Metadata</td>
+<td class="right">October 2025</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">De Gennaro</td>
+<td class="center">Expires 29 April 2026</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Network Working Group</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-degennaro-jmap-object-metadata-00</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2025-10-26" class="published">26 October 2025</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Standards Track</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2026-04-29">29 April 2026</time></dd>
+<dt class="label-authors">Author:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">M. De Gennaro</div>
+<div class="org">Stalwart Labs</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">JMAP Object Metadata</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">This document defines a new extension to the JSON Meta Application Protocol (JMAP) that introduces a standardized mechanism for managing metadata associated with JMAP objects. The JMAP Object Metadata extension allows clients and servers to store, retrieve, and synchronize arbitrary metadata and annotations on any JMAP data type in a consistent manner. It defines a generic annotation model as well as specific mappings for accessing IMAP metadata and WebDAV “dead properties” where applicable. This extension facilitates interoperability between JMAP and existing metadata frameworks while allowing vendor-specific extensions in a structured and discoverable way.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 29 April 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2025 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document. Code Components extracted from this
+            document must include Revised BSD License text as described in
+            Section 4.e of the Trust Legal Provisions and are provided without
+            warranty as described in the Revised BSD License.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction" class="internal xref">Introduction</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.1">
+                <p id="section-toc.1-1.1.2.1.1" class="keepWithNext"><a href="#section-1.1" class="auto internal xref">1.1</a>.  <a href="#name-notational-conventions" class="internal xref">Notational Conventions</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.2">
+                <p id="section-toc.1-1.1.2.2.1" class="keepWithNext"><a href="#section-1.2" class="auto internal xref">1.2</a>.  <a href="#name-addition-to-the-capabilitie" class="internal xref">Addition to the Capabilities Object</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.2.2.1">
+                    <p id="section-toc.1-1.1.2.2.2.1.1" class="keepWithNext"><a href="#section-1.2.1" class="auto internal xref">1.2.1</a>.  <a href="#name-urnietfparamsjmapmetadata" class="internal xref">urn:ietf:params:jmap:metadata</a></p>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-metadata-object" class="internal xref">Metadata Object</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1">
+                <p id="section-toc.1-1.2.2.1.1"><a href="#section-2.1" class="auto internal xref">2.1</a>.  <a href="#name-object-types" class="internal xref">Object Types</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.1">
+                    <p id="section-toc.1-1.2.2.1.2.1.1"><a href="#section-2.1.1" class="auto internal xref">2.1.1</a>.  <a href="#name-annotation" class="internal xref">Annotation</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.2">
+                    <p id="section-toc.1-1.2.2.1.2.2.1"><a href="#section-2.1.2" class="auto internal xref">2.1.2</a>.  <a href="#name-imap-metadata" class="internal xref">IMAP Metadata</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.3">
+                    <p id="section-toc.1-1.2.2.1.2.3.1"><a href="#section-2.1.3" class="auto internal xref">2.1.3</a>.  <a href="#name-webdav-metadata" class="internal xref">WebDAV Metadata</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2">
+                <p id="section-toc.1-1.2.2.2.1"><a href="#section-2.2" class="auto internal xref">2.2</a>.  <a href="#name-properties" class="internal xref">Properties</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2.2.1">
+                    <p id="section-toc.1-1.2.2.2.2.1.1"><a href="#section-2.2.1" class="auto internal xref">2.2.1</a>.  <a href="#name-common-properties" class="internal xref">Common Properties</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2.2.2">
+                    <p id="section-toc.1-1.2.2.2.2.2.1"><a href="#section-2.2.2" class="auto internal xref">2.2.2</a>.  <a href="#name-imapmetadata-properties" class="internal xref">ImapMetadata Properties</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2.2.3">
+                    <p id="section-toc.1-1.2.2.2.2.3.1"><a href="#section-2.2.3" class="auto internal xref">2.2.3</a>.  <a href="#name-webdavmetadata-properties" class="internal xref">WebDavMetadata Properties</a></p>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-metadata-methods" class="internal xref">Metadata Methods</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1">
+                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="auto internal xref">3.1</a>.  <a href="#name-metadata-set" class="internal xref">Metadata/set</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2">
+                <p id="section-toc.1-1.3.2.2.1"><a href="#section-3.2" class="auto internal xref">3.2</a>.  <a href="#name-metadata-get" class="internal xref">Metadata/get</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3">
+                <p id="section-toc.1-1.3.2.3.1"><a href="#section-3.3" class="auto internal xref">3.3</a>.  <a href="#name-metadata-changes" class="internal xref">Metadata/changes</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.4">
+                <p id="section-toc.1-1.3.2.4.1"><a href="#section-3.4" class="auto internal xref">3.4</a>.  <a href="#name-metadata-query" class="internal xref">Metadata/query</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.4.2.1">
+                    <p id="section-toc.1-1.3.2.4.2.1.1"><a href="#section-3.4.1" class="auto internal xref">3.4.1</a>.  <a href="#name-filtering" class="internal xref">Filtering</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.4.2.2">
+                    <p id="section-toc.1-1.3.2.4.2.2.1"><a href="#section-3.4.2" class="auto internal xref">3.4.2</a>.  <a href="#name-sorting" class="internal xref">Sorting</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.5">
+                <p id="section-toc.1-1.3.2.5.1"><a href="#section-3.5" class="auto internal xref">3.5</a>.  <a href="#name-metadata-querychanges" class="internal xref">Metadata/queryChanges</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-standard-method-extensions" class="internal xref">Standard Method Extensions</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-get" class="internal xref">/get</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-set" class="internal xref">/set</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-access-control" class="internal xref">Access Control</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-quota" class="internal xref">Quota</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-security-considerations" class="internal xref">Security considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-metadata-confidentiality" class="internal xref">Metadata Confidentiality</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2">
+                <p id="section-toc.1-1.7.2.2.1"><a href="#section-7.2" class="auto internal xref">7.2</a>.  <a href="#name-user-identity-and-authentic" class="internal xref">User Identity and Authentication</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3">
+                <p id="section-toc.1-1.7.2.3.1"><a href="#section-7.3" class="auto internal xref">7.3</a>.  <a href="#name-injection-attacks-through-v" class="internal xref">Injection Attacks Through Vendor-Specific Properties</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.4">
+                <p id="section-toc.1-1.7.2.4.1"><a href="#section-7.4" class="auto internal xref">7.4</a>.  <a href="#name-resource-exhaustion-and-den" class="internal xref">Resource Exhaustion and Denial of Service</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.5">
+                <p id="section-toc.1-1.7.2.5.1"><a href="#section-7.5" class="auto internal xref">7.5</a>.  <a href="#name-protocol-bridging-risks" class="internal xref">Protocol Bridging Risks</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.6">
+                <p id="section-toc.1-1.7.2.6.1"><a href="#section-7.6" class="auto internal xref">7.6</a>.  <a href="#name-server-vulnerabilities" class="internal xref">Server Vulnerabilities</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.7">
+                <p id="section-toc.1-1.7.2.7.1"><a href="#section-7.7" class="auto internal xref">7.7</a>.  <a href="#name-client-vulnerabilities" class="internal xref">Client Vulnerabilities</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-examples" class="internal xref">Examples</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1">
+                <p id="section-toc.1-1.8.2.1.1"><a href="#section-8.1" class="auto internal xref">8.1</a>.  <a href="#name-creating-a-mailbox-with-ann" class="internal xref">Creating a Mailbox with Annotation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.2">
+                <p id="section-toc.1-1.8.2.2.1"><a href="#section-8.2" class="auto internal xref">8.2</a>.  <a href="#name-retrieving-a-mailbox-with-m" class="internal xref">Retrieving a Mailbox with Metadata</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.3">
+                <p id="section-toc.1-1.8.2.3.1"><a href="#section-8.3" class="auto internal xref">8.3</a>.  <a href="#name-attaching-photography-metad" class="internal xref">Attaching Photography Metadata to a FileNode</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.4">
+                <p id="section-toc.1-1.8.2.4.1"><a href="#section-8.4" class="auto internal xref">8.4</a>.  <a href="#name-retrieving-a-filenode-with-" class="internal xref">Retrieving a FileNode with Photography Metadata</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-iana-considerations" class="internal xref">IANA considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
+                <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="auto internal xref">9.1</a>.  <a href="#name-jmap-capability-registratio" class="internal xref">JMAP Capability Registration for "metadata"</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.2">
+                <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="auto internal xref">9.2</a>.  <a href="#name-jmap-data-type-registration" class="internal xref">JMAP Data Type Registration for "Metadata"</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3">
+                <p id="section-toc.1-1.9.2.3.1"><a href="#section-9.3" class="auto internal xref">9.3</a>.  <a href="#name-creation-of-the-jmap-metada" class="internal xref">Creation of the "JMAP Metadata Properties" Registry</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3.2.1">
+                    <p id="section-toc.1-1.9.2.3.2.1.1"><a href="#section-9.3.1" class="auto internal xref">9.3.1</a>.  <a href="#name-preliminary-community-revie" class="internal xref">Preliminary Community Review</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3.2.2">
+                    <p id="section-toc.1-1.9.2.3.2.2.1"><a href="#section-9.3.2" class="auto internal xref">9.3.2</a>.  <a href="#name-change-procedures" class="internal xref">Change Procedures</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3.2.3">
+                    <p id="section-toc.1-1.9.2.3.2.3.1"><a href="#section-9.3.3" class="auto internal xref">9.3.3</a>.  <a href="#name-jmap-metadata-properties-re" class="internal xref">"JMAP Metadata Properties" Registry Template</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3.2.4">
+                    <p id="section-toc.1-1.9.2.3.2.4.1"><a href="#section-9.3.4" class="auto internal xref">9.3.4</a>.  <a href="#name-submit-request-to-iana" class="internal xref">Submit Request to IANA</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3.2.5">
+                    <p id="section-toc.1-1.9.2.3.2.5.1"><a href="#section-9.3.5" class="auto internal xref">9.3.5</a>.  <a href="#name-designated-expert-review" class="internal xref">Designated Expert Review</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3.2.6">
+                    <p id="section-toc.1-1.9.2.3.2.6.1"><a href="#section-9.3.6" class="auto internal xref">9.3.6</a>.  <a href="#name-initial-contents-for-the-jm" class="internal xref">Initial Contents for the "JMAP Metadata Properties" Registry</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.4">
+                <p id="section-toc.1-1.9.2.4.1"><a href="#section-9.4" class="auto internal xref">9.4</a>.  <a href="#name-creation-of-the-jmap-metadat" class="internal xref">Creation of the "JMAP Metadata Types" Registry</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.4.2.1">
+                    <p id="section-toc.1-1.9.2.4.2.1.1"><a href="#section-9.4.1" class="auto internal xref">9.4.1</a>.  <a href="#name-jmap-metadata-types-registr" class="internal xref">"JMAP Metadata Types" Registry Template</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.4.2.2">
+                    <p id="section-toc.1-1.9.2.4.2.2.1"><a href="#section-9.4.2" class="auto internal xref">9.4.2</a>.  <a href="#name-initial-contents-for-the-jma" class="internal xref">Initial Contents for the "JMAP Metadata Types" Registry</a></p>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.1">
+                <p id="section-toc.1-1.10.2.1.1"><a href="#section-10.1" class="auto internal xref">10.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.2">
+                <p id="section-toc.1-1.10.2.2.1"><a href="#section-10.2" class="auto internal xref">10.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-changes" class="internal xref">Changes</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
+            <p id="section-toc.1-1.12.1"><a href="#appendix-B" class="auto internal xref"></a><a href="#name-authors-address" class="internal xref">Author's Address</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="introduction">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<p id="section-1-1">JMAP (<span>[<a href="#RFC8620" class="cite xref">RFC8620</a>]</span> — JSON Meta Application Protocol) is a generic protocol for synchronizing data, such as mail, calendars or contacts, between a client and a server. It is optimized for mobile and web environments, and aims to provide a consistent interface to different data types.<a href="#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">Metadata and annotations are auxiliary data elements that provide additional context, user-defined properties, or system-specific information about primary data objects. These mechanisms have proven valuable in existing protocols: IMAP <span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span> provides the METADATA extension <span>[<a href="#RFC5464" class="cite xref">RFC5464</a>]</span> for associating arbitrary key-value pairs with mailboxes and the server, while WebDAV <span>[<a href="#RFC4918" class="cite xref">RFC4918</a>]</span> supports "dead properties" that allow clients to store custom XML properties on resources. Such metadata capabilities enable a wide range of use cases, including user annotations, application-specific settings, collaborative tagging, and protocol bridging.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-3">This document defines a standardized approach to managing metadata within JMAP. The specification introduces a generic annotation mechanism that can be applied to any JMAP object type, allowing both common metadata properties and vendor-specific extensions. This provides a consistent interface for clients to store and retrieve supplementary information associated with emails, contacts, calendar events, and other JMAP data types.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<p id="section-1-4">For servers that implement multiple protocols, this specification also defines optional specialized metadata types: ImapMetadata for accessing IMAP METADATA extension entries through JMAP, and WebDavMetadata for exposing WebDAV dead properties via JMAP interfaces. These specialized types facilitate protocol interoperability and allow clients to manage metadata across different protocol boundaries.<a href="#section-1-4" class="pilcrow">¶</a></p>
+<div id="notational-conventions">
+<section id="section-1.1">
+        <h3 id="name-notational-conventions">
+<a href="#section-1.1" class="section-number selfRef">1.1. </a><a href="#name-notational-conventions" class="section-name selfRef">Notational Conventions</a>
+        </h3>
+<p id="section-1.1-1">The key words "<span class="bcp14">MUST</span>", "<span class="bcp14">MUST NOT</span>", "<span class="bcp14">REQUIRED</span>", "<span class="bcp14">SHALL</span>", "<span class="bcp14">SHALL NOT</span>", "<span class="bcp14">SHOULD</span>", "<span class="bcp14">SHOULD NOT</span>", "<span class="bcp14">RECOMMENDED</span>", "<span class="bcp14">NOT RECOMMENDED</span>",
+"<span class="bcp14">MAY</span>", and "<span class="bcp14">OPTIONAL</span>" in this document are to be interpreted as
+described in BCP 14 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span> <span>[<a href="#RFC8174" class="cite xref">RFC8174</a>]</span> when, and only when, they
+appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="addition-to-the-capabilities-object">
+<section id="section-1.2">
+        <h3 id="name-addition-to-the-capabilitie">
+<a href="#section-1.2" class="section-number selfRef">1.2. </a><a href="#name-addition-to-the-capabilitie" class="section-name selfRef">Addition to the Capabilities Object</a>
+        </h3>
+<p id="section-1.2-1">The capabilities object is returned as part of the JMAP Session object; see <span><a href="https://rfc-editor.org/rfc/rfc8620#section-2" class="relref">Section 2</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>. This document defines one additional capability URI.<a href="#section-1.2-1" class="pilcrow">¶</a></p>
+<div id="urnietfparamsjmapmetadata">
+<section id="section-1.2.1">
+          <h4 id="name-urnietfparamsjmapmetadata">
+<a href="#section-1.2.1" class="section-number selfRef">1.2.1. </a><a href="#name-urnietfparamsjmapmetadata" class="section-name selfRef">urn:ietf:params:jmap:metadata</a>
+          </h4>
+<p id="section-1.2.1-1">This capability represents support for the Metadata data type and associated API methods. Servers that include this capability provide the ability to create, retrieve, update, and query Metadata objects.<a href="#section-1.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-1.2.1-2">The value of this property in the JMAP Session "capabilities" property is an empty object.<a href="#section-1.2.1-2" class="pilcrow">¶</a></p>
+<p id="section-1.2.1-3">The value of this property in an account's "accountCapabilities" property is an object that <span class="bcp14">MUST</span> contain the following information on server capabilities and permissions for that account:<a href="#section-1.2.1-3" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-1.2.1-4">
+            <dt id="section-1.2.1-4.1">
+<strong>dataTypes</strong>: <code>String[]|null</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-1.2.1-4.2">
+              <p id="section-1.2.1-4.2.1">A list of JMAP data types for which the server supports metadata operations. A value of <code>null</code> indicates support for all data types. When specified as an array, only the listed data types can have Metadata objects associated with them.<a href="#section-1.2.1-4.2.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-1.2.1-4.3">
+<strong>metadataTypes</strong>: <code>String[]</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-1.2.1-4.4">
+              <p id="section-1.2.1-4.4.1">A list of metadata type identifiers (values of the <code>@type</code> property) for which the server supports metadata operations. Only the listed metadata types can be created or retrieved.<a href="#section-1.2.1-4.4.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-1.2.1-4.5">
+<strong>maxDepth</strong>: <code>UnsignedInt|null</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-1.2.1-4.6">
+              <p id="section-1.2.1-4.6.1">Maximum depth of nested vendor-specific metadata properties that can be set or retrieved. A depth of 1 indicates only flat properties are supported. A depth of 2 allows one level of nesting, and so forth. A value of <code>null</code> indicates no server-enforced limit on nesting depth. This limitation applies to the structure of vendor-defined nested metadata properties within Annotation objects and does not affect the standard properties defined in this specification.<a href="#section-1.2.1-4.6.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-1.2.1-4.7">
+<strong>maySetPrivate</strong>: <code>Boolean</code> (default: true)</dt>
+            <dd style="margin-left: 1.5em" id="section-1.2.1-4.8">
+              <p id="section-1.2.1-4.8.1">Indicates whether the authenticated user has permission to create private metadata objects (<code>isPrivate</code>: true) in this account. If false, the user can only create shared metadata objects. Attempts to create private metadata when this capability is false <span class="bcp14">MUST</span> be rejected with a "forbidden" SetError.<a href="#section-1.2.1-4.8.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="metadata-object">
+<section id="section-2">
+      <h2 id="name-metadata-object">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-metadata-object" class="section-name selfRef">Metadata Object</a>
+      </h2>
+<p id="section-2-1">The Metadata object has a collection of properties, as specified in the following sections. Properties are specified as being either mandatory or optional. Optional properties may have a default value if explicitly specified in the property definition.<a href="#section-2-1" class="pilcrow">¶</a></p>
+<div id="object-types">
+<section id="section-2.1">
+        <h3 id="name-object-types">
+<a href="#section-2.1" class="section-number selfRef">2.1. </a><a href="#name-object-types" class="section-name selfRef">Object Types</a>
+        </h3>
+<p id="section-2.1-1">This specification defines three metadata object types: Annotation, ImapMetadata, and WebDavMetadata. The Annotation type provides a generic mechanism for attaching metadata to any JMAP object and supports arbitrary vendor-specific properties. The ImapMetadata and WebDavMetadata types are specialized metadata objects that provide structured access to IMAP METADATA extension <span>[<a href="#RFC5464" class="cite xref">RFC5464</a>]</span> entries and WebDAV <span>[<a href="#RFC4918" class="cite xref">RFC4918</a>]</span> dead properties, respectively, enabling protocol interoperability for servers that support multiple protocols.<a href="#section-2.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.1-2">Additional specifications <span class="bcp14">MAY</span> define further metadata types as needed to address specific use cases or protocol requirements. Such specifications <span class="bcp14">MUST</span> define a unique type identifier and specify which JMAP data types the metadata type may be associated with.<a href="#section-2.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.1-3">Metadata objects <span class="bcp14">MUST</span> name their type in the <code>@type</code> property. If not specified, the type is assumed to be "Annotation".<a href="#section-2.1-3" class="pilcrow">¶</a></p>
+<div id="object-type-annotation">
+<section id="section-2.1.1">
+          <h4 id="name-annotation">
+<a href="#section-2.1.1" class="section-number selfRef">2.1.1. </a><a href="#name-annotation" class="section-name selfRef">Annotation</a>
+          </h4>
+<p id="section-2.1.1-1">An Annotation represents general-purpose metadata that can be attached to any JMAP object. Annotations provide a flexible mechanism for storing supplementary information about JMAP data objects without modifying the objects themselves. This metadata type is suitable for user comments, application-specific tags, workflow states, collaborative annotations, and other extensible metadata requirements.<a href="#section-2.1.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-2">The Annotation type is designed to be extensible through vendor-specific properties. This allows vendors and third-party applications to add custom metadata fields while maintaining interoperability with the core JMAP metadata system. Vendors can define domain-namespaced properties to avoid naming conflicts and ensure that their extensions do not interfere with standard properties or extensions from other vendors.<a href="#section-2.1.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-3">Common use cases for Annotations include: storing user notes or comments on emails or calendar events; maintaining application-specific flags or states; recording collaborative review or approval status; tracking custom workflow stages; and preserving client-specific UI preferences or cached computations.<a href="#section-2.1.1-3" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-4">The Annotation type <span class="bcp14">MUST</span> allow vendor-specific properties to be added beyond the common properties defined in this specification, subject to the naming and structure requirements specified in <span><a href="#vendor-specific-properties" class="internal xref">Vendor-Specific Properties</a> (<a href="#vendor-specific-properties" class="auto internal xref">Section 2.2.1.6</a>)</span>.<a href="#section-2.1.1-4" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-5">The <span><a href="#type-property" class="internal xref">@type</a> (<a href="#type-property" class="auto internal xref">Section 2.2.1.1</a>)</span> property value <span class="bcp14">MUST</span> be "Annotation".<a href="#section-2.1.1-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="object-type-imap">
+<section id="section-2.1.2">
+          <h4 id="name-imap-metadata">
+<a href="#section-2.1.2" class="section-number selfRef">2.1.2. </a><a href="#name-imap-metadata" class="section-name selfRef">IMAP Metadata</a>
+          </h4>
+<p id="section-2.1.2-1">ImapMetadata represents metadata associated with IMAP mailboxes as defined by the IMAP METADATA extension <span>[<a href="#RFC5464" class="cite xref">RFC5464</a>]</span>. This metadata type provides a JMAP interface to IMAP metadata entries, allowing clients to read and potentially modify IMAP metadata through the JMAP protocol. This facilitates migration scenarios, protocol bridging, and unified metadata management for servers that support both IMAP and JMAP.<a href="#section-2.1.2-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.2-2">The IMAP METADATA extension defines a hierarchical namespace of metadata entries associated with mailboxes, organized under "/shared" and "/private" prefixes. Shared metadata entries are visible to all users with appropriate access to the mailbox, while private metadata entries are visible only to the authenticated user. The ImapMetadata type maps these IMAP concepts onto the JMAP metadata model.<a href="#section-2.1.2-2" class="pilcrow">¶</a></p>
+<p id="section-2.1.2-3">Servers that support ImapMetadata <span class="bcp14">MUST</span> provide read access to IMAP metadata through the Metadata/get method. Write access (the ability to create, update, or destroy ImapMetadata objects through Metadata/set) is <span class="bcp14">OPTIONAL</span>. Servers that provide read-only access to IMAP metadata <span class="bcp14">MUST</span> reject modification attempts with an appropriate SetError (typically "forbidden"). Servers <span class="bcp14">SHOULD</span> document whether they provide read-only or read-write access to ImapMetadata.<a href="#section-2.1.2-3" class="pilcrow">¶</a></p>
+<p id="section-2.1.2-4">This metadata type can only be associated with JMAP Mailbox objects as defined in <span><a href="https://rfc-editor.org/rfc/rfc8621#section-2" class="relref">Section 2</a> of [<a href="#RFC8621" class="cite xref">RFC8621</a>]</span>. Attempts to create ImapMetadata objects with a <code>parentType</code> other than "Mailbox" <span class="bcp14">MUST</span> be rejected with an "invalidProperties" SetError.<a href="#section-2.1.2-4" class="pilcrow">¶</a></p>
+<p id="section-2.1.2-5">The <span><a href="#type-property" class="internal xref">@type</a> (<a href="#type-property" class="auto internal xref">Section 2.2.1.1</a>)</span> property value <span class="bcp14">MUST</span> be "ImapMetadata".<a href="#section-2.1.2-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="object-type-webdav">
+<section id="section-2.1.3">
+          <h4 id="name-webdav-metadata">
+<a href="#section-2.1.3" class="section-number selfRef">2.1.3. </a><a href="#name-webdav-metadata" class="section-name selfRef">WebDAV Metadata</a>
+          </h4>
+<p id="section-2.1.3-1">WebDavMetadata represents metadata associated with WebDAV resources in the form of "dead properties" as defined in <span><a href="https://rfc-editor.org/rfc/rfc4918#section-4" class="relref">Section 4</a> of [<a href="#RFC4918" class="cite xref">RFC4918</a>]</span>. Dead properties are arbitrary XML properties that clients can set on WebDAV resources to store metadata. This metadata type enables JMAP clients to access and potentially manipulate WebDAV dead properties, facilitating protocol interoperability and unified metadata management on servers that support both WebDAV and JMAP.<a href="#section-2.1.3-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.3-2">WebDAV dead properties are identified by their expanded XML name, which consists of a namespace URI and a local name. The WebDavMetadata type preserves this structure by using the expanded-name format for property keys: "{namespace-uri}localname". This ensures that WebDAV properties can be accurately represented and manipulated through JMAP without loss of namespace information.<a href="#section-2.1.3-2" class="pilcrow">¶</a></p>
+<p id="section-2.1.3-3">Servers that support WebDavMetadata <span class="bcp14">MUST</span> provide read access to WebDAV dead properties through the Metadata/get method. Write access (the ability to create, update, or destroy WebDavMetadata objects through Metadata/set) is <span class="bcp14">OPTIONAL</span>. Servers that provide read-only access to WebDAV dead properties <span class="bcp14">MUST</span> reject modification attempts with an appropriate SetError (typically "forbidden"). Servers <span class="bcp14">SHOULD</span> document whether they provide read-only or read-write access to WebDavMetadata.<a href="#section-2.1.3-3" class="pilcrow">¶</a></p>
+<p id="section-2.1.3-4">This metadata type can be associated with Calendar <span>[<a href="#I-D.ietf-jmap-calendars" class="cite xref">I-D.ietf-jmap-calendars</a>]</span>, CalendarEvent <span>[<a href="#I-D.ietf-jmap-calendars" class="cite xref">I-D.ietf-jmap-calendars</a>]</span>, AddressBook <span>[<a href="#RFC9610" class="cite xref">RFC9610</a>]</span>, ContactCard <span>[<a href="#RFC9610" class="cite xref">RFC9610</a>]</span>, and FileNode <span>[<a href="#I-D.ietf-jmap-filenode" class="cite xref">I-D.ietf-jmap-filenode</a>]</span> data types, corresponding to the WebDAV-based protocols such as CalDAV <span>[<a href="#RFC4791" class="cite xref">RFC4791</a>]</span>, CardDAV <span>[<a href="#RFC6352" class="cite xref">RFC6352</a>]</span>, and WebDAV file storage. Servers <span class="bcp14">MUST</span> enforce that WebDavMetadata objects are only created for parent types that correspond to WebDAV resources. Attempts to create WebDavMetadata objects with inappropriate <code>parentType</code> values <span class="bcp14">MAY</span> be rejected with an "invalidProperties" SetError.<a href="#section-2.1.3-4" class="pilcrow">¶</a></p>
+<p id="section-2.1.3-5">The <span><a href="#type-property" class="internal xref">@type</a> (<a href="#type-property" class="auto internal xref">Section 2.2.1.1</a>)</span> property value <span class="bcp14">MUST</span> be "WebDavMetadata".<a href="#section-2.1.3-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="properties">
+<section id="section-2.2">
+        <h3 id="name-properties">
+<a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-properties" class="section-name selfRef">Properties</a>
+        </h3>
+<div id="common-metadata-properties">
+<section id="section-2.2.1">
+          <h4 id="name-common-properties">
+<a href="#section-2.2.1" class="section-number selfRef">2.2.1. </a><a href="#name-common-properties" class="section-name selfRef">Common Properties</a>
+          </h4>
+<div id="type-property">
+<section id="section-2.2.1.1">
+            <h5 id="name-type">
+<a href="#section-2.2.1.1" class="section-number selfRef">2.2.1.1. </a><a href="#name-type" class="section-name selfRef">@type</a>
+            </h5>
+<p id="section-2.2.1.1-1">Type: <code>String</code> (mandatory)<a href="#section-2.2.1.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.1-2">This specifies the type that this object represents. The allowed value differs by object type and is defined in Sections <a href="#object-type-annotation" class="auto internal xref">Section 2.1.1</a>, <a href="#object-type-imap" class="auto internal xref">Section 2.1.2</a>, and <a href="#object-type-webdav" class="auto internal xref">Section 2.1.3</a>.<a href="#section-2.2.1.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="id-property">
+<section id="section-2.2.1.2">
+            <h5 id="name-id">
+<a href="#section-2.2.1.2" class="section-number selfRef">2.2.1.2. </a><a href="#name-id" class="section-name selfRef">id</a>
+            </h5>
+<p id="section-2.2.1.2-1">Type: <code>Id</code> (server-set)<a href="#section-2.2.1.2-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.2-2">The id of the Metadata object. This identifier is unique within the scope of the account and is assigned by the server upon creation.<a href="#section-2.2.1.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="parent-type-property">
+<section id="section-2.2.1.3">
+            <h5 id="name-parenttype">
+<a href="#section-2.2.1.3" class="section-number selfRef">2.2.1.3. </a><a href="#name-parenttype" class="section-name selfRef">parentType</a>
+            </h5>
+<p id="section-2.2.1.3-1">Type: <code>String</code> (mandatory)<a href="#section-2.2.1.3-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.3-2">The JMAP data type of the object to which this Metadata object is attached, e.g., "Email", "ContactCard", "Mailbox", "CalendarEvent". The <code>parentType</code> determines the kind of object identified by the <code>parentId</code> property.<a href="#section-2.2.1.3-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="parent-id-property">
+<section id="section-2.2.1.4">
+            <h5 id="name-parentid">
+<a href="#section-2.2.1.4" class="section-number selfRef">2.2.1.4. </a><a href="#name-parentid" class="section-name selfRef">parentId</a>
+            </h5>
+<p id="section-2.2.1.4-1">Type: <code>Id</code> (mandatory)<a href="#section-2.2.1.4-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.4-2">The id of the JMAP object to which this Metadata object is attached. This id <span class="bcp14">MUST</span> correspond to a valid object of the type specified in <code>parentType</code> within the same account.<a href="#section-2.2.1.4-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="is-private-property">
+<section id="section-2.2.1.5">
+            <h5 id="name-isprivate">
+<a href="#section-2.2.1.5" class="section-number selfRef">2.2.1.5. </a><a href="#name-isprivate" class="section-name selfRef">isPrivate</a>
+            </h5>
+<p id="section-2.2.1.5-1">Type: <code>Boolean</code> (default: false)<a href="#section-2.2.1.5-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.5-2">Indicates whether the Metadata object is private to the authenticated user or shared among all users with access to the parent object. If true, the Metadata object represents user-specific metadata that is visible only to the user who created it. If false or omitted, the Metadata object is considered shared and can be accessed by other users with appropriate permissions on the parent object, as defined in <span><a href="#access-control" class="internal xref">Access Control</a> (<a href="#access-control" class="auto internal xref">Section 5</a>)</span>.<a href="#section-2.2.1.5-2" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.5-3">The <code>isPrivate</code> property enables per-user metadata on shared objects. Multiple users may each have their own private Metadata objects associated with the same parent object and metadata type. When a client queries for Metadata objects with <code>isPrivate</code>: true, the server <span class="bcp14">MUST</span> return only those private Metadata objects that were created by the currently authenticated user. Private Metadata objects created by other users <span class="bcp14">MUST NOT</span> be visible to the authenticated user, even if they have access to the parent object.<a href="#section-2.2.1.5-3" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.5-4">Internally, the server may store multiple private Metadata objects for the same combination of <code>parentType</code>, <code>parentId</code>, and <code>@type</code> (one for each user who has set private metadata). However, from the perspective of any given authenticated user, there is at most one visible private Metadata object for each parent-type combination—specifically, the private Metadata object that they themselves created. Other users' private Metadata objects for the same parent object and type are not visible to them.<a href="#section-2.2.1.5-4" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.5-5">For shared Metadata objects (<code>isPrivate</code>: false), there is at most one Metadata object per combination of <code>parentType</code>, <code>parentId</code>, and <code>@type</code>, and it is visible to all users with appropriate permissions on the parent object.<a href="#section-2.2.1.5-5" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.5-6">For ImapMetadata objects, this property determines whether the metadata corresponds to IMAP entries under the "/private/" or "/shared/" prefix hierarchy.<a href="#section-2.2.1.5-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="vendor-specific-properties">
+<section id="section-2.2.1.6">
+            <h5 id="name-vendor-specific-properties">
+<a href="#section-2.2.1.6" class="section-number selfRef">2.2.1.6. </a><a href="#name-vendor-specific-properties" class="section-name selfRef">Vendor-Specific Properties</a>
+            </h5>
+<p id="section-2.2.1.6-1">Vendors <span class="bcp14">MAY</span> add additional properties to Metadata objects to support their custom features or requirements. To prevent naming conflicts, the names of vendor-specific properties <span class="bcp14">MUST</span> be prefixed by a domain name controlled by the vendor followed by a colon, e.g., <code>example.com:customField</code> or <code>vendor.org:internalState</code>. The use of domain name prefixes ensures global uniqueness and allows multiple vendors to extend the metadata schema without interference.<a href="#section-2.2.1.6-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.6-2">If the value of a vendor-specific property is itself a Metadata object (nested object), it either <span class="bcp14">MUST</span> include an <code>@type</code> property to identify its type, or the property definition <span class="bcp14">MUST</span> explicitly specify that a type designator is not required for that particular property. If a type is specified for a nested vendor-specific object, the type name <span class="bcp14">MUST</span> also be prefixed with a domain name controlled by the vendor, e.g., <code>example.com:CustomMetadataType</code>.<a href="#section-2.2.1.6-2" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.6-3">Vendors are strongly encouraged to register any new property values or extensions that are useful to other systems as well, rather than use a vendor-specific prefix. Registration with IANA or documentation in public specifications enhances interoperability and allows broader adoption of useful metadata extensions.<a href="#section-2.2.1.6-3" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.6-4">Server implementations <span class="bcp14">MUST</span> preserve vendor-specific properties that they do not recognize when updating Metadata objects, unless the update explicitly removes those properties. This ensures that metadata from one vendor's client is not inadvertently lost when another client (or the server itself) modifies other properties of the Metadata object.<a href="#section-2.2.1.6-4" class="pilcrow">¶</a></p>
+<p id="section-2.2.1.6-5">Annotation type Metadata objects <span class="bcp14">MUST</span> allow vendor-specific properties to be added beyond the common properties defined above. This extensibility mechanism enables vendors and third-party applications to store custom metadata without requiring standardization of every use case.<a href="#section-2.2.1.6-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="imapmetadata-properties">
+<section id="section-2.2.2">
+          <h4 id="name-imapmetadata-properties">
+<a href="#section-2.2.2" class="section-number selfRef">2.2.2. </a><a href="#name-imapmetadata-properties" class="section-name selfRef">ImapMetadata Properties</a>
+          </h4>
+<p id="section-2.2.2-1">In addition to the common Metadata object properties (<a href="#common-metadata-properties" class="auto internal xref">Section 2.2.1</a>), an <code>ImapMetadata</code> object has the following properties:<a href="#section-2.2.2-1" class="pilcrow">¶</a></p>
+<div id="metadata-property-imap">
+<section id="section-2.2.2.1">
+            <h5 id="name-metadata">
+<a href="#section-2.2.2.1" class="section-number selfRef">2.2.2.1. </a><a href="#name-metadata" class="section-name selfRef">metadata</a>
+            </h5>
+<p id="section-2.2.2.1-1">Type: <code>[String]String</code> (default: {})<a href="#section-2.2.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.2.1-2">The IMAP METADATA extension <span>[<a href="#RFC5464" class="cite xref">RFC5464</a>]</span> defines a mechanism for clients to store and retrieve arbitrary key-value metadata associated with IMAP mailboxes. Metadata entries are organized in a hierarchical namespace with two top-level prefixes: "/private/" for per-user private metadata and "/shared/" for metadata shared among all users with access to the mailbox.<a href="#section-2.2.2.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.2.2.1-3">This property contains the key-value pairs of IMAP metadata entries associated with the mailbox. The keys in this map represent IMAP metadata entry names with the "/private/" or "/shared/" prefix removed. The values are the corresponding metadata values as strings. The interpretation of keys depends on the value of the <code>isPrivate</code> property:<a href="#section-2.2.2.1-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-2.2.2.1-4.1">
+                <p id="section-2.2.2.1-4.1.1">If <code>isPrivate</code> is true, the keys represent metadata entries under the "/private/" prefix. For example, a key "comment" with value "Important mailbox" corresponds to the IMAP metadata entry "/private/comment" with that value. A key "vendor/example.com/setting" would correspond to "/private/vendor/example.com/setting".<a href="#section-2.2.2.1-4.1.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-2.2.2.1-4.2">
+                <p id="section-2.2.2.1-4.2.1">If <code>isPrivate</code> is false, the keys represent metadata entries under the "/shared/" prefix. A key "comment" with value "Team mailbox" would correspond to "/shared/comment". For example, if an ImapMetadata object has <code>isPrivate</code> set to true and the metadata property contains <code>{"comment": "My notes", "vendor/acme.example/color": "blue"}</code>, this represents IMAP metadata entries "/private/comment" with value "My notes" and "/private/vendor/acme.example/color" with value "blue".<a href="#section-2.2.2.1-4.2.1" class="pilcrow">¶</a></p>
+</li>
+            </ul>
+<p id="section-2.2.2.1-5">Servers <span class="bcp14">MUST</span> ensure that the IMAP metadata namespace conventions are preserved. When retrieving IMAP metadata, servers <span class="bcp14">SHOULD</span> strip the "/private/" or "/shared/" prefix based on the <code>isPrivate</code> property value. When setting IMAP metadata through this interface, servers <span class="bcp14">MUST</span> prepend the appropriate prefix before storing the entry in the IMAP metadata store.<a href="#section-2.2.2.1-5" class="pilcrow">¶</a></p>
+<p id="section-2.2.2.1-6">Empty string values are permitted and represent IMAP metadata entries that exist but have no value. To delete an IMAP metadata entry through this interface, clients should remove the corresponding key from the metadata map entirely.<a href="#section-2.2.2.1-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="webdavmetadata-properties">
+<section id="section-2.2.3">
+          <h4 id="name-webdavmetadata-properties">
+<a href="#section-2.2.3" class="section-number selfRef">2.2.3. </a><a href="#name-webdavmetadata-properties" class="section-name selfRef">WebDavMetadata Properties</a>
+          </h4>
+<p id="section-2.2.3-1">In addition to the common Metadata object properties (<a href="#common-metadata-properties" class="auto internal xref">Section 2.2.1</a>), an <code>WebDavMetadata</code> object has the following properties:<a href="#section-2.2.3-1" class="pilcrow">¶</a></p>
+<div id="metadata-property-webdav">
+<section id="section-2.2.3.1">
+            <h5 id="name-metadata-2">
+<a href="#section-2.2.3.1" class="section-number selfRef">2.2.3.1. </a><a href="#name-metadata-2" class="section-name selfRef">metadata</a>
+            </h5>
+<p id="section-2.2.3.1-1">Type: <code>[String]String</code> (default: {})<a href="#section-2.2.3.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.3.1-2">WebDAV <span>[<a href="#RFC4918" class="cite xref">RFC4918</a>]</span> defines "dead properties" as arbitrary properties set by clients on WebDAV resources. Unlike "live properties" which have their semantics enforced by the server, dead properties are stored and returned verbatim without server interpretation. Dead properties are identified by XML expanded names, which consist of a namespace URI and a local name.<a href="#section-2.2.3.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.2.3.1-3">This property contains the key-value pairs of WebDAV dead properties associated with the resource. The keys <span class="bcp14">MUST</span> be in the expanded-name format: "{namespace-uri}localname". For example, a property with namespace URI "http://example.com/ns" and local name "priority" would be represented as the key "{http://example.com/ns}priority".<a href="#section-2.2.3.1-3" class="pilcrow">¶</a></p>
+<p id="section-2.2.3.1-4">The values are the string representations of the dead properties. For properties that contain simple text content, the value is that text content. For properties that contain complex XML structure or content that cannot be directly represented as a simple string, the value <span class="bcp14">MUST</span> be the serialized XML representation of the property's content. The serialization <span class="bcp14">SHOULD</span> preserve the XML structure including elements, attributes, and namespaces, but typically excludes the outer property element itself (since the property name is already represented in the key).<a href="#section-2.2.3.1-4" class="pilcrow">¶</a></p>
+<p id="section-2.2.3.1-5">For example, a WebDavMetadata object might have a metadata property containing:<a href="#section-2.2.3.1-5" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-2.2.3.1-6">
+<pre>
+{
+  "{http://example.com/ns}priority": "high",
+  "{http://example.com/ns}reviewedBy": "alice@example.com",
+  "{DAV:}displayname": "Project Documents",
+  "{http://example.com/ns}complexdata":
+     "&lt;item&gt;&lt;name&gt;Test&lt;/name&gt;&lt;value&gt;123&lt;/value&gt;&lt;/item&gt;"
+}
+</pre><a href="#section-2.2.3.1-6" class="pilcrow">¶</a>
+</div>
+<p id="section-2.2.3.1-7">This represents four WebDAV dead properties: three with simple text content and one with XML structure serialized as a string.<a href="#section-2.2.3.1-7" class="pilcrow">¶</a></p>
+<p id="section-2.2.3.1-8">Servers <span class="bcp14">MUST</span> preserve the namespace and local name structure of WebDAV properties. When synchronizing between JMAP and WebDAV interfaces, servers <span class="bcp14">MUST</span> maintain consistency such that setting a property through one interface makes it visible through the other interface (subject to server support for write operations).<a href="#section-2.2.3.1-8" class="pilcrow">¶</a></p>
+<p id="section-2.2.3.1-9">The XML serialization format allows round-tripping of complex WebDAV properties through the JMAP interface. Clients that need to work with structured WebDAV properties can parse the XML string values to access the internal structure.<a href="#section-2.2.3.1-9" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="metadata-methods">
+<section id="section-3">
+      <h2 id="name-metadata-methods">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-metadata-methods" class="section-name selfRef">Metadata Methods</a>
+      </h2>
+<div id="metadataset">
+<section id="section-3.1">
+        <h3 id="name-metadata-set">
+<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-metadata-set" class="section-name selfRef">Metadata/set</a>
+        </h3>
+<p id="section-3.1-1">This is a standard "/set" method as described in <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.2" class="relref">Section 5.2</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>.<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<p id="section-3.1-2">The Metadata/set method enforces a uniqueness constraint to ensure consistent metadata management. From the perspective of an authenticated user, their account <span class="bcp14">MUST NOT</span> contain multiple visible Metadata objects with the same combination of <code>parentType</code>, <code>parentId</code>, <code>@type</code>, and <code>isPrivate</code> values. This constraint ensures that for any given parent object and metadata type, the user sees at most one private Metadata object (their own) and at most one shared Metadata object.<a href="#section-3.1-2" class="pilcrow">¶</a></p>
+<p id="section-3.1-3">For shared metadata (<code>isPrivate</code>: false), the server <span class="bcp14">MUST</span> enforce global uniqueness: only one shared Metadata object may exist for each combination of <code>parentType</code>, <code>parentId</code>, and <code>@type</code> across all users.<a href="#section-3.1-3" class="pilcrow">¶</a></p>
+<p id="section-3.1-4">For private metadata (<code>isPrivate</code>: true), the server <span class="bcp14">MUST</span> enforce per-user uniqueness: each user may have at most one private Metadata object for each combination of <code>parentType</code>, <code>parentId</code>, and <code>@type</code>. The server internally may store multiple private Metadata objects for the same parent-type combination (one per user), but each user can only see and modify their own.<a href="#section-3.1-4" class="pilcrow">¶</a></p>
+<p id="section-3.1-5">If a client attempts to create a Metadata object that would violate this uniqueness constraint for the authenticated user, the server <span class="bcp14">MUST</span> reject the create operation with an "invalidProperties" SetError. The SetError <span class="bcp14">SHOULD</span> include a description indicating that a Metadata object with the specified combination of properties already exists. Clients that wish to modify existing metadata should use the update operation rather than attempting to create a duplicate.<a href="#section-3.1-5" class="pilcrow">¶</a></p>
+<p id="section-3.1-6">Similarly, if an update operation would change the <code>parentType</code>, <code>parentId</code>, <code>@type</code>, or <code>isPrivate</code> properties such that the resulting Metadata object would conflict with an existing object visible to the authenticated user, the server <span class="bcp14">MUST</span> reject the update with an "invalidProperties" SetError.<a href="#section-3.1-6" class="pilcrow">¶</a></p>
+<p id="section-3.1-7">If the maySetPrivate capability is false for the account and a client attempts to create or update a Metadata object with <code>isPrivate</code>: true, the server <span class="bcp14">MUST</span> reject the operation with a "forbidden" SetError.<a href="#section-3.1-7" class="pilcrow">¶</a></p>
+<p id="section-3.1-8">Servers <span class="bcp14">SHOULD</span> enforce quota limits when processing Metadata/set requests. If a create or update operation would cause the account's metadata storage to exceed its quota, the server <span class="bcp14">MUST</span> reject the operation with an "overQuota" SetError. The SetError <span class="bcp14">MAY</span> include additional information about the quota limit and current usage in its description property. Quota enforcement is discussed further in the Quota section.<a href="#section-3.1-8" class="pilcrow">¶</a></p>
+<p id="section-3.1-9">Servers <span class="bcp14">MUST</span> validate that the <code>parentType</code> and <code>parentId</code> values reference a valid existing object of the appropriate type. If the parent object does not exist or the <code>parentType</code> is not recognized, the server <span class="bcp14">SHOULD</span> reject the operation with an "invalidProperties" SetError, with the "properties" field including "<code>parentType</code>" and/or "<code>parentId</code>" as appropriate.<a href="#section-3.1-9" class="pilcrow">¶</a></p>
+<p id="section-3.1-10">For ImapMetadata objects, servers <span class="bcp14">MUST</span> verify that the <code>parentType</code> is "Mailbox" (<span><a href="https://rfc-editor.org/rfc/rfc8621#section-2" class="relref">Section 2</a> of [<a href="#RFC8621" class="cite xref">RFC8621</a>]</span>). For WebDavMetadata objects, servers <span class="bcp14">MUST</span> verify that the <code>parentType</code> is one of the supported WebDAV-backed types (Calendar <span>[<a href="#I-D.ietf-jmap-calendars" class="cite xref">I-D.ietf-jmap-calendars</a>]</span>, CalendarEvent <span>[<a href="#I-D.ietf-jmap-calendars" class="cite xref">I-D.ietf-jmap-calendars</a>]</span>, AddressBook <span>[<a href="#RFC9610" class="cite xref">RFC9610</a>]</span>, ContactCard <span>[<a href="#RFC9610" class="cite xref">RFC9610</a>]</span>, FileNode <span>[<a href="#I-D.ietf-jmap-filenode" class="cite xref">I-D.ietf-jmap-filenode</a>]</span>, or other appropriate types as defined by the server).<a href="#section-3.1-10" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="metadataget">
+<section id="section-3.2">
+        <h3 id="name-metadata-get">
+<a href="#section-3.2" class="section-number selfRef">3.2. </a><a href="#name-metadata-get" class="section-name selfRef">Metadata/get</a>
+        </h3>
+<p id="section-3.2-1">This is a standard "/get" method as described in <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.1" class="relref">Section 5.1</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>. The "ids" argument <span class="bcp14">MAY</span> be null to fetch all Metadata objects in the account at once.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="metadatachanges">
+<section id="section-3.3">
+        <h3 id="name-metadata-changes">
+<a href="#section-3.3" class="section-number selfRef">3.3. </a><a href="#name-metadata-changes" class="section-name selfRef">Metadata/changes</a>
+        </h3>
+<p id="section-3.3-1">This is a standard "/changes" method as described in <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.2" class="relref">Section 5.2</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>.<a href="#section-3.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="metadataquery">
+<section id="section-3.4">
+        <h3 id="name-metadata-query">
+<a href="#section-3.4" class="section-number selfRef">3.4. </a><a href="#name-metadata-query" class="section-name selfRef">Metadata/query</a>
+        </h3>
+<p id="section-3.4-1">This is a standard "/query" method as described in <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.5" class="relref">Section 5.5</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>.<a href="#section-3.4-1" class="pilcrow">¶</a></p>
+<div id="filtering">
+<section id="section-3.4.1">
+          <h4 id="name-filtering">
+<a href="#section-3.4.1" class="section-number selfRef">3.4.1. </a><a href="#name-filtering" class="section-name selfRef">Filtering</a>
+          </h4>
+<p id="section-3.4.1-1">A <strong>FilterCondition</strong> object has the following properties, any of which may be omitted:<a href="#section-3.4.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlNewline" id="section-3.4.1-2">
+            <dt id="section-3.4.1-2.1">
+<strong>@type</strong>: <code>String[]</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-3.4.1-2.2">
+              <p id="section-3.4.1-2.2.1">Only Metadata objects whose <code>@type</code> property value is in the specified array are returned. This allows filtering for specific metadata types, for example, to retrieve only Annotation objects or only ImapMetadata objects.<a href="#section-3.4.1-2.2.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-3.4.1-2.3">
+<strong>parentType</strong>: <code>String</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-3.4.1-2.4">
+              <p id="section-3.4.1-2.4.1">Only Metadata objects whose <code>parentType</code> is equal to the specified value are returned. This is useful for retrieving metadata associated with a particular JMAP data type, such as all metadata on Email objects.<a href="#section-3.4.1-2.4.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-3.4.1-2.5">
+<strong>parentIds</strong>: <code>Id[]</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-3.4.1-2.6">
+              <p id="section-3.4.1-2.6.1">Only Metadata objects whose <code>parentId</code> is in the specified array are returned. This allows retrieving metadata for a specific set of parent objects.<a href="#section-3.4.1-2.6.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-3.4.1-2.7">
+<strong>isPrivate</strong>: <code>Boolean</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-3.4.1-2.8">
+              <p id="section-3.4.1-2.8.1">Only Metadata objects whose <code>isPrivate</code> property matches the specified value are returned. This allows filtering to retrieve only private metadata (true) or only shared metadata (false).<a href="#section-3.4.1-2.8.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-3.4.1-2.9">
+<strong>textMatch</strong>: <code>String</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-3.4.1-2.10">
+              <p id="section-3.4.1-2.10.1">Only Metadata objects whose vendor-specific string properties contain the specified text are returned. The match <span class="bcp14">SHOULD</span> be case-insensitive and <span class="bcp14">SHOULD</span> look for the text anywhere within the property values. Servers <span class="bcp14">MAY</span> extend this to match against standard properties as well, but <span class="bcp14">MUST</span> at minimum search vendor-specific properties. The exact matching algorithm is implementation-defined, but servers <span class="bcp14">SHOULD</span> document their behavior for this filter.<a href="#section-3.4.1-2.10.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="sorting">
+<section id="section-3.4.2">
+          <h4 id="name-sorting">
+<a href="#section-3.4.2" class="section-number selfRef">3.4.2. </a><a href="#name-sorting" class="section-name selfRef">Sorting</a>
+          </h4>
+<p id="section-3.4.2-1">The following properties <span class="bcp14">SHOULD</span> be supported for sorting:<a href="#section-3.4.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.4.2-2.1">
+              <p id="section-3.4.2-2.1.1">@type<a href="#section-3.4.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-3.4.2-2.2">
+              <p id="section-3.4.2-2.2.1">parentType<a href="#section-3.4.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-3.4.2-2.3">
+              <p id="section-3.4.2-2.3.1">parentId<a href="#section-3.4.2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-3.4.2-2.4">
+              <p id="section-3.4.2-2.4.1">isPrivate<a href="#section-3.4.2-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="metadataquerychanges">
+<section id="section-3.5">
+        <h3 id="name-metadata-querychanges">
+<a href="#section-3.5" class="section-number selfRef">3.5. </a><a href="#name-metadata-querychanges" class="section-name selfRef">Metadata/queryChanges</a>
+        </h3>
+<p id="section-3.5-1">This is a standard "/queryChanges" method as described in <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.6" class="relref">Section 5.6</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>.<a href="#section-3.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="standard-method-extensions">
+<section id="section-4">
+      <h2 id="name-standard-method-extensions">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-standard-method-extensions" class="section-name selfRef">Standard Method Extensions</a>
+      </h2>
+<p id="section-4-1">This specification extends the standard JMAP methods for existing data types to support metadata operations. These extensions allow clients to retrieve and manage metadata alongside the primary data objects in a unified, efficient manner.<a href="#section-4-1" class="pilcrow">¶</a></p>
+<div id="extended-get">
+<section id="section-4.1">
+        <h3 id="name-get">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-get" class="section-name selfRef">/get</a>
+        </h3>
+<p id="section-4.1-1">This extension enhances the standard "/get" method defined in <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.1" class="relref">Section 5.1</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span> for all JMAP data types specified in the dataTypes capability. The extension adds metadata retrieval capabilities to any supported data type's /get method (e.g., Email/get, Mailbox/get, Contact/get).<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.1-2">The following additional arguments are defined for the extended /get method:<a href="#section-4.1-2" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-4.1-3">
+          <dt id="section-4.1-3.1">
+<strong>metadataTypes</strong>: <code>String[]|null</code> (default: [])</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.2">
+            <p id="section-4.1-3.2.1">A list of metadata object type identifiers (<code>@type</code> values) to retrieve for the requested objects. If not provided or an empty array is provided, no metadata is returned. If null is specified, all metadata is returned. If one or more type identifiers are specified, the server returns metadata objects of those types associated with the requested objects. Servers <span class="bcp14">MUST</span> support this argument for all data types listed in the dataTypes capability.<a href="#section-4.1-3.2.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.1-3.3">
+<strong>metadataProperties</strong>: <code>String[]|null</code> (default: null)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.4">
+            <p id="section-4.1-3.4.1">A list of metadata property names to include in the returned metadata objects. If null, all properties of the metadata objects are returned. If specified, only the requested properties are included in the response. The <code>@type</code> and <code>parentId</code> properties <span class="bcp14">MUST</span> always be included in metadata objects even if not explicitly requested, as they are necessary to correlate metadata with their parent objects and identify the metadata type. This argument follows the same semantics as the properties argument in the standard /get method. Servers <span class="bcp14">MUST</span> support this argument for all data types listed in the dataTypes capability.<a href="#section-4.1-3.4.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<p id="section-4.1-4">The response to an extended /get method includes the following additional property:<a href="#section-4.1-4" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlNewline" id="section-4.1-5">
+          <dt id="section-4.1-5.1">
+<strong>metadata</strong>: <code>Metadata[]</code> (default: [])</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-5.2">
+            <p id="section-4.1-5.2.1">An array of Metadata objects associated with the objects returned in the list property. The metadata array contains only those metadata objects whose <code>parentId</code> corresponds to an object id in the list response and whose <code>@type</code> matches one of the types specified in the metadataTypes request argument. If metadataTypes was null or empty, this property is an empty array or may be omitted. The <code>parentId</code> property of each metadata object allows clients to correlate metadata with their parent objects.<a href="#section-4.1-5.2.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<p id="section-4.1-6">If a requested parent object does not have any metadata of the specified types, it simply will not have corresponding entries in the metadata array.<a href="#section-4.1-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="extended-set">
+<section id="section-4.2">
+        <h3 id="name-set">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-set" class="section-name selfRef">/set</a>
+        </h3>
+<p id="section-4.2-1">This specification extends the standard "/set" method defined in <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.3" class="relref">Section 5.3</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span> for all JMAP data types to ensure proper metadata lifecycle management.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.2-2">When an object is destroyed through a /set method (e.g., Email/set with a destroy operation), the server <span class="bcp14">MUST</span> automatically delete all associated Metadata objects. This includes both private and shared metadata, regardless of which user created them. This cascading deletion ensures that metadata does not become orphaned when its parent object is removed.<a href="#section-4.2-2" class="pilcrow">¶</a></p>
+<p id="section-4.2-3">The automatic deletion of metadata applies to all metadata types (Annotation, ImapMetadata, WebDavMetadata, and any other registered metadata types) associated with the destroyed object.<a href="#section-4.2-3" class="pilcrow">¶</a></p>
+<p id="section-4.2-4">Servers <span class="bcp14">SHOULD NOT</span> generate separate Metadata/set responses or state changes for automatically deleted metadata. The deletion is considered an implicit consequence of destroying the parent object. However, servers <span class="bcp14">MAY</span> emit push notifications or update metadata state strings to reflect that metadata has been deleted, if such notifications would otherwise occur for explicitly deleted metadata.<a href="#section-4.2-4" class="pilcrow">¶</a></p>
+<p id="section-4.2-5">Clients do not need to manually delete metadata before destroying parent objects, and attempting to do so would be inefficient. The server handles metadata cleanup automatically.<a href="#section-4.2-5" class="pilcrow">¶</a></p>
+<p id="section-4.2-6">If an error occurs during parent object deletion that prevents the destruction from completing, the associated metadata <span class="bcp14">MUST NOT</span> be deleted either, maintaining referential integrity.<a href="#section-4.2-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="access-control">
+<section id="section-5">
+      <h2 id="name-access-control">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-access-control" class="section-name selfRef">Access Control</a>
+      </h2>
+<p id="section-5-1">Access control for Metadata objects is determined by the <code>isPrivate</code> property and the permissions on the parent object. This model ensures that metadata access aligns with the access control of the objects being annotated.<a href="#section-5-1" class="pilcrow">¶</a></p>
+<p id="section-5-2">For private Metadata objects (<code>isPrivate</code>: true), only the authenticated user who created the Metadata object can read or modify it. Private metadata is isolated to the creating user and is not visible to other users regardless of their permissions on the parent object. This allows users to maintain personal annotations on shared objects without exposing them to collaborators or other users with shared access.<a href="#section-5-2" class="pilcrow">¶</a></p>
+<p id="section-5-3">When processing Metadata/get or Metadata/query requests, the server <span class="bcp14">MUST</span> filter private Metadata objects to return only those created by the currently authenticated user. Private Metadata objects created by other users <span class="bcp14">MUST NOT</span> be included in the response, even if those other users have access to the same parent objects.<a href="#section-5-3" class="pilcrow">¶</a></p>
+<p id="section-5-4">When processing Metadata/set requests for private Metadata objects, the server <span class="bcp14">MUST</span> verify that the user has appropriate access to the parent object (at minimum, read access to create private annotations on it). However, the user does not need write access to the parent object to create or modify their own private metadata about it.<a href="#section-5-4" class="pilcrow">¶</a></p>
+<p id="section-5-5">For shared Metadata objects (<code>isPrivate</code>: false), access is governed by the permissions of the parent object. Users who have permission to read the parent object can also read shared Metadata objects associated with it. Users who have permission to modify the parent object can also modify shared Metadata objects associated with it.<a href="#section-5-5" class="pilcrow">¶</a></p>
+<p id="section-5-6">For shareable JMAP object types as defined in <span><a href="https://rfc-editor.org/rfc/rfc9670#section-4" class="relref">Section 4</a> of [<a href="#RFC9670" class="cite xref">RFC9670</a>]</span> and type-specific specifications, the server <span class="bcp14">MUST</span> enforce access control based on the mayRead and mayWrite properties (or equivalent permission indicators) of the parent object when processing Metadata/get and Metadata/set requests on shared Metadata objects.<a href="#section-5-6" class="pilcrow">¶</a></p>
+<p id="section-5-7">Specifically:<a href="#section-5-7" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-5-8.1">
+          <p id="section-5-8.1.1">A Metadata/get request for a shared Metadata object <span class="bcp14">MUST</span> only succeed if the requesting user has read permission (mayRead: true or equivalent) on the parent object.<a href="#section-5-8.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-5-8.2">
+          <p id="section-5-8.2.1">A Metadata/set request that creates or updates a shared Metadata object <span class="bcp14">MUST</span> only succeed if the requesting user has write permission (mayWrite: true or equivalent) on the parent object.<a href="#section-5-8.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-5-8.3">
+          <p id="section-5-8.3.1">A Metadata/set request that destroys a shared Metadata object <span class="bcp14">MUST</span> only succeed if the requesting user has write permission on the parent object (some servers may require additional permissions for deletion).<a href="#section-5-8.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-5-8.4">
+          <p id="section-5-8.4.1">For private Metadata objects, the server <span class="bcp14">MUST</span> verify that the requesting user has at least read access to the parent object before allowing creation, and that the user is the creator of the private Metadata object before allowing updates or deletion.<a href="#section-5-8.4.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="section-5-9">If a user attempts to access a Metadata object but lacks the necessary permissions, the server <span class="bcp14">MUST</span> reject the request with a "forbidden" error at the method level, or include a "forbidden" SetError in the notCreated/notUpdated/notDestroyed response for the specific object in Metadata/set operations.<a href="#section-5-9" class="pilcrow">¶</a></p>
+<p id="section-5-10">If the maySetPrivate capability is false and a user attempts to create a private Metadata object, the server <span class="bcp14">MUST</span> reject the request with a "forbidden" SetError, regardless of their permissions on the parent object.<a href="#section-5-10" class="pilcrow">¶</a></p>
+<p id="section-5-11">Servers <span class="bcp14">SHOULD</span> enforce these access control rules consistently across all Metadata operations. When a user's permissions on a parent object change (for example, when sharing is revoked), the visibility of shared Metadata objects associated with that parent <span class="bcp14">MUST</span> change accordingly. Private Metadata objects remain accessible only to their creator regardless of permission changes on the parent object.<a href="#section-5-11" class="pilcrow">¶</a></p>
+<p id="section-5-12">It is <span class="bcp14">RECOMMENDED</span> that servers provide clear error messages when access is denied, indicating whether the issue is lack of permission on the parent object, attempting to access another user's private metadata, or lack of permission to create private metadata in the account.<a href="#section-5-12" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="quota">
+<section id="section-6">
+      <h2 id="name-quota">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-quota" class="section-name selfRef">Quota</a>
+      </h2>
+<p id="section-6-1">Servers <span class="bcp14">SHOULD</span> enforce quota limits on the total storage consumed by Metadata objects within a JMAP account. Unbounded metadata storage could lead to resource exhaustion and denial of service conditions. Quota enforcement ensures fair resource allocation among users and protects server resources.<a href="#section-6-1" class="pilcrow">¶</a></p>
+<p id="section-6-2">Servers that support the JMAP Quotas extension <span>[<a href="#RFC9425" class="cite xref">RFC9425</a>]</span> <span class="bcp14">SHOULD</span> integrate metadata storage into the quota framework defined in that specification, allowing clients to query current metadata quota usage and limits through the standard Quota API. Servers that do not support <span>[<a href="#RFC9425" class="cite xref">RFC9425</a>]</span> <span class="bcp14">SHOULD</span> still enforce implementation-defined limits on metadata storage and reject operations that would exceed those limits with an "overQuota" SetError.<a href="#section-6-2" class="pilcrow">¶</a></p>
+<p id="section-6-3">The method for calculating the size of a Metadata object is implementation-specific, as different server architectures may have different storage characteristics. However, the following approach is <span class="bcp14">RECOMMENDED</span> for consistency and predictability:<a href="#section-6-3" class="pilcrow">¶</a></p>
+<p id="section-6-4">Calculate the size of a Metadata object as the size of its CBOR <span>[<a href="#RFC8949" class="cite xref">RFC8949</a>]</span> serialized representation in bytes. CBOR provides a compact binary encoding of structured data similar to JSON, and using CBOR size as the quota metric provides a consistent measure that is independent of the server's internal storage format. This approach accounts for all property names and values, including vendor-specific properties, in a standardized way.<a href="#section-6-4" class="pilcrow">¶</a></p>
+<p id="section-6-5">When a Metadata/set operation would cause the account to exceed its metadata quota, the server <span class="bcp14">MUST</span> reject the operation with an "overQuota" SetError. The SetError <span class="bcp14">SHOULD</span> include a descriptive message indicating that the metadata quota has been exceeded. Servers <span class="bcp14">MAY</span> include additional information in the description, such as the current quota usage, the quota limit, and the size of the rejected operation.<a href="#section-6-5" class="pilcrow">¶</a></p>
+<p id="section-6-6">Quota enforcement applies to both create and update operations. Creating a new Metadata object consumes quota, and updating an existing object may increase quota usage if the update adds or enlarges properties. Destroying a Metadata object <span class="bcp14">MUST</span> free the quota consumed by that object.<a href="#section-6-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="security-considerations">
+<section id="section-7">
+      <h2 id="name-security-considerations">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-security-considerations" class="section-name selfRef">Security considerations</a>
+      </h2>
+<p id="section-7-1">The metadata management capabilities defined in this specification introduce several security considerations that implementers and deployers must address to protect user data and prevent abuse.<a href="#section-7-1" class="pilcrow">¶</a></p>
+<div id="metadata-confidentiality">
+<section id="section-7.1">
+        <h3 id="name-metadata-confidentiality">
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-metadata-confidentiality" class="section-name selfRef">Metadata Confidentiality</a>
+        </h3>
+<p id="section-7.1-1">Metadata objects may contain sensitive information, including personal notes, workflow states, application-specific data, and other user-generated content. Servers <span class="bcp14">MUST</span> enforce the access control mechanisms defined in <span><a href="#access-control" class="internal xref">Access Control</a> (<a href="#access-control" class="auto internal xref">Section 5</a>)</span> to prevent unauthorized disclosure of metadata.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+<p id="section-7.1-2">Private metadata (<code>isPrivate</code>: true) contains information intended only for the authenticated user who created it. Servers <span class="bcp14">MUST</span> ensure that private metadata is never exposed to other users through any interface, including JMAP, IMAP, WebDAV, or any other supported protocols. Each user's private metadata must remain isolated from all other users, even those who have full access to the parent object.<a href="#section-7.1-2" class="pilcrow">¶</a></p>
+<p id="section-7.1-3">The per-user nature of private metadata introduces important implementation considerations. Since multiple users may each have their own private Metadata objects for the same parent object and metadata type, servers must carefully track which user created each private Metadata object. When processing queries or retrieval requests, servers <span class="bcp14">MUST</span> filter results to include only the private metadata belonging to the currently authenticated user. Failure to properly implement this filtering could result in serious privacy breaches where one user's private notes or annotations are exposed to other users.<a href="#section-7.1-3" class="pilcrow">¶</a></p>
+<p id="section-7.1-4">Shared metadata visibility is tied to the permissions of the parent object. Servers <span class="bcp14">MUST</span> consistently enforce these permissions across all access methods. When sharing permissions on a parent object change, the visibility of associated shared metadata <span class="bcp14">MUST</span> change accordingly. Servers should be cautious about caching metadata in ways that could bypass updated permission checks.<a href="#section-7.1-4" class="pilcrow">¶</a></p>
+<p id="section-7.1-5">For servers that bridge JMAP metadata to IMAP METADATA or WebDAV properties, special care must be taken to ensure that the visibility and access control semantics are correctly mapped between protocols. IMAP private metadata (entries under "/private/") must map to JMAP private metadata for the authenticated user. Access control on WebDAV properties must align with JMAP shared metadata permissions. Servers must ensure that the per-user isolation model is maintained when metadata is accessed through different protocol interfaces.<a href="#section-7.1-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="user-identity-and-authentication">
+<section id="section-7.2">
+        <h3 id="name-user-identity-and-authentic">
+<a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-user-identity-and-authentic" class="section-name selfRef">User Identity and Authentication</a>
+        </h3>
+<p id="section-7.2-1">The private metadata model relies critically on accurate user authentication and identity management. Servers <span class="bcp14">MUST</span>:<a href="#section-7.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.2-2.1">
+            <p id="section-7.2-2.1.1">Reliably identify the authenticated user for all metadata operations<a href="#section-7.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.2-2.2">
+            <p id="section-7.2-2.2.1">Maintain accurate association between private Metadata objects and their creating users<a href="#section-7.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.2-2.3">
+            <p id="section-7.2-2.3.1">Prevent authentication bypass or identity spoofing that could allow access to other users' private metadata<a href="#section-7.2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.2-2.4">
+            <p id="section-7.2-2.4.1">Handle account delegation or administrative access carefully to ensure private metadata is not inadvertently exposed (administrators accessing an account on behalf of a user should not see other users' private metadata on shared objects)<a href="#section-7.2-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-7.2-3">Servers that support account delegation, impersonation, or administrative access features must carefully consider whether delegated access should include visibility into the account owner's private metadata, and should provide controls to limit such access when appropriate.<a href="#section-7.2-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="injection-attacks-through-vendor-specific-properties">
+<section id="section-7.3">
+        <h3 id="name-injection-attacks-through-v">
+<a href="#section-7.3" class="section-number selfRef">7.3. </a><a href="#name-injection-attacks-through-v" class="section-name selfRef">Injection Attacks Through Vendor-Specific Properties</a>
+        </h3>
+<p id="section-7.3-1">The extensibility mechanism that allows vendor-specific properties introduces potential security risks if not properly handled. Malicious clients could attempt to inject harmful content through vendor-specific properties, including:<a href="#section-7.3-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.3-2.1">
+            <p id="section-7.3-2.1.1">Script injection: Embedding executable code in metadata properties that might be rendered in a web context without proper sanitization<a href="#section-7.3-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-2.2">
+            <p id="section-7.3-2.2.1">XML/JSON injection: Crafting property values that could break parsing or processing logic<a href="#section-7.3-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-2.3">
+            <p id="section-7.3-2.3.1">Path traversal: Using specially crafted property names to attempt unauthorized file system access<a href="#section-7.3-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-2.4">
+            <p id="section-7.3-2.4.1">SQL injection: If metadata is stored in SQL databases, unsanitized property values could lead to SQL injection vulnerabilities<a href="#section-7.3-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-7.3-3">Servers <span class="bcp14">MUST</span> treat all vendor-specific property values as untrusted user input. When storing, processing, or displaying metadata, servers and clients <span class="bcp14">MUST</span>:<a href="#section-7.3-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.3-4.1">
+            <p id="section-7.3-4.1.1">Validate property names conform to the specified format (domain-name prefix followed by colon and property name)<a href="#section-7.3-4.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-4.2">
+            <p id="section-7.3-4.2.1">Sanitize property values before use in any context where interpretation could occur (HTML rendering, script execution, database queries, etc.)<a href="#section-7.3-4.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-4.3">
+            <p id="section-7.3-4.3.1">Apply appropriate output encoding when displaying metadata to users<a href="#section-7.3-4.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-4.4">
+            <p id="section-7.3-4.4.1">Enforce length limits on property names and values to prevent resource exhaustion<a href="#section-7.3-4.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-4.5">
+            <p id="section-7.3-4.5.1">Reject or sanitize properties containing control characters or other potentially harmful content<a href="#section-7.3-4.5.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-7.3-5">For WebDavMetadata objects, special attention must be paid to the serialized XML content in property values. Servers <span class="bcp14">MUST</span>:<a href="#section-7.3-5" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.3-6.1">
+            <p id="section-7.3-6.1.1">Validate that XML content is well-formed before storage<a href="#section-7.3-6.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-6.2">
+            <p id="section-7.3-6.2.1">Sanitize XML to remove potentially harmful constructs (scripts, entity expansions, external entity references)<a href="#section-7.3-6.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-6.3">
+            <p id="section-7.3-6.3.1">Apply appropriate XML entity encoding when processing or displaying the content<a href="#section-7.3-6.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.3-6.4">
+            <p id="section-7.3-6.4.1">Implement protections against XML external entity (XXE) attacks and XML bomb attacks<a href="#section-7.3-6.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-7.3-7">Clients that display metadata to users <span class="bcp14">MUST</span> treat metadata content as untrusted and apply appropriate security measures, such as Content Security Policy restrictions, HTML sanitization, and context-appropriate escaping.<a href="#section-7.3-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="resource-exhaustion-and-denial-of-service">
+<section id="section-7.4">
+        <h3 id="name-resource-exhaustion-and-den">
+<a href="#section-7.4" class="section-number selfRef">7.4. </a><a href="#name-resource-exhaustion-and-den" class="section-name selfRef">Resource Exhaustion and Denial of Service</a>
+        </h3>
+<p id="section-7.4-1">Without proper controls, metadata management features could be abused to cause resource exhaustion or denial of service:<a href="#section-7.4-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.4-2.1">
+            <p id="section-7.4-2.1.1">Storage exhaustion: Attackers could create excessive metadata to consume storage quota or server resources. The per-user private metadata model amplifies this risk since multiple users could each create private metadata on the same shared objects.<a href="#section-7.4-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.4-2.2">
+            <p id="section-7.4-2.2.1">Processing exhaustion: Complex nested vendor-specific properties or deeply nested object structures could consume excessive CPU or memory during processing<a href="#section-7.4-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.4-2.3">
+            <p id="section-7.4-2.3.1">Query complexity: Expensive metadata queries, particularly those involving private metadata filtering across many users, could strain server resources<a href="#section-7.4-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-7.4-3">Servers <span class="bcp14">SHOULD</span> implement the quota mechanisms described in <a href="#quota" class="auto internal xref">Section 6</a> to limit total metadata storage per account. Additionally, servers <span class="bcp14">SHOULD</span>:<a href="#section-7.4-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.4-4.1">
+            <p id="section-7.4-4.1.1">Enforce the maxDepth limit on nested vendor-specific properties<a href="#section-7.4-4.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.4-4.2">
+            <p id="section-7.4-4.2.1">Implement timeouts for metadata operations to prevent long-running queries<a href="#section-7.4-4.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.4-4.3">
+            <p id="section-7.4-4.3.1">Apply rate limiting to metadata creation and modification operations<a href="#section-7.4-4.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.4-4.4">
+            <p id="section-7.4-4.4.1">Monitor for unusual patterns of metadata usage that might indicate abuse (e.g., one user creating private metadata on unusually large numbers of objects)<a href="#section-7.4-4.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.4-4.5">
+            <p id="section-7.4-4.5.1">Implement reasonable limits on the size of individual property values<a href="#section-7.4-4.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.4-4.6">
+            <p id="section-7.4-4.6.1">Consider implementing separate quota tracking for private vs. shared metadata to prevent abuse<a href="#section-7.4-4.6.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-7.4-5">Servers <span class="bcp14">MAY</span> reject metadata creation or updates that appear abusive, returning appropriate SetError responses.<a href="#section-7.4-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="protocol-bridging-risks">
+<section id="section-7.5">
+        <h3 id="name-protocol-bridging-risks">
+<a href="#section-7.5" class="section-number selfRef">7.5. </a><a href="#name-protocol-bridging-risks" class="section-name selfRef">Protocol Bridging Risks</a>
+        </h3>
+<p id="section-7.5-1">For servers that bridge JMAP metadata to IMAP METADATA or WebDAV properties, inconsistencies or vulnerabilities in the bridging logic could lead to security issues:<a href="#section-7.5-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.5-2.1">
+            <p id="section-7.5-2.1.1">Permission bypass: Differences in permission models between protocols could be exploited to gain unauthorized access. For example, IMAP and WebDAV may have different concepts of private vs. shared metadata that must be carefully reconciled.<a href="#section-7.5-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.5-2.2">
+            <p id="section-7.5-2.2.1">Metadata corruption: Improper format conversion could corrupt metadata or enable injection attacks. Special care is needed when converting between JMAP's JSON representation, IMAP's string values, and WebDAV's XML properties.<a href="#section-7.5-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.5-2.3">
+            <p id="section-7.5-2.3.1">Information leakage: Protocol-specific metadata might inadvertently be exposed through the bridging mechanism. For instance, internal IMAP server entries or WebDAV live properties should not be exposed as JMAP metadata.<a href="#section-7.5-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.5-2.4">
+            <p id="section-7.5-2.4.1">Synchronization inconsistencies: Race conditions or improper locking when synchronizing metadata across protocol boundaries could lead to data corruption or access control violations.<a href="#section-7.5-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-7.5-3">Servers that implement protocol bridging <span class="bcp14">MUST</span> carefully validate the security properties of their bridging implementation and ensure that the most restrictive applicable access control is enforced. The per-user isolation model for private metadata must be maintained consistently across all protocol interfaces.<a href="#section-7.5-3" class="pilcrow">¶</a></p>
+<p id="section-7.5-4">For read-only ImapMetadata and WebDavMetadata access, servers should clearly document this limitation to prevent client confusion and ensure that clients do not assume modification capabilities that are not actually available.<a href="#section-7.5-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="server-vulnerabilities">
+<section id="section-7.6">
+        <h3 id="name-server-vulnerabilities">
+<a href="#section-7.6" class="section-number selfRef">7.6. </a><a href="#name-server-vulnerabilities" class="section-name selfRef">Server Vulnerabilities</a>
+        </h3>
+<p id="section-7.6-1">Implementations must be robust against malformed requests and unexpected data. Servers <span class="bcp14">MUST</span>:<a href="#section-7.6-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.6-2.1">
+            <p id="section-7.6-2.1.1">Validate all input according to the type specifications in this document<a href="#section-7.6-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.6-2.2">
+            <p id="section-7.6-2.2.1">Handle JSON/XML parsing errors gracefully without exposing server internals<a href="#section-7.6-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.6-2.3">
+            <p id="section-7.6-2.3.1">Protect against integer overflow, buffer overflow, and other common vulnerabilities when processing metadata<a href="#section-7.6-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.6-2.4">
+            <p id="section-7.6-2.4.1">Properly handle the per-user filtering of private metadata to prevent information leakage<a href="#section-7.6-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.6-2.5">
+            <p id="section-7.6-2.5.1">Implement proper database indexing and query optimization to handle private metadata filtering efficiently even with large numbers of users and objects<a href="#section-7.6-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.6-2.6">
+            <p id="section-7.6-2.6.1">Log security-relevant events (authentication failures, authorization failures, suspicious patterns, attempts to access other users' private metadata) for monitoring and incident response<a href="#section-7.6-2.6.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+<div id="client-vulnerabilities">
+<section id="section-7.7">
+        <h3 id="name-client-vulnerabilities">
+<a href="#section-7.7" class="section-number selfRef">7.7. </a><a href="#name-client-vulnerabilities" class="section-name selfRef">Client Vulnerabilities</a>
+        </h3>
+<p id="section-7.7-1">Clients that implement metadata management must also consider security:<a href="#section-7.7-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.7-2.1">
+            <p id="section-7.7-2.1.1">Clients <span class="bcp14">MUST</span> validate server responses and handle unexpected or malformed data gracefully<a href="#section-7.7-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.7-2.2">
+            <p id="section-7.7-2.2.1">Clients <span class="bcp14">SHOULD</span> warn users before displaying potentially sensitive metadata, particularly when displaying shared metadata that might have been created by other users<a href="#section-7.7-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.7-2.3">
+            <p id="section-7.7-2.3.1">Clients <span class="bcp14">MUST NOT</span> execute or interpret metadata content as code unless the user explicitly requests it and appropriate sandboxing is in place<a href="#section-7.7-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.7-2.4">
+            <p id="section-7.7-2.4.1">Clients accessing metadata through web browsers should utilize security features such as Content Security Policy<a href="#section-7.7-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.7-2.5">
+            <p id="section-7.7-2.5.1">Clients should clearly distinguish between private and shared metadata in the user interface to prevent users from inadvertently sharing private information<a href="#section-7.7-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-7.7-2.6">
+            <p id="section-7.7-2.6.1">When parsing XML content from WebDavMetadata properties, clients must use secure XML parsers and disable dangerous features like external entity resolution<a href="#section-7.7-2.6.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="examples">
+<section id="section-8">
+      <h2 id="name-examples">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-examples" class="section-name selfRef">Examples</a>
+      </h2>
+<p id="section-8-1">This section provides practical examples demonstrating common metadata management scenarios.<a href="#section-8-1" class="pilcrow">¶</a></p>
+<div id="creating-a-mailbox-with-annotation">
+<section id="section-8.1">
+        <h3 id="name-creating-a-mailbox-with-ann">
+<a href="#section-8.1" class="section-number selfRef">8.1. </a><a href="#name-creating-a-mailbox-with-ann" class="section-name selfRef">Creating a Mailbox with Annotation</a>
+        </h3>
+<p id="section-8.1-1">This example shows how to create a new JMAP Mailbox and associate an Annotation object with vendor-specific properties in a single request.<a href="#section-8.1-1" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-8.1-2">
+<pre>
+[
+  ["Mailbox/set", {
+    "accountId": "A12345",
+    "create": {
+      "new-mailbox": {
+        "name": "Project Alpha",
+        "parentId": null,
+        "role": null
+      }
+    }
+  }, "c1"],
+  ["Metadata/set", {
+    "accountId": "A12345",
+    "create": {
+      "new-metadata": {
+        "@type": "Annotation",
+        "parentType": "Mailbox",
+        "parentId": "#new-mailbox",
+        "isPrivate": true,
+        "acme.example.com:color": "blue",
+        "acme.example.com:priority": "high",
+        "acme.example.com:project": {
+          "@type": "acme.example.com:ProjectInfo",
+          "projectId": "ALPHA-2024",
+          "deadline": "2024-12-31",
+          "team": "Engineering"
+        }
+      }
+    }
+  }, "c2"]
+]
+</pre><a href="#section-8.1-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="retrieving-a-mailbox-with-metadata">
+<section id="section-8.2">
+        <h3 id="name-retrieving-a-mailbox-with-m">
+<a href="#section-8.2" class="section-number selfRef">8.2. </a><a href="#name-retrieving-a-mailbox-with-m" class="section-name selfRef">Retrieving a Mailbox with Metadata</a>
+        </h3>
+<p id="section-8.2-1">This example shows how to retrieve the created mailbox along with its associated Annotation metadata in a single request using the extended /get method:<a href="#section-8.2-1" class="pilcrow">¶</a></p>
+<p id="section-8.2-2">Request:<a href="#section-8.2-2" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-8.2-3">
+<pre>
+[
+  ["Mailbox/get", {
+    "accountId": "A12345",
+    "ids": ["MB789"],
+    "properties": ["name", "parentId", "role"],
+    "metadataTypes": ["Annotation"],
+    "metadataProperties": ["acme.example.com:color",
+                           "acme.example.com:priority"]
+  }, "c3"]
+]
+</pre><a href="#section-8.2-3" class="pilcrow">¶</a>
+</div>
+<p id="section-8.2-4">Response:<a href="#section-8.2-4" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-8.2-5">
+<pre>
+[
+  ["Mailbox/get", {
+    "accountId": "A12345",
+    "state": "m101",
+    "list": [
+      {
+        "id": "MB789",
+        "name": "Project Alpha",
+        "parentId": null,
+        "role": null
+      }
+    ],
+    "metadata": [
+      {
+        "parentId": "MB789",
+        "@type": "Annotation",
+        "acme.example.com:color": "blue",
+        "acme.example.com:priority": "high"
+      }
+    ],
+    "notFound": []
+  }, "c3"]
+]
+</pre><a href="#section-8.2-5" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="attaching-photography-metadata-to-a-filenode">
+<section id="section-8.3">
+        <h3 id="name-attaching-photography-metad">
+<a href="#section-8.3" class="section-number selfRef">8.3. </a><a href="#name-attaching-photography-metad" class="section-name selfRef">Attaching Photography Metadata to a FileNode</a>
+        </h3>
+<p id="section-8.3-1">This example demonstrates using a <em>fictional</em> registered PhotoMetadata type to attach photography information to FileNode <span>[<a href="#I-D.ietf-jmap-filenode" class="cite xref">I-D.ietf-jmap-filenode</a>]</span> objects. The PhotoMetadata type is assumed to be an IANA-registered metadata type specifically designed for photographic data.<a href="#section-8.3-1" class="pilcrow">¶</a></p>
+<p id="section-8.3-2">Request:<a href="#section-8.3-2" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-8.3-3">
+<pre>
+[
+  ["FileNode/set", {
+    "accountId": "A12345",
+    "update": {
+      "F456": {
+        "name": "sunset-beach.jpg"
+      }
+    }
+  }, "c1"],
+  ["Metadata/set", {
+    "accountId": "A12345",
+    "create": {
+      "photo-meta": {
+        "@type": "PhotoMetadata",
+        "parentType": "FileNode",
+        "parentId": "F456",
+        "isPrivate": false,
+        "geoLocation": {
+          "latitude": 34.0522,
+          "longitude": -118.2437
+        },
+        "cameraMake": "Canon",
+        "cameraModel": "EOS R5",
+        "aperture": "f/2.8",
+        "shutterSpeed": "1/250",
+        "iso": 400,
+        "focalLength": "50mm",
+        "dateTaken": "2025-11-20T19:32:00Z",
+        "imageSize": {
+          "width": 6000,
+          "height": 4000
+        }
+      }
+    }
+  }, "c2"]
+]
+</pre><a href="#section-8.3-3" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="retrieving-a-filenode-with-photography-metadata">
+<section id="section-8.4">
+        <h3 id="name-retrieving-a-filenode-with-">
+<a href="#section-8.4" class="section-number selfRef">8.4. </a><a href="#name-retrieving-a-filenode-with-" class="section-name selfRef">Retrieving a FileNode with Photography Metadata</a>
+        </h3>
+<p id="section-8.4-1">Request:<a href="#section-8.4-1" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-8.4-2">
+<pre>
+[
+  ["FileNode/get", {
+    "accountId": "A12345",
+    "ids": ["F456"],
+    "metadataTypes": ["PhotoMetadata"],
+    "metadataProperties": null
+  }, "c3"]
+]
+</pre><a href="#section-8.4-2" class="pilcrow">¶</a>
+</div>
+<p id="section-8.4-3">Response:<a href="#section-8.4-3" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-8.4-4">
+<pre>
+[
+  ["FileNode/get", {
+    "accountId": "A12345",
+    "state": "f201",
+    "list": [
+      {
+        "id": "F456",
+        "name": "sunset-beach.jpg",
+        "type": "image/jpeg",
+        "size": 2458624,
+        "blobId": "Gabc123def456",
+        "parentId": "folder789",
+        "createdDate": "2024-07-15T20:00:00Z",
+        "modifiedDate": "2024-10-20T15:30:00Z"
+      }
+    ],
+    "metadata": [
+      {
+        "id": "photometa99",
+        "@type": "PhotoMetadata",
+        "parentId": "F456",
+        "geoLocation": {
+          "latitude": 34.0522,
+          "longitude": -118.2437
+        },
+        "cameraMake": "Canon",
+        "cameraModel": "EOS R5",
+        "aperture": "f/2.8",
+        "iso": 400,
+        "imageSize": {
+          "width": 6000,
+          "height": 4000
+        }
+      }
+    ],
+    "notFound": []
+  }, "c3"]
+]
+</pre><a href="#section-8.4-4" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="iana-considerations">
+<section id="section-9">
+      <h2 id="name-iana-considerations">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA considerations</a>
+      </h2>
+<div id="jmap-capability-registration-for-metadata">
+<section id="section-9.1">
+        <h3 id="name-jmap-capability-registratio">
+<a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-jmap-capability-registratio" class="section-name selfRef">JMAP Capability Registration for "metadata"</a>
+        </h3>
+<p id="section-9.1-1">IANA will register the "metadata" JMAP Capability as follows:<a href="#section-9.1-1" class="pilcrow">¶</a></p>
+<p id="section-9.1-2"><strong>Capability Name:</strong> urn:ietf:params:jmap:metadata<br>
+          <strong>Specification document:</strong> this document<br>
+          <strong>Intended use:</strong> common<br>
+          <strong>Change Controller:</strong> IETF<br>
+          <strong>Security and privacy considerations:</strong> this document, <a href="#security-considerations" class="auto internal xref">Section 7</a><a href="#section-9.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="jmap-data-type-registration-for-metadata">
+<section id="section-9.2">
+        <h3 id="name-jmap-data-type-registration">
+<a href="#section-9.2" class="section-number selfRef">9.2. </a><a href="#name-jmap-data-type-registration" class="section-name selfRef">JMAP Data Type Registration for "Metadata"</a>
+        </h3>
+<p id="section-9.2-1">IANA will register "Metadata" in the "JMAP Data Types" registry as follows:<a href="#section-9.2-1" class="pilcrow">¶</a></p>
+<p id="section-9.2-2"><strong>Type Name:</strong> Metadata<br>
+          <strong>Can reference blobs:</strong> no<br>
+          <strong>Can Use for State Change:</strong> yes<br>
+          <strong>Capability:</strong> urn:ietf:params:jmap:metadata<br>
+          <strong>Specification document:</strong> this document<a href="#section-9.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="properties-registry">
+<section id="section-9.3">
+        <h3 id="name-creation-of-the-jmap-metada">
+<a href="#section-9.3" class="section-number selfRef">9.3. </a><a href="#name-creation-of-the-jmap-metada" class="section-name selfRef">Creation of the "JMAP Metadata Properties" Registry</a>
+        </h3>
+<p id="section-9.3-1">IANA has created the "JMAP Metadata Properties" registry to allow interoperability of extensions to JMAP Metadata objects.<a href="#section-9.3-1" class="pilcrow">¶</a></p>
+<p id="section-9.3-2">This registry follows the Expert Review process (<span>[<a href="#RFC8126" class="cite xref">RFC8126</a>], <a href="https://rfc-editor.org/rfc/rfc8126#section-4.5" class="relref">Section 4.5</a></span>). If the "Intended Usage" field is common, sufficient documentation is required to enable interoperability. Preliminary community review for this registry is optional but strongly encouraged.<a href="#section-9.3-2" class="pilcrow">¶</a></p>
+<p id="section-9.3-3">A registration can have an intended usage of common, reserved, or obsolete. IANA will list registrations with a common usage designation prominently and separately from those with other intended usage values.<a href="#section-9.3-3" class="pilcrow">¶</a></p>
+<p id="section-9.3-4">A reserved registration reserves a property name without assigning semantics to avoid name collisions with future extensions or protocol use.<a href="#section-9.3-4" class="pilcrow">¶</a></p>
+<p id="section-9.3-5">An obsolete registration denotes a property that is no longer expected to be added by up-to-date systems. A new property has probably been defined covering the obsolete property's semantics.<a href="#section-9.3-5" class="pilcrow">¶</a></p>
+<p id="section-9.3-6">The JMAP Metadata property registration procedure is not a formal standards process but rather an administrative procedure intended to allow community comment and check it is coherent without excessive time delay. It is designed to encourage vendors to document and register new properties they add for use cases not covered by the original specification, leading to increased interoperability<a href="#section-9.3-6" class="pilcrow">¶</a></p>
+<div id="preliminary-community-review">
+<section id="section-9.3.1">
+          <h4 id="name-preliminary-community-revie">
+<a href="#section-9.3.1" class="section-number selfRef">9.3.1. </a><a href="#name-preliminary-community-revie" class="section-name selfRef">Preliminary Community Review</a>
+          </h4>
+<p id="section-9.3.1-1">Notice of a potential new registration <span class="bcp14">SHOULD</span> be sent to the JMAP mailing list <a href="mailto:jmap@ietf.org">jmap@ietf.org</a> for review. This mailing list is appropriate to solicit community feedback on a proposed new property.<a href="#section-9.3.1-1" class="pilcrow">¶</a></p>
+<p id="section-9.3.1-2">Property registrations must be marked with their intended use: "common", "reserved", or "obsolete".<a href="#section-9.3.1-2" class="pilcrow">¶</a></p>
+<p id="section-9.3.1-3">The intent of the public posting to this list is to solicit comments and feedback on the choice of the property name, the unambiguity of the specification document, and a review of any interoperability or security considerations. The submitter may submit a revised registration proposal or abandon the registration completely at any time.<a href="#section-9.3.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="change-procedures">
+<section id="section-9.3.2">
+          <h4 id="name-change-procedures">
+<a href="#section-9.3.2" class="section-number selfRef">9.3.2. </a><a href="#name-change-procedures" class="section-name selfRef">Change Procedures</a>
+          </h4>
+<p id="section-9.3.2-1">Once a JMAP Metadata property has been published by IANA, the change controller may request a change to its definition. The same procedure that would be appropriate for the original registration request is used to process a change request.<a href="#section-9.3.2-1" class="pilcrow">¶</a></p>
+<p id="section-9.3.2-2">JMAP Metadata property registrations may not be deleted; properties that are no longer believed appropriate for use can be declared obsolete by a change to their "intended usage" field; such properties will be clearly marked in the IANA registry.<a href="#section-9.3.2-2" class="pilcrow">¶</a></p>
+<p id="section-9.3.2-3">Significant changes to a JMAP Metadata property's definition should be requested only when there are serious omissions or errors in the published specification, as such changes may cause interoperability issues. When review is required, a change request may be denied if it renders entities that were valid under the previous definition invalid under the new definition.<a href="#section-9.3.2-3" class="pilcrow">¶</a></p>
+<p id="section-9.3.2-4">The owner of a JMAP Metadata property may pass responsibility to another person or agency by informing IANA; this can be done without discussion or review.<a href="#section-9.3.2-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="jmap-metadata-properties-registry-template">
+<section id="section-9.3.3">
+          <h4 id="name-jmap-metadata-properties-re">
+<a href="#section-9.3.3" class="section-number selfRef">9.3.3. </a><a href="#name-jmap-metadata-properties-re" class="section-name selfRef">"JMAP Metadata Properties" Registry Template</a>
+          </h4>
+<span class="break"></span><dl class="dlNewline" id="section-9.3.3-1">
+            <dt id="section-9.3.3-1.1">
+<strong>Property Name</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.3.3-1.2">
+              <p id="section-9.3.3-1.2.1">This is the name of the property. The property name <span class="bcp14">MUST NOT</span> already be registered for any of the object types listed in the "Property Context" field of this registration. Other object types <span class="bcp14">MAY</span> already have registered a different property with the same name; however, the same name <span class="bcp14">SHOULD</span> only be used when the semantics are analogous.<a href="#section-9.3.3-1.2.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.3.3-1.3">
+<strong>Property Type</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.3.3-1.4">
+              <p id="section-9.3.3-1.4.1">This is the type of this property, using type signatures, as specified in <a href="#type-property" class="auto internal xref">Section 2.2.1.1</a>. The property type <span class="bcp14">MUST</span> be registered in the "JMAP Metadata Types" registry.<a href="#section-9.3.3-1.4.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.3.3-1.5">
+<strong>Property Context</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.3.3-1.6">
+              <p id="section-9.3.3-1.6.1">This is a comma-separated list of JMAP Metadata object types this property is allowed on.<a href="#section-9.3.3-1.6.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.3.3-1.7">
+<strong>Reference or Description</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.3.3-1.8">
+              <p id="section-9.3.3-1.8.1">This is a brief description or RFC number and section reference where the property is specified (omitted for "reserved" property names).<a href="#section-9.3.3-1.8.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.3.3-1.9">
+<strong>Intended Usage</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.3.3-1.10">
+              <p id="section-9.3.3-1.10.1">This may be "common", "reserved", or "obsolete".<a href="#section-9.3.3-1.10.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.3.3-1.11">
+<strong>Change Controller</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.3.3-1.12">
+              <p id="section-9.3.3-1.12.1">This is who may request a change to this entry's definition (IETF for RFCs from the IETF stream).<a href="#section-9.3.3-1.12.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="submit-request-to-iana">
+<section id="section-9.3.4">
+          <h4 id="name-submit-request-to-iana">
+<a href="#section-9.3.4" class="section-number selfRef">9.3.4. </a><a href="#name-submit-request-to-iana" class="section-name selfRef">Submit Request to IANA</a>
+          </h4>
+<p id="section-9.3.4-1">Registration requests can be sent to <a href="mailto:iana@iana.org">iana@iana.org</a>.<a href="#section-9.3.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="designated-expert-review">
+<section id="section-9.3.5">
+          <h4 id="name-designated-expert-review">
+<a href="#section-9.3.5" class="section-number selfRef">9.3.5. </a><a href="#name-designated-expert-review" class="section-name selfRef">Designated Expert Review</a>
+          </h4>
+<p id="section-9.3.5-1">The primary concern of the designated expert (DE) is preventing name collisions and encouraging the submitter to document security and privacy considerations. For a common-use registration, the DE is expected to confirm that suitable documentation, as described in <span><a href="https://rfc-editor.org/rfc/rfc8126#section-4.6" class="relref">Section 4.6</a> of [<a href="#RFC8126" class="cite xref">RFC8126</a>]</span>, is available to ensure interoperability. That documentation will usually be in an RFC, but simple definitions are likely to use a web/wiki page, and if a sentence or two is deemed sufficient, it could be described in the registry itself. The DE should also verify that the property name does not conflict with work that is active or already published within the IETF. A published specification is not required for reserved or obsolete registrations.<a href="#section-9.3.5-1" class="pilcrow">¶</a></p>
+<p id="section-9.3.5-2">The DE will either approve or deny the registration request and publish a notice of the decision to the JMAP WG mailing list or its successor, as well as inform IANA. A denial notice must be justified by an explanation, and, in the cases where it is possible, concrete suggestions on how the request can be modified so as to become acceptable should be provided.<a href="#section-9.3.5-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="initial-contents-for-the-jmap-metadata-properties-registry">
+<section id="section-9.3.6">
+          <h4 id="name-initial-contents-for-the-jm">
+<a href="#section-9.3.6" class="section-number selfRef">9.3.6. </a><a href="#name-initial-contents-for-the-jm" class="section-name selfRef">Initial Contents for the "JMAP Metadata Properties" Registry</a>
+          </h4>
+<p id="section-9.3.6-1">The following table lists the initial entries of the "JMAP Metadata Properties" registry. All properties are for common use. All RFC section references are for this document. The change controller for all these properties is "IETF".<a href="#section-9.3.6-1" class="pilcrow">¶</a></p>
+<span id="name-initial-contents-of-the-jma"></span><div id="tab-metadata-properties">
+<table class="center" id="table-1">
+            <caption>
+<a href="#table-1" class="selfRef">Table 1</a>:
+<a href="#name-initial-contents-of-the-jma" class="selfRef">Initial Contents of the "JMAP Metadata Properties" Registry</a>
+            </caption>
+<thead>
+              <tr>
+                <th class="text-left" rowspan="1" colspan="1">Property Name</th>
+                <th class="text-left" rowspan="1" colspan="1">Property Type</th>
+                <th class="text-left" rowspan="1" colspan="1">Property Context</th>
+                <th class="text-left" rowspan="1" colspan="1">Reference or Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">@type</td>
+                <td class="text-left" rowspan="1" colspan="1">String</td>
+                <td class="text-left" rowspan="1" colspan="1">Annotation, ImapMetadata, WebDavMetadata</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#type-property" class="auto internal xref">Section 2.2.1.1</a>
+</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">id</td>
+                <td class="text-left" rowspan="1" colspan="1">Id</td>
+                <td class="text-left" rowspan="1" colspan="1">Annotation, ImapMetadata, WebDavMetadata</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#id-property" class="auto internal xref">Section 2.2.1.2</a>
+</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">parentType</td>
+                <td class="text-left" rowspan="1" colspan="1">String</td>
+                <td class="text-left" rowspan="1" colspan="1">Annotation, ImapMetadata, WebDavMetadata</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#parent-type-property" class="auto internal xref">Section 2.2.1.3</a>
+</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">parentId</td>
+                <td class="text-left" rowspan="1" colspan="1">Id</td>
+                <td class="text-left" rowspan="1" colspan="1">Annotation, ImapMetadata, WebDavMetadata</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#parent-id-property" class="auto internal xref">Section 2.2.1.4</a>
+</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">isPrivate</td>
+                <td class="text-left" rowspan="1" colspan="1">Boolean</td>
+                <td class="text-left" rowspan="1" colspan="1">Annotation, ImapMetadata, WebDavMetadata</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#is-private-property" class="auto internal xref">Section 2.2.1.5</a>
+</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">metadata</td>
+                <td class="text-left" rowspan="1" colspan="1">[String]String</td>
+                <td class="text-left" rowspan="1" colspan="1">ImapMetadata, WebDavMetadata</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#metadata-property-imap" class="auto internal xref">Section 2.2.2.1</a>, <a href="#metadata-property-webdav" class="auto internal xref">Section 2.2.3.1</a>
+</td>
+              </tr>
+            </tbody>
+          </table>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="creation-of-the-jmap-metadata-types-registry">
+<section id="section-9.4">
+        <h3 id="name-creation-of-the-jmap-metadat">
+<a href="#section-9.4" class="section-number selfRef">9.4. </a><a href="#name-creation-of-the-jmap-metadat" class="section-name selfRef">Creation of the "JMAP Metadata Types" Registry</a>
+        </h3>
+<p id="section-9.4-1">IANA has created the "JMAP Metadata Types" registry to avoid name collisions and provide a complete reference for all metadata types used for JMAP Metadata property values. The registration process is the same as for the "JMAP Metadata Properties" registry, as defined in <a href="#properties-registry" class="auto internal xref">Section 9.3</a>.<a href="#section-9.4-1" class="pilcrow">¶</a></p>
+<div id="jmap-metadata-types-registry-template">
+<section id="section-9.4.1">
+          <h4 id="name-jmap-metadata-types-registr">
+<a href="#section-9.4.1" class="section-number selfRef">9.4.1. </a><a href="#name-jmap-metadata-types-registr" class="section-name selfRef">"JMAP Metadata Types" Registry Template</a>
+          </h4>
+<span class="break"></span><dl class="dlNewline" id="section-9.4.1-1">
+            <dt id="section-9.4.1-1.1">
+<strong>Type Name</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.4.1-1.2">
+              <p id="section-9.4.1-1.2.1">the name of the type<a href="#section-9.4.1-1.2.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.4.1-1.3">
+<strong>Applicable Data Types</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.4.1-1.4">
+              <p id="section-9.4.1-1.4.1">a list of JMAP data type names that this metadata type can be associated with, or "any" if the metadata type can be associated with any JMAP data type<a href="#section-9.4.1-1.4.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.4.1-1.5">
+<strong>Reference or Description</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.4.1-1.6">
+              <p id="section-9.4.1-1.6.1">a brief description or RFC number and section reference where the Type is specified (may be omitted for "reserved" type names)<a href="#section-9.4.1-1.6.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.4.1-1.7">
+<strong>Intended Use</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.4.1-1.8">
+              <p id="section-9.4.1-1.8.1">common, reserved, or obsolete<a href="#section-9.4.1-1.8.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-9.4.1-1.9">
+<strong>Change Controller</strong>:</dt>
+            <dd style="margin-left: 1.5em" id="section-9.4.1-1.10">
+              <p id="section-9.4.1-1.10.1">who may request a change to this entry's definition (IETF for RFCs from the IETF stream)<a href="#section-9.4.1-1.10.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="initial-contents-for-the-jmap-metadata-types-registry">
+<section id="section-9.4.2">
+          <h4 id="name-initial-contents-for-the-jma">
+<a href="#section-9.4.2" class="section-number selfRef">9.4.2. </a><a href="#name-initial-contents-for-the-jma" class="section-name selfRef">Initial Contents for the "JMAP Metadata Types" Registry</a>
+          </h4>
+<p id="section-9.4.2-1">The following table lists the initial entries of the JMAP Metadata Types registry. All properties are for common use. All RFC section references are for this document. The change controller for all these properties is "IETF".<a href="#section-9.4.2-1" class="pilcrow">¶</a></p>
+<span id="name-initial-contents-of-the-jmap"></span><div id="tab-metadata-types">
+<table class="center" id="table-2">
+            <caption>
+<a href="#table-2" class="selfRef">Table 2</a>:
+<a href="#name-initial-contents-of-the-jmap" class="selfRef">Initial Contents of the "JMAP Metadata Types" Registry</a>
+            </caption>
+<thead>
+              <tr>
+                <th class="text-left" rowspan="1" colspan="1">Type Name</th>
+                <th class="text-left" rowspan="1" colspan="1">Applicable Data Types</th>
+                <th class="text-left" rowspan="1" colspan="1">Reference or Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">Annotation</td>
+                <td class="text-left" rowspan="1" colspan="1">any</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#object-type-annotation" class="auto internal xref">Section 2.1.1</a>
+</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">ImapMetadata</td>
+                <td class="text-left" rowspan="1" colspan="1">Mailbox</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#object-type-imap" class="auto internal xref">Section 2.1.2</a>
+</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">WebDavMetadata</td>
+                <td class="text-left" rowspan="1" colspan="1">Calendar, CalendarEvent, AddressBook, ContactCard, FileNode</td>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <a href="#object-type-webdav" class="auto internal xref">Section 2.1.3</a>
+</td>
+              </tr>
+            </tbody>
+          </table>
+</div>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="sec-combined-references">
+<section id="section-10">
+      <h2 id="name-references">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-references" class="section-name selfRef">References</a>
+      </h2>
+<div id="sec-normative-references">
+<section id="section-10.1">
+        <h3 id="name-normative-references">
+<a href="#section-10.1" class="section-number selfRef">10.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+        </h3>
+<dl class="references">
+<dt id="I-D.ietf-jmap-calendars">[I-D.ietf-jmap-calendars]</dt>
+        <dd>
+<span class="refAuthor">Jenkins, N.</span> and <span class="refAuthor">M. Douglass</span>, <span class="refTitle">"JSON Meta Application Protocol (JMAP) for Calendars"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-jmap-calendars-25</span>, <time datetime="2025-10-08" class="refDate">8 October 2025</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-jmap-calendars-25">https://datatracker.ietf.org/doc/html/draft-ietf-jmap-calendars-25</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.ietf-jmap-filenode">[I-D.ietf-jmap-filenode]</dt>
+        <dd>
+<span class="refAuthor">Gondwana, B.</span>, <span class="refTitle">"JMAP File Storage extension"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-jmap-filenode-03</span>, <time datetime="2025-10-17" class="refDate">17 October 2025</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-03">https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-03</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC2119">[RFC2119]</dt>
+        <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC4918">[RFC4918]</dt>
+        <dd>
+<span class="refAuthor">Dusseault, L., Ed.</span>, <span class="refTitle">"HTTP Extensions for Web Distributed Authoring and Versioning (WebDAV)"</span>, <span class="seriesInfo">RFC 4918</span>, <span class="seriesInfo">DOI 10.17487/RFC4918</span>, <time datetime="2007-06" class="refDate">June 2007</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4918">https://www.rfc-editor.org/rfc/rfc4918</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC5464">[RFC5464]</dt>
+        <dd>
+<span class="refAuthor">Daboo, C.</span>, <span class="refTitle">"The IMAP METADATA Extension"</span>, <span class="seriesInfo">RFC 5464</span>, <span class="seriesInfo">DOI 10.17487/RFC5464</span>, <time datetime="2009-02" class="refDate">February 2009</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc5464">https://www.rfc-editor.org/rfc/rfc5464</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8126">[RFC8126]</dt>
+        <dd>
+<span class="refAuthor">Cotton, M.</span>, <span class="refAuthor">Leiba, B.</span>, and <span class="refAuthor">T. Narten</span>, <span class="refTitle">"Guidelines for Writing an IANA Considerations Section in RFCs"</span>, <span class="seriesInfo">BCP 26</span>, <span class="seriesInfo">RFC 8126</span>, <span class="seriesInfo">DOI 10.17487/RFC8126</span>, <time datetime="2017-06" class="refDate">June 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8126">https://www.rfc-editor.org/rfc/rfc8126</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8174">[RFC8174]</dt>
+        <dd>
+<span class="refAuthor">Leiba, B.</span>, <span class="refTitle">"Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 8174</span>, <span class="seriesInfo">DOI 10.17487/RFC8174</span>, <time datetime="2017-05" class="refDate">May 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8174">https://www.rfc-editor.org/rfc/rfc8174</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8620">[RFC8620]</dt>
+        <dd>
+<span class="refAuthor">Jenkins, N.</span> and <span class="refAuthor">C. Newman</span>, <span class="refTitle">"The JSON Meta Application Protocol (JMAP)"</span>, <span class="seriesInfo">RFC 8620</span>, <span class="seriesInfo">DOI 10.17487/RFC8620</span>, <time datetime="2019-07" class="refDate">July 2019</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8620">https://www.rfc-editor.org/rfc/rfc8620</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9610">[RFC9610]</dt>
+        <dd>
+<span class="refAuthor">Jenkins, N., Ed.</span>, <span class="refTitle">"JSON Meta Application Protocol (JMAP) for Contacts"</span>, <span class="seriesInfo">RFC 9610</span>, <span class="seriesInfo">DOI 10.17487/RFC9610</span>, <time datetime="2024-12" class="refDate">December 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9610">https://www.rfc-editor.org/rfc/rfc9610</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9670">[RFC9670]</dt>
+      <dd>
+<span class="refAuthor">Jenkins, N., Ed.</span>, <span class="refTitle">"JSON Meta Application Protocol (JMAP) Sharing"</span>, <span class="seriesInfo">RFC 9670</span>, <span class="seriesInfo">DOI 10.17487/RFC9670</span>, <time datetime="2024-11" class="refDate">November 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9670">https://www.rfc-editor.org/rfc/rfc9670</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="sec-informative-references">
+<section id="section-10.2">
+        <h3 id="name-informative-references">
+<a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="RFC3501">[RFC3501]</dt>
+        <dd>
+<span class="refAuthor">Crispin, M.</span>, <span class="refTitle">"INTERNET MESSAGE ACCESS PROTOCOL - VERSION 4rev1"</span>, <span class="seriesInfo">RFC 3501</span>, <span class="seriesInfo">DOI 10.17487/RFC3501</span>, <time datetime="2003-03" class="refDate">March 2003</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc3501">https://www.rfc-editor.org/rfc/rfc3501</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC4791">[RFC4791]</dt>
+        <dd>
+<span class="refAuthor">Daboo, C.</span>, <span class="refAuthor">Desruisseaux, B.</span>, and <span class="refAuthor">L. Dusseault</span>, <span class="refTitle">"Calendaring Extensions to WebDAV (CalDAV)"</span>, <span class="seriesInfo">RFC 4791</span>, <span class="seriesInfo">DOI 10.17487/RFC4791</span>, <time datetime="2007-03" class="refDate">March 2007</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4791">https://www.rfc-editor.org/rfc/rfc4791</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6352">[RFC6352]</dt>
+        <dd>
+<span class="refAuthor">Daboo, C.</span>, <span class="refTitle">"CardDAV: vCard Extensions to Web Distributed Authoring and Versioning (WebDAV)"</span>, <span class="seriesInfo">RFC 6352</span>, <span class="seriesInfo">DOI 10.17487/RFC6352</span>, <time datetime="2011-08" class="refDate">August 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc6352">https://www.rfc-editor.org/rfc/rfc6352</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8621">[RFC8621]</dt>
+        <dd>
+<span class="refAuthor">Jenkins, N.</span> and <span class="refAuthor">C. Newman</span>, <span class="refTitle">"The JSON Meta Application Protocol (JMAP) for Mail"</span>, <span class="seriesInfo">RFC 8621</span>, <span class="seriesInfo">DOI 10.17487/RFC8621</span>, <time datetime="2019-08" class="refDate">August 2019</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8621">https://www.rfc-editor.org/rfc/rfc8621</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8949">[RFC8949]</dt>
+        <dd>
+<span class="refAuthor">Bormann, C.</span> and <span class="refAuthor">P. Hoffman</span>, <span class="refTitle">"Concise Binary Object Representation (CBOR)"</span>, <span class="seriesInfo">STD 94</span>, <span class="seriesInfo">RFC 8949</span>, <span class="seriesInfo">DOI 10.17487/RFC8949</span>, <time datetime="2020-12" class="refDate">December 2020</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8949">https://www.rfc-editor.org/rfc/rfc8949</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9425">[RFC9425]</dt>
+      <dd>
+<span class="refAuthor">Cordier, R., Ed.</span>, <span class="refTitle">"JSON Meta Application Protocol (JMAP) for Quotas"</span>, <span class="seriesInfo">RFC 9425</span>, <span class="seriesInfo">DOI 10.17487/RFC9425</span>, <time datetime="2023-06" class="refDate">June 2023</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9425">https://www.rfc-editor.org/rfc/rfc9425</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="changes">
+<section id="appendix-A">
+      <h2 id="name-changes">
+<a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-changes" class="section-name selfRef">Changes</a>
+      </h2>
+<p id="appendix-A-1">[[This section to be removed by RFC Editor]]<a href="#appendix-A-1" class="pilcrow">¶</a></p>
+<p id="appendix-A-2"><strong>draft-degennaro-jmap-object-metadata-00</strong><a href="#appendix-A-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-A-3.1">
+          <p id="appendix-A-3.1.1">Initial version<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-B">
+      <h2 id="name-authors-address">
+<a href="#name-authors-address" class="section-name selfRef">Author's Address</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Mauro De Gennaro</span></div>
+<div dir="auto" class="left"><span class="org">Stalwart Labs LLC</span></div>
+<div dir="auto" class="left"><span class="street-address">1309 Coffeen Avenue, Suite 1200</span></div>
+<div dir="auto" class="left">
+<span class="locality">Sheridan</span>, <span class="region">WY</span> <span class="postal-code">82801</span>
+</div>
+<div dir="auto" class="left"><span class="country-name">United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:mauro@stalw.art" class="email">mauro@stalw.art</a>
+</div>
+<div class="url">
+<span>URI:</span>
+<a href="https://stalw.art" class="url">https://stalw.art</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>

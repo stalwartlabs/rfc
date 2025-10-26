@@ -1,0 +1,841 @@
+---
+title: JMAP Object Metadata
+abbrev: JMAP Object Metadata
+docname: draft-degennaro-jmap-object-metadata-00
+submissionType: IETF
+category: std
+updates: 
+obsoletes:
+ipr: trust200902
+keyword: Internet-Draft
+stand_alone: yes
+pi: [toc, sortrefs, symrefs]
+
+author:
+ -
+    ins: M. De Gennaro
+    name: Mauro De Gennaro
+    org: Stalwart Labs LLC
+    abbrev: Stalwart Labs
+    street: 1309 Coffeen Avenue, Suite 1200
+    city: Sheridan
+    region: WY
+    code: 82801
+    country: USA
+    email: mauro@stalw.art
+    uri: https://stalw.art
+
+normative:
+  RFC8620: RFC8620
+  RFC8126: RFC8126
+  RFC5464: RFC5464
+  RFC4918: RFC4918
+  RFC9670: RFC9670
+  RFC9610: RFC9610
+  I-D.ietf-jmap-filenode: 
+  I-D.ietf-jmap-calendars: 
+
+informative:
+  RFC8949: RFC8949
+  RFC3501: RFC3501
+  RFC8621: RFC8621
+  RFC4791: RFC4791
+  RFC6352: RFC6352
+  RFC9425: RFC9425
+
+--- abstract
+
+This document defines a new extension to the JSON Meta Application Protocol (JMAP) that introduces a standardized mechanism for managing metadata associated with JMAP objects. The JMAP Object Metadata extension allows clients and servers to store, retrieve, and synchronize arbitrary metadata and annotations on any JMAP data type in a consistent manner. It defines a generic annotation model as well as specific mappings for accessing IMAP metadata and WebDAV “dead properties” where applicable. This extension facilitates interoperability between JMAP and existing metadata frameworks while allowing vendor-specific extensions in a structured and discoverable way.
+
+--- middle
+
+# Introduction
+
+JMAP ({{RFC8620}} — JSON Meta Application Protocol) is a generic protocol for synchronizing data, such as mail, calendars or contacts, between a client and a server. It is optimized for mobile and web environments, and aims to provide a consistent interface to different data types.
+
+Metadata and annotations are auxiliary data elements that provide additional context, user-defined properties, or system-specific information about primary data objects. These mechanisms have proven valuable in existing protocols: IMAP {{RFC3501}} provides the METADATA extension {{RFC5464}} for associating arbitrary key-value pairs with mailboxes and the server, while WebDAV {{RFC4918}} supports "dead properties" that allow clients to store custom XML properties on resources. Such metadata capabilities enable a wide range of use cases, including user annotations, application-specific settings, collaborative tagging, and protocol bridging.
+
+This document defines a standardized approach to managing metadata within JMAP. The specification introduces a generic annotation mechanism that can be applied to any JMAP object type, allowing both common metadata properties and vendor-specific extensions. This provides a consistent interface for clients to store and retrieve supplementary information associated with emails, contacts, calendar events, and other JMAP data types.
+
+For servers that implement multiple protocols, this specification also defines optional specialized metadata types: ImapMetadata for accessing IMAP METADATA extension entries through JMAP, and WebDavMetadata for exposing WebDAV dead properties via JMAP interfaces. These specialized types facilitate protocol interoperability and allow clients to manage metadata across different protocol boundaries.
+
+## Notational Conventions
+
+{::boilerplate bcp14-tagged}
+
+## Addition to the Capabilities Object
+
+The capabilities object is returned as part of the JMAP Session object; see {{Section 2 of RFC8620}}. This document defines one additional capability URI.
+
+### urn:ietf:params:jmap:metadata 
+
+This capability represents support for the Metadata data type and associated API methods. Servers that include this capability provide the ability to create, retrieve, update, and query Metadata objects.
+
+The value of this property in the JMAP Session "capabilities" property is an empty object. 
+
+The value of this property in an account's "accountCapabilities" property is an object that MUST contain the following information on server capabilities and permissions for that account:
+
+{:vspace}
+**dataTypes**: `String[]|null`
+: A list of JMAP data types for which the server supports metadata operations. A value of `null` indicates support for all data types. When specified as an array, only the listed data types can have Metadata objects associated with them.
+
+**metadataTypes**: `String[]` 
+: A list of metadata type identifiers (values of the `@type` property) for which the server supports metadata operations. Only the listed metadata types can be created or retrieved.
+
+**maxDepth**: `UnsignedInt|null` 
+: Maximum depth of nested vendor-specific metadata properties that can be set or retrieved. A depth of 1 indicates only flat properties are supported. A depth of 2 allows one level of nesting, and so forth. A value of `null` indicates no server-enforced limit on nesting depth. This limitation applies to the structure of vendor-defined nested metadata properties within Annotation objects and does not affect the standard properties defined in this specification.
+
+**maySetPrivate**: `Boolean` (default: true)
+: Indicates whether the authenticated user has permission to create private metadata objects (`isPrivate`: true) in this account. If false, the user can only create shared metadata objects. Attempts to create private metadata when this capability is false MUST be rejected with a "forbidden" SetError.
+
+# Metadata Object
+
+The Metadata object has a collection of properties, as specified in the following sections. Properties are specified as being either mandatory or optional. Optional properties may have a default value if explicitly specified in the property definition.
+
+## Object Types
+
+This specification defines three metadata object types: Annotation, ImapMetadata, and WebDavMetadata. The Annotation type provides a generic mechanism for attaching metadata to any JMAP object and supports arbitrary vendor-specific properties. The ImapMetadata and WebDavMetadata types are specialized metadata objects that provide structured access to IMAP METADATA extension {{RFC5464}} entries and WebDAV {{RFC4918}} dead properties, respectively, enabling protocol interoperability for servers that support multiple protocols.
+
+Additional specifications MAY define further metadata types as needed to address specific use cases or protocol requirements. Such specifications MUST define a unique type identifier and specify which JMAP data types the metadata type may be associated with.
+
+Metadata objects MUST name their type in the `@type` property. If not specified, the type is assumed to be "Annotation".
+
+### Annotation {#object-type-annotation}
+
+An Annotation represents general-purpose metadata that can be attached to any JMAP object. Annotations provide a flexible mechanism for storing supplementary information about JMAP data objects without modifying the objects themselves. This metadata type is suitable for user comments, application-specific tags, workflow states, collaborative annotations, and other extensible metadata requirements.
+
+The Annotation type is designed to be extensible through vendor-specific properties. This allows vendors and third-party applications to add custom metadata fields while maintaining interoperability with the core JMAP metadata system. Vendors can define domain-namespaced properties to avoid naming conflicts and ensure that their extensions do not interfere with standard properties or extensions from other vendors.
+
+Common use cases for Annotations include: storing user notes or comments on emails or calendar events; maintaining application-specific flags or states; recording collaborative review or approval status; tracking custom workflow stages; and preserving client-specific UI preferences or cached computations.
+
+The Annotation type MUST allow vendor-specific properties to be added beyond the common properties defined in this specification, subject to the naming and structure requirements specified in [Vendor-Specific Properties](#vendor-specific-properties).
+
+The [@type](#type-property) property value MUST be "Annotation".
+
+### IMAP Metadata {#object-type-imap}
+
+ImapMetadata represents metadata associated with IMAP mailboxes as defined by the IMAP METADATA extension {{RFC5464}}. This metadata type provides a JMAP interface to IMAP metadata entries, allowing clients to read and potentially modify IMAP metadata through the JMAP protocol. This facilitates migration scenarios, protocol bridging, and unified metadata management for servers that support both IMAP and JMAP.
+
+The IMAP METADATA extension defines a hierarchical namespace of metadata entries associated with mailboxes, organized under "/shared" and "/private" prefixes. Shared metadata entries are visible to all users with appropriate access to the mailbox, while private metadata entries are visible only to the authenticated user. The ImapMetadata type maps these IMAP concepts onto the JMAP metadata model.
+
+Servers that support ImapMetadata MUST provide read access to IMAP metadata through the Metadata/get method. Write access (the ability to create, update, or destroy ImapMetadata objects through Metadata/set) is OPTIONAL. Servers that provide read-only access to IMAP metadata MUST reject modification attempts with an appropriate SetError (typically "forbidden"). Servers SHOULD document whether they provide read-only or read-write access to ImapMetadata.
+
+This metadata type can only be associated with JMAP Mailbox objects as defined in {{Section 2 of RFC8621}}. Attempts to create ImapMetadata objects with a `parentType` other than "Mailbox" MUST be rejected with an "invalidProperties" SetError.
+
+The [@type](#type-property) property value MUST be "ImapMetadata".
+
+### WebDAV Metadata {#object-type-webdav}
+
+WebDavMetadata represents metadata associated with WebDAV resources in the form of "dead properties" as defined in {{Section 4 of RFC4918}}. Dead properties are arbitrary XML properties that clients can set on WebDAV resources to store metadata. This metadata type enables JMAP clients to access and potentially manipulate WebDAV dead properties, facilitating protocol interoperability and unified metadata management on servers that support both WebDAV and JMAP.
+
+WebDAV dead properties are identified by their expanded XML name, which consists of a namespace URI and a local name. The WebDavMetadata type preserves this structure by using the expanded-name format for property keys: "{namespace-uri}localname". This ensures that WebDAV properties can be accurately represented and manipulated through JMAP without loss of namespace information.
+
+Servers that support WebDavMetadata MUST provide read access to WebDAV dead properties through the Metadata/get method. Write access (the ability to create, update, or destroy WebDavMetadata objects through Metadata/set) is OPTIONAL. Servers that provide read-only access to WebDAV dead properties MUST reject modification attempts with an appropriate SetError (typically "forbidden"). Servers SHOULD document whether they provide read-only or read-write access to WebDavMetadata.
+
+This metadata type can be associated with Calendar {{I-D.ietf-jmap-calendars}}, CalendarEvent {{I-D.ietf-jmap-calendars}}, AddressBook {{RFC9610}}, ContactCard {{RFC9610}}, and FileNode {{I-D.ietf-jmap-filenode}} data types, corresponding to the WebDAV-based protocols such as CalDAV {{RFC4791}}, CardDAV {{RFC6352}}, and WebDAV file storage. Servers MUST enforce that WebDavMetadata objects are only created for parent types that correspond to WebDAV resources. Attempts to create WebDavMetadata objects with inappropriate `parentType` values MAY be rejected with an "invalidProperties" SetError.
+
+The [@type](#type-property) property value MUST be "WebDavMetadata".
+
+## Properties
+
+### Common Properties {#common-metadata-properties}
+
+#### @type {#type-property}
+
+Type: `String` (mandatory)
+
+This specifies the type that this object represents. The allowed value differs by object type and is defined in Sections [](#object-type-annotation), [](#object-type-imap), and [](#object-type-webdav).
+
+#### id {#id-property}
+
+Type: `Id` (server-set)
+
+The id of the Metadata object. This identifier is unique within the scope of the account and is assigned by the server upon creation.
+
+#### parentType {#parent-type-property}
+
+Type: `String` (mandatory)
+
+The JMAP data type of the object to which this Metadata object is attached, e.g., "Email", "ContactCard", "Mailbox", "CalendarEvent". The `parentType` determines the kind of object identified by the `parentId` property.
+
+#### parentId {#parent-id-property}
+
+Type: `Id` (mandatory)
+
+The id of the JMAP object to which this Metadata object is attached. This id MUST correspond to a valid object of the type specified in `parentType` within the same account.
+
+#### isPrivate {#is-private-property}
+
+Type: `Boolean` (default: false)
+
+Indicates whether the Metadata object is private to the authenticated user or shared among all users with access to the parent object. If true, the Metadata object represents user-specific metadata that is visible only to the user who created it. If false or omitted, the Metadata object is considered shared and can be accessed by other users with appropriate permissions on the parent object, as defined in [Access Control](#access-control).
+
+The `isPrivate` property enables per-user metadata on shared objects. Multiple users may each have their own private Metadata objects associated with the same parent object and metadata type. When a client queries for Metadata objects with `isPrivate`: true, the server MUST return only those private Metadata objects that were created by the currently authenticated user. Private Metadata objects created by other users MUST NOT be visible to the authenticated user, even if they have access to the parent object.
+
+Internally, the server may store multiple private Metadata objects for the same combination of `parentType`, `parentId`, and `@type` (one for each user who has set private metadata). However, from the perspective of any given authenticated user, there is at most one visible private Metadata object for each parent-type combination—specifically, the private Metadata object that they themselves created. Other users' private Metadata objects for the same parent object and type are not visible to them.
+
+For shared Metadata objects (`isPrivate`: false), there is at most one Metadata object per combination of `parentType`, `parentId`, and `@type`, and it is visible to all users with appropriate permissions on the parent object.
+
+For ImapMetadata objects, this property determines whether the metadata corresponds to IMAP entries under the "/private/" or "/shared/" prefix hierarchy.
+
+#### Vendor-Specific Properties {#vendor-specific-properties}
+
+Vendors MAY add additional properties to Metadata objects to support their custom features or requirements. To prevent naming conflicts, the names of vendor-specific properties MUST be prefixed by a domain name controlled by the vendor followed by a colon, e.g., `example.com:customField` or `vendor.org:internalState`. The use of domain name prefixes ensures global uniqueness and allows multiple vendors to extend the metadata schema without interference.
+
+If the value of a vendor-specific property is itself a Metadata object (nested object), it either MUST include an `@type` property to identify its type, or the property definition MUST explicitly specify that a type designator is not required for that particular property. If a type is specified for a nested vendor-specific object, the type name MUST also be prefixed with a domain name controlled by the vendor, e.g., `example.com:CustomMetadataType`.
+
+Vendors are strongly encouraged to register any new property values or extensions that are useful to other systems as well, rather than use a vendor-specific prefix. Registration with IANA or documentation in public specifications enhances interoperability and allows broader adoption of useful metadata extensions.
+
+Server implementations MUST preserve vendor-specific properties that they do not recognize when updating Metadata objects, unless the update explicitly removes those properties. This ensures that metadata from one vendor's client is not inadvertently lost when another client (or the server itself) modifies other properties of the Metadata object.
+
+Annotation type Metadata objects MUST allow vendor-specific properties to be added beyond the common properties defined above. This extensibility mechanism enables vendors and third-party applications to store custom metadata without requiring standardization of every use case.
+
+### ImapMetadata Properties
+
+In addition to the common Metadata object properties ([](#common-metadata-properties)), an `ImapMetadata` object has the following properties:
+
+#### metadata {#metadata-property-imap}
+
+Type: `[String]String` (default: {})
+
+The IMAP METADATA extension {{RFC5464}} defines a mechanism for clients to store and retrieve arbitrary key-value metadata associated with IMAP mailboxes. Metadata entries are organized in a hierarchical namespace with two top-level prefixes: "/private/" for per-user private metadata and "/shared/" for metadata shared among all users with access to the mailbox.
+
+This property contains the key-value pairs of IMAP metadata entries associated with the mailbox. The keys in this map represent IMAP metadata entry names with the "/private/" or "/shared/" prefix removed. The values are the corresponding metadata values as strings. The interpretation of keys depends on the value of the `isPrivate` property:
+
+- If `isPrivate` is true, the keys represent metadata entries under the "/private/" prefix. For example, a key "comment" with value "Important mailbox" corresponds to the IMAP metadata entry "/private/comment" with that value. A key "vendor/example.com/setting" would correspond to "/private/vendor/example.com/setting".
+
+- If `isPrivate` is false, the keys represent metadata entries under the "/shared/" prefix. A key "comment" with value "Team mailbox" would correspond to "/shared/comment". For example, if an ImapMetadata object has `isPrivate` set to true and the metadata property contains `{"comment": "My notes", "vendor/acme.example/color": "blue"}`, this represents IMAP metadata entries "/private/comment" with value "My notes" and "/private/vendor/acme.example/color" with value "blue".
+
+Servers MUST ensure that the IMAP metadata namespace conventions are preserved. When retrieving IMAP metadata, servers SHOULD strip the "/private/" or "/shared/" prefix based on the `isPrivate` property value. When setting IMAP metadata through this interface, servers MUST prepend the appropriate prefix before storing the entry in the IMAP metadata store.
+
+Empty string values are permitted and represent IMAP metadata entries that exist but have no value. To delete an IMAP metadata entry through this interface, clients should remove the corresponding key from the metadata map entirely.
+
+### WebDavMetadata Properties
+
+In addition to the common Metadata object properties ([](#common-metadata-properties)), an `WebDavMetadata` object has the following properties:
+
+#### metadata {#metadata-property-webdav}
+
+Type: `[String]String` (default: {})
+
+WebDAV {{RFC4918}} defines "dead properties" as arbitrary properties set by clients on WebDAV resources. Unlike "live properties" which have their semantics enforced by the server, dead properties are stored and returned verbatim without server interpretation. Dead properties are identified by XML expanded names, which consist of a namespace URI and a local name.
+
+This property contains the key-value pairs of WebDAV dead properties associated with the resource. The keys MUST be in the expanded-name format: "{namespace-uri}localname". For example, a property with namespace URI "http://example.com/ns" and local name "priority" would be represented as the key "{http://example.com/ns}priority".
+
+The values are the string representations of the dead properties. For properties that contain simple text content, the value is that text content. For properties that contain complex XML structure or content that cannot be directly represented as a simple string, the value MUST be the serialized XML representation of the property's content. The serialization SHOULD preserve the XML structure including elements, attributes, and namespaces, but typically excludes the outer property element itself (since the property name is already represented in the key).
+
+For example, a WebDavMetadata object might have a metadata property containing:
+
+~~~ json
+{
+  "{http://example.com/ns}priority": "high",
+  "{http://example.com/ns}reviewedBy": "alice@example.com",
+  "{DAV:}displayname": "Project Documents",
+  "{http://example.com/ns}complexdata": 
+     "<item><name>Test</name><value>123</value></item>"
+}
+~~~
+
+This represents four WebDAV dead properties: three with simple text content and one with XML structure serialized as a string.
+
+Servers MUST preserve the namespace and local name structure of WebDAV properties. When synchronizing between JMAP and WebDAV interfaces, servers MUST maintain consistency such that setting a property through one interface makes it visible through the other interface (subject to server support for write operations).
+
+The XML serialization format allows round-tripping of complex WebDAV properties through the JMAP interface. Clients that need to work with structured WebDAV properties can parse the XML string values to access the internal structure.
+
+# Metadata Methods
+
+## Metadata/set
+
+This is a standard "/set" method as described in {{Section 5.2 of RFC8620}}.
+
+The Metadata/set method enforces a uniqueness constraint to ensure consistent metadata management. From the perspective of an authenticated user, their account MUST NOT contain multiple visible Metadata objects with the same combination of `parentType`, `parentId`, `@type`, and ``isPrivate`` values. This constraint ensures that for any given parent object and metadata type, the user sees at most one private Metadata object (their own) and at most one shared Metadata object.
+
+For shared metadata (`isPrivate`: false), the server MUST enforce global uniqueness: only one shared Metadata object may exist for each combination of `parentType`, `parentId`, and `@type` across all users.
+
+For private metadata (`isPrivate`: true), the server MUST enforce per-user uniqueness: each user may have at most one private Metadata object for each combination of `parentType`, `parentId`, and `@type`. The server internally may store multiple private Metadata objects for the same parent-type combination (one per user), but each user can only see and modify their own.
+
+If a client attempts to create a Metadata object that would violate this uniqueness constraint for the authenticated user, the server MUST reject the create operation with an "invalidProperties" SetError. The SetError SHOULD include a description indicating that a Metadata object with the specified combination of properties already exists. Clients that wish to modify existing metadata should use the update operation rather than attempting to create a duplicate.
+
+Similarly, if an update operation would change the `parentType`, `parentId`, `@type`, or `isPrivate` properties such that the resulting Metadata object would conflict with an existing object visible to the authenticated user, the server MUST reject the update with an "invalidProperties" SetError.
+
+If the maySetPrivate capability is false for the account and a client attempts to create or update a Metadata object with `isPrivate`: true, the server MUST reject the operation with a "forbidden" SetError.
+
+Servers SHOULD enforce quota limits when processing Metadata/set requests. If a create or update operation would cause the account's metadata storage to exceed its quota, the server MUST reject the operation with an "overQuota" SetError. The SetError MAY include additional information about the quota limit and current usage in its description property. Quota enforcement is discussed further in the Quota section.
+
+Servers MUST validate that the `parentType` and `parentId` values reference a valid existing object of the appropriate type. If the parent object does not exist or the `parentType` is not recognized, the server SHOULD reject the operation with an "invalidProperties" SetError, with the "properties" field including "`parentType`" and/or "`parentId`" as appropriate.
+
+For ImapMetadata objects, servers MUST verify that the `parentType` is "Mailbox" ({{Section 2 of RFC8621}}). For WebDavMetadata objects, servers MUST verify that the `parentType` is one of the supported WebDAV-backed types (Calendar {{I-D.ietf-jmap-calendars}}, CalendarEvent {{I-D.ietf-jmap-calendars}}, AddressBook {{RFC9610}}, ContactCard {{RFC9610}}, FileNode {{I-D.ietf-jmap-filenode}}, or other appropriate types as defined by the server).
+
+## Metadata/get
+
+This is a standard "/get" method as described in {{Section 5.1 of RFC8620}}. The "ids" argument MAY be null to fetch all Metadata objects in the account at once.
+
+## Metadata/changes
+
+This is a standard "/changes" method as described in {{Section 5.2 of RFC8620}}.
+
+## Metadata/query
+
+This is a standard "/query" method as described in {{Section 5.5 of RFC8620}}.
+
+### Filtering
+
+A **FilterCondition** object has the following properties, any of which may be omitted:
+
+{:vspace}
+**@type**: `String[]`
+: Only Metadata objects whose `@type` property value is in the specified array are returned. This allows filtering for specific metadata types, for example, to retrieve only Annotation objects or only ImapMetadata objects.
+
+**parentType**: `String`
+: Only Metadata objects whose `parentType` is equal to the specified value are returned. This is useful for retrieving metadata associated with a particular JMAP data type, such as all metadata on Email objects.
+
+**parentIds**: `Id[]`
+: Only Metadata objects whose `parentId` is in the specified array are returned. This allows retrieving metadata for a specific set of parent objects.
+
+**isPrivate**: `Boolean`
+: Only Metadata objects whose `isPrivate` property matches the specified value are returned. This allows filtering to retrieve only private metadata (true) or only shared metadata (false).
+
+**textMatch**: `String`
+: Only Metadata objects whose vendor-specific string properties contain the specified text are returned. The match SHOULD be case-insensitive and SHOULD look for the text anywhere within the property values. Servers MAY extend this to match against standard properties as well, but MUST at minimum search vendor-specific properties. The exact matching algorithm is implementation-defined, but servers SHOULD document their behavior for this filter.
+
+### Sorting
+
+The following properties SHOULD be supported for sorting:
+
+- @type
+- parentType
+- parentId
+- isPrivate
+
+## Metadata/queryChanges
+
+This is a standard "/queryChanges" method as described in {{Section 5.6 of RFC8620}}.
+
+# Standard Method Extensions
+
+This specification extends the standard JMAP methods for existing data types to support metadata operations. These extensions allow clients to retrieve and manage metadata alongside the primary data objects in a unified, efficient manner.
+
+## /get {#extended-get}
+
+This extension enhances the standard "/get" method defined in {{Section 5.1 of RFC8620}} for all JMAP data types specified in the dataTypes capability. The extension adds metadata retrieval capabilities to any supported data type's /get method (e.g., Email/get, Mailbox/get, Contact/get).
+
+The following additional arguments are defined for the extended /get method:
+
+{:vspace}
+**metadataTypes**: `String[]|null` (default: \[\])
+: A list of metadata object type identifiers (`@type` values) to retrieve for the requested objects. If not provided or an empty array is provided, no metadata is returned. If null is specified, all metadata is returned. If one or more type identifiers are specified, the server returns metadata objects of those types associated with the requested objects. Servers MUST support this argument for all data types listed in the dataTypes capability.
+
+**metadataProperties**: `String[]|null` (default: null)
+: A list of metadata property names to include in the returned metadata objects. If null, all properties of the metadata objects are returned. If specified, only the requested properties are included in the response. The `@type` and `parentId` properties MUST always be included in metadata objects even if not explicitly requested, as they are necessary to correlate metadata with their parent objects and identify the metadata type. This argument follows the same semantics as the properties argument in the standard /get method. Servers MUST support this argument for all data types listed in the dataTypes capability.
+
+The response to an extended /get method includes the following additional property:
+
+{:vspace}
+**metadata**: `Metadata[]` (default: \[\])
+: An array of Metadata objects associated with the objects returned in the list property. The metadata array contains only those metadata objects whose `parentId` corresponds to an object id in the list response and whose `@type` matches one of the types specified in the metadataTypes request argument. If metadataTypes was null or empty, this property is an empty array or may be omitted. The `parentId` property of each metadata object allows clients to correlate metadata with their parent objects.
+
+If a requested parent object does not have any metadata of the specified types, it simply will not have corresponding entries in the metadata array.
+
+## /set {#extended-set}
+
+This specification extends the standard "/set" method defined in {{Section 5.3 of RFC8620}} for all JMAP data types to ensure proper metadata lifecycle management.
+
+When an object is destroyed through a /set method (e.g., Email/set with a destroy operation), the server MUST automatically delete all associated Metadata objects. This includes both private and shared metadata, regardless of which user created them. This cascading deletion ensures that metadata does not become orphaned when its parent object is removed.
+
+The automatic deletion of metadata applies to all metadata types (Annotation, ImapMetadata, WebDavMetadata, and any other registered metadata types) associated with the destroyed object.
+
+Servers SHOULD NOT generate separate Metadata/set responses or state changes for automatically deleted metadata. The deletion is considered an implicit consequence of destroying the parent object. However, servers MAY emit push notifications or update metadata state strings to reflect that metadata has been deleted, if such notifications would otherwise occur for explicitly deleted metadata.
+
+Clients do not need to manually delete metadata before destroying parent objects, and attempting to do so would be inefficient. The server handles metadata cleanup automatically.
+
+If an error occurs during parent object deletion that prevents the destruction from completing, the associated metadata MUST NOT be deleted either, maintaining referential integrity.
+
+# Access Control
+
+Access control for Metadata objects is determined by the `isPrivate` property and the permissions on the parent object. This model ensures that metadata access aligns with the access control of the objects being annotated.
+
+For private Metadata objects (`isPrivate`: true), only the authenticated user who created the Metadata object can read or modify it. Private metadata is isolated to the creating user and is not visible to other users regardless of their permissions on the parent object. This allows users to maintain personal annotations on shared objects without exposing them to collaborators or other users with shared access.
+
+When processing Metadata/get or Metadata/query requests, the server MUST filter private Metadata objects to return only those created by the currently authenticated user. Private Metadata objects created by other users MUST NOT be included in the response, even if those other users have access to the same parent objects.
+
+When processing Metadata/set requests for private Metadata objects, the server MUST verify that the user has appropriate access to the parent object (at minimum, read access to create private annotations on it). However, the user does not need write access to the parent object to create or modify their own private metadata about it.
+
+For shared Metadata objects (`isPrivate`: false), access is governed by the permissions of the parent object. Users who have permission to read the parent object can also read shared Metadata objects associated with it. Users who have permission to modify the parent object can also modify shared Metadata objects associated with it.
+
+For shareable JMAP object types as defined in {{Section 4 of RFC9670}} and type-specific specifications, the server MUST enforce access control based on the mayRead and mayWrite properties (or equivalent permission indicators) of the parent object when processing Metadata/get and Metadata/set requests on shared Metadata objects.
+
+Specifically:
+
+- A Metadata/get request for a shared Metadata object MUST only succeed if the requesting user has read permission (mayRead: true or equivalent) on the parent object.
+
+- A Metadata/set request that creates or updates a shared Metadata object MUST only succeed if the requesting user has write permission (mayWrite: true or equivalent) on the parent object.
+
+- A Metadata/set request that destroys a shared Metadata object MUST only succeed if the requesting user has write permission on the parent object (some servers may require additional permissions for deletion).
+
+- For private Metadata objects, the server MUST verify that the requesting user has at least read access to the parent object before allowing creation, and that the user is the creator of the private Metadata object before allowing updates or deletion.
+
+If a user attempts to access a Metadata object but lacks the necessary permissions, the server MUST reject the request with a "forbidden" error at the method level, or include a "forbidden" SetError in the notCreated/notUpdated/notDestroyed response for the specific object in Metadata/set operations.
+
+If the maySetPrivate capability is false and a user attempts to create a private Metadata object, the server MUST reject the request with a "forbidden" SetError, regardless of their permissions on the parent object.
+
+Servers SHOULD enforce these access control rules consistently across all Metadata operations. When a user's permissions on a parent object change (for example, when sharing is revoked), the visibility of shared Metadata objects associated with that parent MUST change accordingly. Private Metadata objects remain accessible only to their creator regardless of permission changes on the parent object.
+
+It is RECOMMENDED that servers provide clear error messages when access is denied, indicating whether the issue is lack of permission on the parent object, attempting to access another user's private metadata, or lack of permission to create private metadata in the account.
+
+# Quota
+
+Servers SHOULD enforce quota limits on the total storage consumed by Metadata objects within a JMAP account. Unbounded metadata storage could lead to resource exhaustion and denial of service conditions. Quota enforcement ensures fair resource allocation among users and protects server resources.
+
+Servers that support the JMAP Quotas extension {{RFC9425}} SHOULD integrate metadata storage into the quota framework defined in that specification, allowing clients to query current metadata quota usage and limits through the standard Quota API. Servers that do not support {{RFC9425}} SHOULD still enforce implementation-defined limits on metadata storage and reject operations that would exceed those limits with an "overQuota" SetError.
+
+The method for calculating the size of a Metadata object is implementation-specific, as different server architectures may have different storage characteristics. However, the following approach is RECOMMENDED for consistency and predictability:
+
+Calculate the size of a Metadata object as the size of its CBOR {{RFC8949}} serialized representation in bytes. CBOR provides a compact binary encoding of structured data similar to JSON, and using CBOR size as the quota metric provides a consistent measure that is independent of the server's internal storage format. This approach accounts for all property names and values, including vendor-specific properties, in a standardized way.
+
+When a Metadata/set operation would cause the account to exceed its metadata quota, the server MUST reject the operation with an "overQuota" SetError. The SetError SHOULD include a descriptive message indicating that the metadata quota has been exceeded. Servers MAY include additional information in the description, such as the current quota usage, the quota limit, and the size of the rejected operation.
+
+Quota enforcement applies to both create and update operations. Creating a new Metadata object consumes quota, and updating an existing object may increase quota usage if the update adds or enlarges properties. Destroying a Metadata object MUST free the quota consumed by that object.
+
+# Security considerations
+
+The metadata management capabilities defined in this specification introduce several security considerations that implementers and deployers must address to protect user data and prevent abuse.
+
+## Metadata Confidentiality
+
+Metadata objects may contain sensitive information, including personal notes, workflow states, application-specific data, and other user-generated content. Servers MUST enforce the access control mechanisms defined in [Access Control](#access-control) to prevent unauthorized disclosure of metadata.
+
+Private metadata (`isPrivate`: true) contains information intended only for the authenticated user who created it. Servers MUST ensure that private metadata is never exposed to other users through any interface, including JMAP, IMAP, WebDAV, or any other supported protocols. Each user's private metadata must remain isolated from all other users, even those who have full access to the parent object.
+
+The per-user nature of private metadata introduces important implementation considerations. Since multiple users may each have their own private Metadata objects for the same parent object and metadata type, servers must carefully track which user created each private Metadata object. When processing queries or retrieval requests, servers MUST filter results to include only the private metadata belonging to the currently authenticated user. Failure to properly implement this filtering could result in serious privacy breaches where one user's private notes or annotations are exposed to other users.
+
+Shared metadata visibility is tied to the permissions of the parent object. Servers MUST consistently enforce these permissions across all access methods. When sharing permissions on a parent object change, the visibility of associated shared metadata MUST change accordingly. Servers should be cautious about caching metadata in ways that could bypass updated permission checks.
+
+For servers that bridge JMAP metadata to IMAP METADATA or WebDAV properties, special care must be taken to ensure that the visibility and access control semantics are correctly mapped between protocols. IMAP private metadata (entries under "/private/") must map to JMAP private metadata for the authenticated user. Access control on WebDAV properties must align with JMAP shared metadata permissions. Servers must ensure that the per-user isolation model is maintained when metadata is accessed through different protocol interfaces.
+
+## User Identity and Authentication
+
+The private metadata model relies critically on accurate user authentication and identity management. Servers MUST:
+
+- Reliably identify the authenticated user for all metadata operations
+- Maintain accurate association between private Metadata objects and their creating users
+- Prevent authentication bypass or identity spoofing that could allow access to other users' private metadata
+- Handle account delegation or administrative access carefully to ensure private metadata is not inadvertently exposed (administrators accessing an account on behalf of a user should not see other users' private metadata on shared objects)
+
+Servers that support account delegation, impersonation, or administrative access features must carefully consider whether delegated access should include visibility into the account owner's private metadata, and should provide controls to limit such access when appropriate.
+
+## Injection Attacks Through Vendor-Specific Properties
+
+The extensibility mechanism that allows vendor-specific properties introduces potential security risks if not properly handled. Malicious clients could attempt to inject harmful content through vendor-specific properties, including:
+
+- Script injection: Embedding executable code in metadata properties that might be rendered in a web context without proper sanitization
+- XML/JSON injection: Crafting property values that could break parsing or processing logic
+- Path traversal: Using specially crafted property names to attempt unauthorized file system access
+- SQL injection: If metadata is stored in SQL databases, unsanitized property values could lead to SQL injection vulnerabilities
+
+Servers MUST treat all vendor-specific property values as untrusted user input. When storing, processing, or displaying metadata, servers and clients MUST:
+
+- Validate property names conform to the specified format (domain-name prefix followed by colon and property name)
+- Sanitize property values before use in any context where interpretation could occur (HTML rendering, script execution, database queries, etc.)
+- Apply appropriate output encoding when displaying metadata to users
+- Enforce length limits on property names and values to prevent resource exhaustion
+- Reject or sanitize properties containing control characters or other potentially harmful content
+
+For WebDavMetadata objects, special attention must be paid to the serialized XML content in property values. Servers MUST:
+
+- Validate that XML content is well-formed before storage
+- Sanitize XML to remove potentially harmful constructs (scripts, entity expansions, external entity references)
+- Apply appropriate XML entity encoding when processing or displaying the content
+- Implement protections against XML external entity (XXE) attacks and XML bomb attacks
+
+Clients that display metadata to users MUST treat metadata content as untrusted and apply appropriate security measures, such as Content Security Policy restrictions, HTML sanitization, and context-appropriate escaping.
+
+## Resource Exhaustion and Denial of Service
+
+Without proper controls, metadata management features could be abused to cause resource exhaustion or denial of service:
+
+- Storage exhaustion: Attackers could create excessive metadata to consume storage quota or server resources. The per-user private metadata model amplifies this risk since multiple users could each create private metadata on the same shared objects.
+- Processing exhaustion: Complex nested vendor-specific properties or deeply nested object structures could consume excessive CPU or memory during processing
+- Query complexity: Expensive metadata queries, particularly those involving private metadata filtering across many users, could strain server resources
+
+Servers SHOULD implement the quota mechanisms described in [Quota](#quota) to limit total metadata storage per account. Additionally, servers SHOULD:
+
+- Enforce the maxDepth limit on nested vendor-specific properties
+- Implement timeouts for metadata operations to prevent long-running queries
+- Apply rate limiting to metadata creation and modification operations
+- Monitor for unusual patterns of metadata usage that might indicate abuse (e.g., one user creating private metadata on unusually large numbers of objects)
+- Implement reasonable limits on the size of individual property values
+- Consider implementing separate quota tracking for private vs. shared metadata to prevent abuse
+
+Servers MAY reject metadata creation or updates that appear abusive, returning appropriate SetError responses.
+
+## Protocol Bridging Risks
+
+For servers that bridge JMAP metadata to IMAP METADATA or WebDAV properties, inconsistencies or vulnerabilities in the bridging logic could lead to security issues:
+
+- Permission bypass: Differences in permission models between protocols could be exploited to gain unauthorized access. For example, IMAP and WebDAV may have different concepts of private vs. shared metadata that must be carefully reconciled.
+- Metadata corruption: Improper format conversion could corrupt metadata or enable injection attacks. Special care is needed when converting between JMAP's JSON representation, IMAP's string values, and WebDAV's XML properties.
+- Information leakage: Protocol-specific metadata might inadvertently be exposed through the bridging mechanism. For instance, internal IMAP server entries or WebDAV live properties should not be exposed as JMAP metadata.
+- Synchronization inconsistencies: Race conditions or improper locking when synchronizing metadata across protocol boundaries could lead to data corruption or access control violations.
+
+Servers that implement protocol bridging MUST carefully validate the security properties of their bridging implementation and ensure that the most restrictive applicable access control is enforced. The per-user isolation model for private metadata must be maintained consistently across all protocol interfaces.
+
+For read-only ImapMetadata and WebDavMetadata access, servers should clearly document this limitation to prevent client confusion and ensure that clients do not assume modification capabilities that are not actually available.
+
+## Server Vulnerabilities
+
+Implementations must be robust against malformed requests and unexpected data. Servers MUST:
+
+- Validate all input according to the type specifications in this document
+- Handle JSON/XML parsing errors gracefully without exposing server internals
+- Protect against integer overflow, buffer overflow, and other common vulnerabilities when processing metadata
+- Properly handle the per-user filtering of private metadata to prevent information leakage
+- Implement proper database indexing and query optimization to handle private metadata filtering efficiently even with large numbers of users and objects
+- Log security-relevant events (authentication failures, authorization failures, suspicious patterns, attempts to access other users' private metadata) for monitoring and incident response
+
+## Client Vulnerabilities  
+
+Clients that implement metadata management must also consider security:
+
+- Clients MUST validate server responses and handle unexpected or malformed data gracefully
+- Clients SHOULD warn users before displaying potentially sensitive metadata, particularly when displaying shared metadata that might have been created by other users
+- Clients MUST NOT execute or interpret metadata content as code unless the user explicitly requests it and appropriate sandboxing is in place
+- Clients accessing metadata through web browsers should utilize security features such as Content Security Policy
+- Clients should clearly distinguish between private and shared metadata in the user interface to prevent users from inadvertently sharing private information
+- When parsing XML content from WebDavMetadata properties, clients must use secure XML parsers and disable dangerous features like external entity resolution
+
+# Examples
+
+This section provides practical examples demonstrating common metadata management scenarios.
+
+## Creating a Mailbox with Annotation
+
+This example shows how to create a new JMAP Mailbox and associate an Annotation object with vendor-specific properties in a single request.
+
+~~~ json
+[
+  ["Mailbox/set", {
+    "accountId": "A12345",
+    "create": {
+      "new-mailbox": {
+        "name": "Project Alpha",
+        "parentId": null,
+        "role": null
+      }
+    }
+  }, "c1"],
+  ["Metadata/set", {
+    "accountId": "A12345",
+    "create": {
+      "new-metadata": {
+        "@type": "Annotation",
+        "parentType": "Mailbox",
+        "parentId": "#new-mailbox",
+        "isPrivate": true,
+        "acme.example.com:color": "blue",
+        "acme.example.com:priority": "high",
+        "acme.example.com:project": {
+          "@type": "acme.example.com:ProjectInfo",
+          "projectId": "ALPHA-2024",
+          "deadline": "2024-12-31",
+          "team": "Engineering"
+        }
+      }
+    }
+  }, "c2"]
+]
+~~~
+
+## Retrieving a Mailbox with Metadata
+
+This example shows how to retrieve the created mailbox along with its associated Annotation metadata in a single request using the extended /get method:
+
+Request:
+
+~~~ json
+[
+  ["Mailbox/get", {
+    "accountId": "A12345",
+    "ids": ["MB789"],
+    "properties": ["name", "parentId", "role"],
+    "metadataTypes": ["Annotation"],
+    "metadataProperties": ["acme.example.com:color", 
+                           "acme.example.com:priority"]
+  }, "c3"]
+]
+~~~
+
+Response:
+
+~~~ json
+[
+  ["Mailbox/get", {
+    "accountId": "A12345",
+    "state": "m101",
+    "list": [
+      {
+        "id": "MB789",
+        "name": "Project Alpha",
+        "parentId": null,
+        "role": null
+      }
+    ],
+    "metadata": [
+      {
+        "parentId": "MB789",
+        "@type": "Annotation",
+        "acme.example.com:color": "blue",
+        "acme.example.com:priority": "high"
+      }
+    ],
+    "notFound": []
+  }, "c3"]
+]
+~~~
+
+
+## Attaching Photography Metadata to a FileNode
+
+This example demonstrates using a *fictional* registered PhotoMetadata type to attach photography information to FileNode {{I-D.ietf-jmap-filenode}} objects. The PhotoMetadata type is assumed to be an IANA-registered metadata type specifically designed for photographic data.
+
+Request:
+
+~~~json
+[
+  ["FileNode/set", {
+    "accountId": "A12345",
+    "update": {
+      "F456": {
+        "name": "sunset-beach.jpg"
+      }
+    }
+  }, "c1"],
+  ["Metadata/set", {
+    "accountId": "A12345",
+    "create": {
+      "photo-meta": {
+        "@type": "PhotoMetadata",
+        "parentType": "FileNode",
+        "parentId": "F456",
+        "isPrivate": false,
+        "geoLocation": {
+          "latitude": 34.0522,
+          "longitude": -118.2437
+        },
+        "cameraMake": "Canon",
+        "cameraModel": "EOS R5",
+        "aperture": "f/2.8",
+        "shutterSpeed": "1/250",
+        "iso": 400,
+        "focalLength": "50mm",
+        "dateTaken": "2025-11-20T19:32:00Z",
+        "imageSize": {
+          "width": 6000,
+          "height": 4000
+        }
+      }
+    }
+  }, "c2"]
+]
+~~~
+
+## Retrieving a FileNode with Photography Metadata
+
+Request:
+
+~~~json
+[
+  ["FileNode/get", {
+    "accountId": "A12345",
+    "ids": ["F456"],
+    "metadataTypes": ["PhotoMetadata"],
+    "metadataProperties": null
+  }, "c3"]
+]
+~~~
+
+Response:
+
+~~~json
+[
+  ["FileNode/get", {
+    "accountId": "A12345",
+    "state": "f201",
+    "list": [
+      {
+        "id": "F456",
+        "name": "sunset-beach.jpg",
+        "type": "image/jpeg",
+        "size": 2458624,
+        "blobId": "Gabc123def456",
+        "parentId": "folder789",
+        "createdDate": "2024-07-15T20:00:00Z",
+        "modifiedDate": "2024-10-20T15:30:00Z"
+      }
+    ],
+    "metadata": [
+      {
+        "id": "photometa99",
+        "@type": "PhotoMetadata",
+        "parentId": "F456",
+        "geoLocation": {
+          "latitude": 34.0522,
+          "longitude": -118.2437
+        },
+        "cameraMake": "Canon",
+        "cameraModel": "EOS R5",
+        "aperture": "f/2.8",
+        "iso": 400,
+        "imageSize": {
+          "width": 6000,
+          "height": 4000
+        }
+      }
+    ],
+    "notFound": []
+  }, "c3"]
+]
+~~~
+
+# IANA considerations
+
+## JMAP Capability Registration for "metadata"
+
+IANA will register the "metadata" JMAP Capability as follows:
+
+**Capability Name:** urn:ietf:params:jmap:metadata\\
+**Specification document:** this document\\
+**Intended use:** common\\
+**Change Controller:** IETF\\
+**Security and privacy considerations:** this document, [](#security-considerations)
+
+## JMAP Data Type Registration for "Metadata"
+
+IANA will register "Metadata" in the "JMAP Data Types" registry as follows:
+
+**Type Name:** Metadata\\
+**Can reference blobs:** no\\
+**Can Use for State Change:** yes\\
+**Capability:** urn:ietf:params:jmap:metadata\\
+**Specification document:** this document
+
+## Creation of the "JMAP Metadata Properties" Registry {#properties-registry}
+
+IANA has created the "JMAP Metadata Properties" registry to allow interoperability of extensions to JMAP Metadata objects.
+
+This registry follows the Expert Review process ({{RFC8126, Section 4.5}}). If the "Intended Usage" field is common, sufficient documentation is required to enable interoperability. Preliminary community review for this registry is optional but strongly encouraged.
+
+A registration can have an intended usage of common, reserved, or obsolete. IANA will list registrations with a common usage designation prominently and separately from those with other intended usage values.
+
+A reserved registration reserves a property name without assigning semantics to avoid name collisions with future extensions or protocol use.
+
+An obsolete registration denotes a property that is no longer expected to be added by up-to-date systems. A new property has probably been defined covering the obsolete property's semantics.
+
+The JMAP Metadata property registration procedure is not a formal standards process but rather an administrative procedure intended to allow community comment and check it is coherent without excessive time delay. It is designed to encourage vendors to document and register new properties they add for use cases not covered by the original specification, leading to increased interoperability
+
+### Preliminary Community Review
+
+Notice of a potential new registration SHOULD be sent to the JMAP mailing list <jmap@ietf.org> for review. This mailing list is appropriate to solicit community feedback on a proposed new property.
+
+Property registrations must be marked with their intended use: "common", "reserved", or "obsolete".
+
+The intent of the public posting to this list is to solicit comments and feedback on the choice of the property name, the unambiguity of the specification document, and a review of any interoperability or security considerations. The submitter may submit a revised registration proposal or abandon the registration completely at any time.
+
+### Change Procedures
+
+Once a JMAP Metadata property has been published by IANA, the change controller may request a change to its definition. The same procedure that would be appropriate for the original registration request is used to process a change request.
+
+JMAP Metadata property registrations may not be deleted; properties that are no longer believed appropriate for use can be declared obsolete by a change to their "intended usage" field; such properties will be clearly marked in the IANA registry.
+
+Significant changes to a JMAP Metadata property's definition should be requested only when there are serious omissions or errors in the published specification, as such changes may cause interoperability issues. When review is required, a change request may be denied if it renders entities that were valid under the previous definition invalid under the new definition.
+
+The owner of a JMAP Metadata property may pass responsibility to another person or agency by informing IANA; this can be done without discussion or review.
+
+### "JMAP Metadata Properties" Registry Template
+
+{:vspace}
+**Property Name**:
+: This is the name of the property. The property name MUST NOT already be registered for any of the object types listed in the "Property Context" field of this registration. Other object types MAY already have registered a different property with the same name; however, the same name SHOULD only be used when the semantics are analogous.
+
+**Property Type**:
+: This is the type of this property, using type signatures, as specified in [](#type-property). The property type MUST be registered in the "JMAP Metadata Types" registry.
+
+**Property Context**:
+: This is a comma-separated list of JMAP Metadata object types this property is allowed on.
+
+**Reference or Description**:
+: This is a brief description or RFC number and section reference where the property is specified (omitted for "reserved" property names).
+
+**Intended Usage**:
+: This may be "common", "reserved", or "obsolete".
+
+**Change Controller**:
+: This is who may request a change to this entry's definition (IETF for RFCs from the IETF stream).
+
+### Submit Request to IANA
+
+Registration requests can be sent to <iana@iana.org>.
+
+### Designated Expert Review
+
+The primary concern of the designated expert (DE) is preventing name collisions and encouraging the submitter to document security and privacy considerations. For a common-use registration, the DE is expected to confirm that suitable documentation, as described in {{Section 4.6 of RFC8126}}, is available to ensure interoperability. That documentation will usually be in an RFC, but simple definitions are likely to use a web/wiki page, and if a sentence or two is deemed sufficient, it could be described in the registry itself. The DE should also verify that the property name does not conflict with work that is active or already published within the IETF. A published specification is not required for reserved or obsolete registrations.
+
+The DE will either approve or deny the registration request and publish a notice of the decision to the JMAP WG mailing list or its successor, as well as inform IANA. A denial notice must be justified by an explanation, and, in the cases where it is possible, concrete suggestions on how the request can be modified so as to become acceptable should be provided.
+
+### Initial Contents for the "JMAP Metadata Properties" Registry
+
+The following table lists the initial entries of the "JMAP Metadata Properties" registry. All properties are for common use. All RFC section references are for this document. The change controller for all these properties is "IETF".
+
+| Property Name | Property Type | Property Context | Reference or Description |
+|--------+------------------+------------------+------------------|
+| @type | String | Annotation, ImapMetadata, WebDavMetadata | [](#type-property) |
+| id | Id | Annotation, ImapMetadata, WebDavMetadata | [](#id-property) |
+| parentType | String | Annotation, ImapMetadata, WebDavMetadata | [](#parent-type-property) |
+| parentId | Id | Annotation, ImapMetadata, WebDavMetadata | [](#parent-id-property) |
+| isPrivate | Boolean | Annotation, ImapMetadata, WebDavMetadata | [](#is-private-property) |
+| metadata | \[String\]String | ImapMetadata, WebDavMetadata | [](#metadata-property-imap), [](#metadata-property-webdav) |
+{: #tab-metadata-properties title="Initial Contents of the \"JMAP Metadata Properties\" Registry"}
+
+## Creation of the "JMAP Metadata Types" Registry
+
+IANA has created the "JMAP Metadata Types" registry to avoid name collisions and provide a complete reference for all metadata types used for JMAP Metadata property values. The registration process is the same as for the "JMAP Metadata Properties" registry, as defined in [](#properties-registry).
+
+### "JMAP Metadata Types" Registry Template
+
+{:vspace}
+**Type Name**: 
+: the name of the type
+
+**Applicable Data Types**:
+: a list of JMAP data type names that this metadata type can be associated with, or "any" if the metadata type can be associated with any JMAP data type
+
+**Reference or Description**:
+: a brief description or RFC number and section reference where the Type is specified (may be omitted for "reserved" type names)
+
+**Intended Use**:
+: common, reserved, or obsolete
+
+**Change Controller**:
+: who may request a change to this entry's definition (IETF for RFCs from the IETF stream)
+
+### Initial Contents for the "JMAP Metadata Types" Registry
+
+The following table lists the initial entries of the JMAP Metadata Types registry. All properties are for common use. All RFC section references are for this document. The change controller for all these properties is "IETF".
+
+| Type Name | Applicable Data Types | Reference or Description |
+|-----------|----------------------|--------------------------|
+| Annotation | any | [](#object-type-annotation) |
+| ImapMetadata | Mailbox | [](#object-type-imap) |
+| WebDavMetadata | Calendar, CalendarEvent, AddressBook, ContactCard, FileNode | [](#object-type-webdav) |
+{: #tab-metadata-types title="Initial Contents of the \"JMAP Metadata Types\" Registry"}
+
+--- back
+
+# Changes
+
+\[\[This section to be removed by RFC Editor\]\]
+
+**draft-degennaro-jmap-object-metadata-00**
+
+* Initial version
+
+
