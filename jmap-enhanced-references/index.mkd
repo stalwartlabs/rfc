@@ -86,6 +86,122 @@ Second, enhanced result references optionally support JSON Path ({{RFC9535}}) ex
 
 The syntax and resolution mechanism for enhanced result references follows the same fundamental pattern as standard result references, with extensions to accommodate the new contexts and optional JSON Path support. Backward compatibility is maintained: clients that do not use enhanced result references, and servers that do not advertise the `urn:ietf:params:jmap:refplus` capability, interoperate normally using the base result reference mechanism from {{RFC8620}}.
 
+## JSON Path Support
+
+JSON Path ({{RFC9535}}) is a query language for JSON that provides powerful capabilities for selecting and extracting values from JSON structures. While JSON Pointer ({{RFC6901}}) provides a simple notation for referencing a specific value within a JSON document using a sequence of reference tokens, JSON Path offers a more expressive syntax that supports complex queries including filters, recursive descent, array slicing, and wildcard selections.
+
+### Comparison with JSON Pointer
+
+The key differences between JSON Pointer and JSON Path include:
+
+- JSON Pointer uses a simple path syntax with "/" separators and identifies exactly one value. JSON Path uses a richer syntax with multiple selector types and can return zero, one, or multiple values.
+
+- JSON Pointer is deterministic and always produces the same result for a given document. JSON Path queries may be order-dependent when multiple values match.
+
+- JSON Pointer has no conditional or filtering capabilities. JSON Path supports filter expressions, enabling selection based on value predicates.
+
+- JSON Pointer requires exact knowledge of the structure. JSON Path supports recursive descent (..) allowing queries to find values at any depth.
+
+### Support and Capabilities
+
+Enhanced result references extend the base result reference mechanism to optionally support JSON Path expressions. This support is indicated by the "jsonPath" property in the account capabilities being set to true. Servers MAY implement JSON Path support, as it can be more resource-intensive than JSON Pointer due to the potential for complex query evaluation.
+
+When a server supports JSON Path, enhanced result references may use JSON Path syntax as an alternative to JSON Pointer syntax in the "path" property of a ResultReference object. To indicate that a path should be interpreted as a JSON Path expression rather than a JSON Pointer, the path MUST begin with "$" (dollar sign), which is the root node identifier in JSON Path syntax. Paths not beginning with "$" are interpreted as JSON Pointer expressions following the rules in {{RFC8620}}.
+
+### Validation Requirements
+
+If the JSON Path expression is syntactically invalid according to {{RFC9535}}, the server MUST reject the method call with an "invalidResultReference" error. The error description SHOULD indicate the syntax error where possible.
+
+If a client attempts to use a JSON Path expression (path beginning with "$") but the server does not support JSON Path (jsonPath capability is false or absent), the server MUST reject the method call with an "invalidResultReference" error. The error description SHOULD indicate that JSON Path is not supported.
+
+Servers supporting JSON Path SHOULD implement the complete JSON Path specification as defined in {{RFC9535}}, including all standard function extensions. However, servers MAY limit the complexity of JSON Path expressions for security or performance reasons, for example by restricting maximum expression length, maximum result set size, or computational complexity. If a server rejects a valid JSON Path expression due to such limitations, it SHOULD return an "invalidResultReference" error with a description indicating the specific limitation encountered.
+
+## Resolution Algorithm
+
+This section defines the algorithm for resolving enhanced result references, which extends the base resolution mechanism defined in {{Section 3.7 of RFC8620}} to handle both JSON Path expressions and extended JSON Pointer expressions (including wildcard support).
+
+When processing a ResultReference object, the server MUST follow these steps:
+
+1. Resolve the "resultOf" and "name" properties to identify the target method response, as defined in {{Section 3.7 of RFC8620}}.
+
+2. Identify the second element of the method response array (the arguments object) as the target JSON structure for path evaluation.
+
+3. Determine whether the "path" property uses JSON Path or JSON Pointer syntax:
+   - If the path begins with "$" (dollar sign), treat it as a JSON Path expression.
+   - Otherwise, treat it as a JSON Pointer expression.
+
+4. Evaluate the path expression against the target JSON structure according to the appropriate specification ({{RFC9535}} for JSON Path, {{RFC6901}} for JSON Pointer).
+
+5. Apply the type-specific resolution rules defined in this section to produce the final resolved value.
+
+### Resolving JSON Path References
+
+When processing a ResultReference with a JSON Path expression, the server MUST:
+
+1. Apply the JSON Path expression (the "path" value) to the arguments object of the identified response.
+
+2. Evaluate the JSON Path expression according to {{RFC9535}} to produce a nodelist.
+
+3. Determine the expected type of the property being set and resolve the nodelist according to the following type-specific rules.
+
+The nodelist produced by JSON Path evaluation MUST be resolved according to the expected type of the target property:
+
+For properties that expect **JSON primitive types** (String, Boolean, Number as defined in {{RFC8259}}, or null) or a **single JMAP object** type:
+
+- If the nodelist contains exactly one node, use that node's value as the resolved value.
+- If the nodelist contains zero nodes, use null as the resolved value.
+- If the nodelist contains more than one node, the result reference resolution fails with an "invalidResultReference" error.
+
+For properties that expect an **array type** (denoted as "A\[\]" in {{Section 1.1 of RFC8620}}, where A\[\] is an array of values of type A):
+
+- Map the nodelist to an array containing the value of each node in the nodelist, in the order specified by {{RFC9535}}.
+- If the nodelist contains zero nodes, use an empty array as the resolved value.
+- If the nodelist contains one or more nodes, use an array containing all node values as the resolved value.
+
+For properties that expect a **map type** (denoted as "A\[B\]" in {{Section 1.1 of RFC8620}}, where the keys are of type A and the values are of type B):
+
+- If the nodelist contains exactly one node and that node's value is a JSON object conforming to the A\[B\] type, use that object as the resolved value.
+- If the nodelist contains zero nodes, use an empty object {} as the resolved value.
+- If the nodelist contains more than one node, or if the single node's value is not a JSON object, the result reference resolution fails with an "invalidResultReference" error.
+
+### Resolving JSON Pointer References
+
+JSON Pointer expressions, as defined in {{RFC6901}}, provide a deterministic path to a single value within a JSON structure. However, {{RFC8620}} extends JSON Pointer syntax to support wildcards ("*") in certain contexts, allowing a single pointer to match multiple values. This extension is maintained in enhanced result references.
+
+When processing a ResultReference with a JSON Pointer expression, the server MUST:
+
+1. Apply the JSON Pointer expression (the "path" value) to the arguments object of the identified response.
+
+2. Evaluate the JSON Pointer expression according to {{RFC6901}}, with wildcard extensions as defined in {{RFC8620}}.
+
+3. Determine the expected type of the property being set and resolve according to the following type-specific rules.
+
+The result produced by JSON Pointer evaluation (which may be a single value or multiple values when wildcards are used) MUST be resolved according to the expected type of the target property:
+
+For properties that expect **JSON primitive types** (String, Boolean, Number as defined in {{RFC8259}}, or null) or a **single JMAP object** type:
+
+- If the pointer identifies exactly one value, use that value as the resolved value.
+- If the pointer contains wildcards and matches zero values, use null as the resolved value.
+- If the pointer contains wildcards and matches more than one value, the result reference resolution fails with an "invalidResultReference" error.
+- If the pointer does not contain wildcards and does not match any value, the result reference resolution fails with an "invalidResultReference" error (per {{RFC6901}}).
+
+For properties that expect an **array type** (denoted as "A\[\]" in {{Section 1.1 of RFC8620}}, where A\[\] is an array of values of type A):
+
+- If the pointer identifies a single value that is already an array, use that array as the resolved value.
+- If the pointer contains wildcards and matches multiple values, collect all matched values into an array in the order they appear in the document structure.
+- If the pointer contains wildcards and matches zero values, use an empty array as the resolved value.
+- If the pointer identifies a single value that is not an array, create an array containing that single value as the resolved value.
+
+For properties that expect a **map type** (denoted as "A\[B\]" in {{Section 1.1 of RFC8620}}, where the keys are of type A and the values are of type B):
+
+- If the pointer identifies exactly one value and that value is a JSON object conforming to the A\[B\] type, use that object as the resolved value.
+- If the pointer contains wildcards and matches zero values, use an empty object {} as the resolved value.
+- If the pointer contains wildcards and matches more than one value, or if the single identified value is not a JSON object, the result reference resolution fails with an "invalidResultReference" error.
+
+### Type Validation
+
+After applying the type-specific resolution rules, the server MUST validate that the resolved value conforms to the expected type for the property. If type validation fails after resolution, the server MUST reject the operation with an "invalidProperties" error (for /set operations) or an "invalidArguments" error (for /query operations).
+
 ## Usage in /set Methods
 
 Enhanced result references may be used anywhere within object property values when creating or updating objects via the Foo/set method. This enables efficient reuse of data from previous method calls when constructing new objects or modifying existing ones.
@@ -106,6 +222,51 @@ If a result reference fails to resolve, the server MUST reject the creation or u
 If an object contains both a property name with "#" prefix and the same property name without the prefix (e.g., both "#participants" and "participants"), the server MUST reject the creation or update with a SetError of type "invalidProperties", as this represents an ambiguous specification.
 
 The resolved value MUST be of a type appropriate for the property being set. If the resolved value does not match the expected type for the property, the server MUST reject the creation or update with a SetError of type "invalidProperties". Type validation occurs after result reference resolution but before other property validation.
+
+### Usage in Patch Objects
+
+Enhanced result references may also be used as values within patch objects, as defined in {{Section 5.3 of RFC8620}}. A patch object is used to update specific properties of an existing object without having to send the entire object. When using result references in patch objects, special syntax rules apply:
+
+The patch object key (the path to the property being patched) MUST be a JSON Pointer as specified in {{RFC6901}}, and MUST be prefixed with "#" to indicate that the value is a result reference. For example, to patch a property "locations/a1/city" with a value from a previous result, the patch object would include a key "#/locations/a1/city" with a ResultReference value.
+
+The value associated with the prefixed JSON Pointer key is a ResultReference object. This ResultReference may use either JSON Pointer or JSON Path (if supported by the server) in its "path" property to extract the value from the previous method result.
+
+When processing patch objects, the server MUST:
+
+1. Identify keys in the patch object that begin with "#".
+2. Remove the "#" prefix to obtain the JSON Pointer path to be patched.
+3. Resolve the ResultReference value according to the resolution algorithm.
+4. Apply the resolved value to the location specified by the JSON Pointer path in the target object.
+
+If a result reference in a patch object fails to resolve, the server MUST reject the update with a SetError of type "invalidResultReference".
+
+It is important to note that while the patch object key (the path) MUST use JSON Pointer syntax, the ResultReference value's "path" property may use either JSON Pointer or JSON Path syntax (if the server supports JSON Path).
+
+## Usage in FilterCondition Objects
+
+Enhanced result references may be used within FilterCondition objects in Foo/query method calls. This enables dynamic query construction where filter criteria are derived from the results of previous method calls in the same request.
+
+To use an enhanced result reference within a FilterCondition, the filter property name is prefixed with "#" (an octothorpe), and the value is set to a ResultReference object. For example, to filter based on a dynamically determined mailbox id, the FilterCondition would include "#inMailbox" rather than "inMailbox".
+
+When processing a Foo/query method call, the server MUST examine the "filter" argument and any nested FilterCondition objects for properties with names beginning with "#". For each such property found, the server MUST:
+
+1. Remove the "#" prefix to determine the actual filter property name.
+2. Resolve the ResultReference value following the resolution algorithm defined in {{Section 3.7 of RFC8620}}, with the extensions defined in this specification.
+3. Replace the property with "#" prefix with a property of the actual name, having the resolved value.
+
+If a result reference in a FilterCondition fails to resolve, the server MUST reject the entire query method call with an error response of type "invalidResultReference". The error response SHOULD include a description indicating which filter property reference failed and why.
+
+If a FilterCondition contains both a property name with "#" prefix and the same property name without the prefix (e.g., both "#inMailbox" and "inMailbox"), the server MUST reject the query with an "invalidArguments" error, as this represents an ambiguous filter specification.
+
+The resolved value MUST be of a type appropriate for the filter property being set. If the resolved value does not match the expected type for that filter property, the server MUST reject the query with an "invalidArguments" error.
+
+Enhanced result references in FilterConditions support the full range of filter compositions defined by JMAP specifications, including nested FilterCondition objects combined with FilterOperators. The server MUST recursively process all levels of FilterCondition nesting to resolve all result references before evaluating the query.
+
+# Examples
+
+This section provides additional examples demonstrating the use of enhanced result references in various contexts.
+
+## Usage in /set
 
 Example using JSON Path (assuming server supports jsonPath capability):
 
@@ -152,26 +313,9 @@ Example using JSON Path (assuming server supports jsonPath capability):
 
 In this example, the new calendar event reuses the participants and locations from a template event retrieved in previous calls. The server would resolve the result references before creating the event, effectively copying those complex object values without requiring the client to extract and reformat them.
 
-### Usage in Patch Objects
+## Usage in /set patch objects
 
-Enhanced result references may also be used as values within patch objects, as defined in {{Section 5.3 of RFC8620}}. A patch object is used to update specific properties of an existing object without having to send the entire object. When using result references in patch objects, special syntax rules apply:
-
-The patch object key (the path to the property being patched) MUST be a JSON Pointer as specified in {{RFC6901}}, and MUST be prefixed with "#" to indicate that the value is a result reference. For example, to patch a property "locations/a1/city" with a value from a previous result, the patch object would include a key "#/locations/a1/city" with a ResultReference value.
-
-The value associated with the prefixed JSON Pointer key is a ResultReference object. This ResultReference may use either JSON Pointer or JSON Path (if supported by the server) in its "path" property to extract the value from the previous method result.
-
-When processing patch objects, the server MUST:
-
-1. Identify keys in the patch object that begin with "#".
-2. Remove the "#" prefix to obtain the JSON Pointer path to be patched.
-3. Resolve the ResultReference value according to the resolution algorithm.
-4. Apply the resolved value to the location specified by the JSON Pointer path in the target object.
-
-If a result reference in a patch object fails to resolve, the server MUST reject the update with a SetError of type "invalidResultReference".
-
-It is important to note that while the patch object key (the path) MUST use JSON Pointer syntax, the ResultReference value's "path" property may use either JSON Pointer or JSON Path syntax (if the server supports JSON Path).
-
-Example of using result references in a patch object:
+Example of using result references in a patch object (assuming server supports jsonPath capability):
 
 ~~~ json
 [
@@ -209,27 +353,9 @@ Example of using result references in a patch object:
 
 In this example, the patch object updates specific properties of event-123 using values extracted from a template event. The patch updates a single location entry ("locations/a1"), copies the organizer's calendar address, and adds a participant ("participants/p1") by extracting a participant with the "chair" role from the template using a JSON Path filter expression. The patch keys "#/locations/a1", "#/organizerCalendarAddress", and "#/participants/p1" use JSON Pointer syntax (prefixed with "#"), while the ResultReference path properties use a mix of JSON Path expressions (including the filter expression for selecting the chair participant) and simple paths.
 
-## Usage in FilterCondition Objects
+## Usage in /query FilterCondition
 
-Enhanced result references may be used within FilterCondition objects in Foo/query method calls. This enables dynamic query construction where filter criteria are derived from the results of previous method calls in the same request.
-
-To use an enhanced result reference within a FilterCondition, the filter property name is prefixed with "#" (an octothorpe), and the value is set to a ResultReference object. For example, to filter based on a dynamically determined mailbox id, the FilterCondition would include "#inMailbox" rather than "inMailbox".
-
-When processing a Foo/query method call, the server MUST examine the "filter" argument and any nested FilterCondition objects for properties with names beginning with "#". For each such property found, the server MUST:
-
-1. Remove the "#" prefix to determine the actual filter property name.
-2. Resolve the ResultReference value following the resolution algorithm defined in {{Section 3.7 of RFC8620}}, with the extensions defined in this specification.
-3. Replace the property with "#" prefix with a property of the actual name, having the resolved value.
-
-If a result reference in a FilterCondition fails to resolve, the server MUST reject the entire query method call with an error response of type "invalidResultReference". The error response SHOULD include a description indicating which filter property reference failed and why.
-
-If a FilterCondition contains both a property name with "#" prefix and the same property name without the prefix (e.g., both "#inMailbox" and "inMailbox"), the server MUST reject the query with an "invalidArguments" error, as this represents an ambiguous filter specification.
-
-The resolved value MUST be of a type appropriate for the filter property being set. If the resolved value does not match the expected type for that filter property, the server MUST reject the query with an "invalidArguments" error.
-
-Enhanced result references in FilterConditions support the full range of filter compositions defined by JMAP specifications, including nested FilterCondition objects combined with FilterOperators. The server MUST recursively process all levels of FilterCondition nesting to resolve all result references before evaluating the query.
-
-Example using JSON Path for array extraction:
+Example using JSON Path for array extraction (assuming server supports jsonPath capability):
 
 ~~~ json
 [
@@ -257,56 +383,7 @@ Example using JSON Path for array extraction:
 
 In this example, the Email/query uses a dynamically resolved mailbox id from the previous Mailbox/query call. The JSON Path expression `$.ids[0]` extracts the first mailbox id from the query result. The server resolves this reference before executing the email query, effectively filtering emails that are not in the user's inbox and are from a specific sender.
 
-## JSON Path Support
-
-JSON Path ({{RFC9535}}) is a query language for JSON that provides powerful capabilities for selecting and extracting values from JSON structures. While JSON Pointer ({{RFC6901}}) provides a simple notation for referencing a specific value within a JSON document using a sequence of reference tokens, JSON Path offers a more expressive syntax that supports complex queries including filters, recursive descent, array slicing, and wildcard selections.
-
-The key differences between JSON Pointer and JSON Path include:
-
-- JSON Pointer uses a simple path syntax with "/" separators and identifies exactly one value. JSON Path uses a richer syntax with multiple selector types and can return zero, one, or multiple values.
-
-- JSON Pointer is deterministic and always produces the same result for a given document. JSON Path queries may be order-dependent when multiple values match.
-
-- JSON Pointer has no conditional or filtering capabilities. JSON Path supports filter expressions, enabling selection based on value predicates.
-
-- JSON Pointer requires exact knowledge of the structure. JSON Path supports recursive descent (..) allowing queries to find values at any depth.
-
-Enhanced result references extend the base result reference mechanism to optionally support JSON Path expressions. This support is indicated by the "jsonPath" property in the account capabilities being set to true. Servers MAY implement JSON Path support, as it can be more resource-intensive than JSON Pointer due to the potential for complex query evaluation.
-
-When a server supports JSON Path, enhanced result references may use JSON Path syntax as an alternative to JSON Pointer syntax in the "path" property of a ResultReference object. To indicate that a path should be interpreted as a JSON Path expression rather than a JSON Pointer, the path MUST begin with "$" (dollar sign), which is the root node identifier in JSON Path syntax. Paths not beginning with "$" are interpreted as JSON Pointer expressions following the rules in {{RFC8620}}.
-
-When processing a ResultReference with a JSON Path expression, the server MUST:
-
-1. Resolve the "resultOf" and "name" properties to identify the target method response, as defined in {{Section 3.7 of RFC8620}}.
-
-2. Apply the JSON Path expression (the "path" value) to the arguments object of the identified response (the second element of the method response array).
-
-3. Evaluate the JSON Path expression according to {{RFC9535}} to produce a nodelist.
-
-4. Determine the expected type of the property being set and resolve the nodelist according to the following rules:
-
-   - For properties that expect JSON primitive types (String, Boolean, Number as defined in {{RFC8259}}, or null) or a single JMAP object type:
-      - If the nodelist contains exactly one node, use that node's value as the resolved value.
-      - If the nodelist contains zero nodes, use null as the resolved value.
-      - If the nodelist contains more than one node, the result reference resolution fails with an "invalidResultReference" error.
-
-   - For properties that expect an array type (denoted as "A\[\]" in {{Section 1.1 of RFC8620}}, where A\[\] is an array of values of type A):
-      - Map the nodelist to an array containing the value of each node in the nodelist, in the order specified by {{RFC9535}}.
-      - If the nodelist contains zero nodes, use an empty array as the resolved value.
-      - If the nodelist contains one or more nodes, use an array containing all node values as the resolved value.
-
-   - For properties that expect a map type (denoted as "A\[B\]" in {{Section 1.1 of RFC8620}}, where the keys are of type A and the values are of type B):
-      - If the nodelist contains exactly one node and that node's value is a JSON object conforming to the A\[B\] type, use that object as the resolved value.
-      - If the nodelist contains zero nodes, use an empty object {} as the resolved value.
-      - If the nodelist contains more than one node, or if the single node's value is not a JSON object, the result reference resolution fails with an "invalidResultReference" error.
-
-The server MUST validate that the resolved value conforms to the expected type for the property. If type validation fails after resolution, the server MUST reject the operation with an "invalidProperties" error (for /set operations) or an "invalidArguments" error (for /query operations).
-
-If the JSON Path expression is syntactically invalid according to {{RFC9535}}, the server MUST reject the method call with an "invalidResultReference" error. The error description SHOULD indicate the syntax error where possible.
-
-If a client attempts to use a JSON Path expression (path beginning with "$") but the server does not support JSON Path (jsonPath capability is false or absent), the server MUST reject the method call with an "invalidResultReference" error. The error description SHOULD indicate that JSON Path is not supported.
-
-Servers supporting JSON Path SHOULD implement the complete JSON Path specification as defined in {{RFC9535}}, including all standard function extensions. However, servers MAY limit the complexity of JSON Path expressions for security or performance reasons, for example by restricting maximum expression length, maximum result set size, or computational complexity. If a server rejects a valid JSON Path expression due to such limitations, it SHOULD return an "invalidResultReference" error with a description indicating the specific limitation encountered.
+## Extracting Multiple Values with JSON Path
 
 Example demonstrating JSON Path for extracting multiple values:
 
