@@ -260,7 +260,7 @@ Similarly, if an update operation would change the `parentType`, `parentId`, `@t
 
 If the maySetPrivate capability is false for the account and a client attempts to create or update a Metadata object with `isPrivate`: true, the server MUST reject the operation with a "forbidden" SetError.
 
-Servers SHOULD enforce quota limits when processing Metadata/set requests. If a create or update operation would cause the account's metadata storage to exceed its quota, the server MUST reject the operation with an "overQuota" SetError. The SetError MAY include additional information about the quota limit and current usage in its description property. Quota enforcement is discussed further in the Quota section.
+Servers SHOULD enforce quota limits when processing Metadata/set requests. If a create or update operation would cause the account's metadata storage to exceed its quota, the server MUST reject the operation with an "overQuota" SetError. The SetError MAY include additional information about the quota limit and current usage in its description property. Quota enforcement is discussed further in [Quota](#quota).
 
 Servers MUST validate that the `parentType` and `parentId` values reference a valid existing object of the appropriate type. If the parent object does not exist or the `parentType` is not recognized, the server SHOULD reject the operation with an "invalidProperties" SetError, with the "properties" field including "`parentType`" and/or "`parentId`" as appropriate.
 
@@ -396,6 +396,202 @@ When a Metadata/set operation would cause the account to exceed its metadata quo
 
 Quota enforcement applies to both create and update operations. Creating a new Metadata object consumes quota, and updating an existing object may increase quota usage if the update adds or enlarges properties. Destroying a Metadata object MUST free the quota consumed by that object.
 
+# Examples
+
+This section provides practical examples demonstrating common metadata management scenarios.
+
+## Creating a Mailbox with Annotation
+
+This example shows how to create a new JMAP Mailbox and associate an Annotation object with vendor-specific properties in a single request.
+
+~~~ json
+[
+  ["Mailbox/set", {
+    "accountId": "A12345",
+    "create": {
+      "new-mailbox": {
+        "name": "Project Alpha",
+        "parentId": null,
+        "role": null
+      }
+    }
+  }, "c1"],
+  ["Metadata/set", {
+    "accountId": "A12345",
+    "create": {
+      "new-metadata": {
+        "@type": "Annotation",
+        "parentType": "Mailbox",
+        "parentId": "#new-mailbox",
+        "isPrivate": true,
+        "acme.example.com:color": "blue",
+        "acme.example.com:priority": "high",
+        "acme.example.com:project": {
+          "@type": "acme.example.com:ProjectInfo",
+          "projectId": "ALPHA-2024",
+          "deadline": "2024-12-31",
+          "team": "Engineering"
+        }
+      }
+    }
+  }, "c2"]
+]
+~~~
+
+## Retrieving a Mailbox with Metadata
+
+This example shows how to retrieve the created mailbox along with its associated Annotation metadata in a single request using the extended /get method:
+
+Request:
+
+~~~ json
+[
+  ["Mailbox/get", {
+    "accountId": "A12345",
+    "ids": ["MB789"],
+    "properties": ["name", "parentId", "role"],
+    "metadataTypes": ["Annotation"],
+    "metadataProperties": ["acme.example.com:color", 
+                           "acme.example.com:priority"]
+  }, "c3"]
+]
+~~~
+
+Response:
+
+~~~ json
+[
+  ["Mailbox/get", {
+    "accountId": "A12345",
+    "state": "m101",
+    "list": [
+      {
+        "id": "MB789",
+        "name": "Project Alpha",
+        "parentId": null,
+        "role": null
+      }
+    ],
+    "metadata": [
+      {
+        "parentId": "MB789",
+        "@type": "Annotation",
+        "acme.example.com:color": "blue",
+        "acme.example.com:priority": "high"
+      }
+    ],
+    "notFound": []
+  }, "c3"]
+]
+~~~
+
+
+## Attaching Photography Metadata to a FileNode
+
+This example demonstrates using a *fictional* registered PhotoMetadata type to attach photography information to FileNode {{I-D.ietf-jmap-filenode}} objects. The PhotoMetadata type is assumed to be an IANA-registered metadata type specifically designed for photographic data.
+
+Request:
+
+~~~json
+[
+  ["FileNode/set", {
+    "accountId": "A12345",
+    "update": {
+      "F456": {
+        "name": "lake-island.jpg"
+      }
+    }
+  }, "c1"],
+  ["Metadata/set", {
+    "accountId": "A12345",
+    "create": {
+      "photo-meta": {
+        "@type": "PhotoMetadata",
+        "parentType": "FileNode",
+        "parentId": "F456",
+        "isPrivate": false,
+        "geoLocation": {
+          "latitude": 46.362,
+          "longitude": 14.090
+        },
+        "cameraMake": "Canon",
+        "cameraModel": "EOS R5",
+        "aperture": "f/2.8",
+        "shutterSpeed": "1/250",
+        "iso": 400,
+        "focalLength": "50mm",
+        "dateTaken": "2023-10-01T01:14:00Z",
+        "imageSize": {
+          "width": 6000,
+          "height": 4000
+        }
+      }
+    }
+  }, "c2"]
+]
+~~~
+
+## Retrieving a FileNode with Photography Metadata
+
+Request:
+
+~~~json
+[
+  ["FileNode/get", {
+    "accountId": "A12345",
+    "ids": ["F456"],
+    "metadataTypes": ["PhotoMetadata"],
+    "metadataProperties": null
+  }, "c3"]
+]
+~~~
+
+Response:
+
+~~~json
+[
+  ["FileNode/get", {
+    "accountId": "A12345",
+    "state": "f201",
+    "list": [
+      {
+        "id": "F456",
+        "name": "lake-island.jpg",
+        "type": "image/jpeg",
+        "size": 2458624,
+        "blobId": "Gabc123def456",
+        "parentId": "folder789",
+        "createdDate": "2024-07-15T20:00:00Z",
+        "modifiedDate": "2024-10-20T15:30:00Z"
+      }
+    ],
+    "metadata": [
+      {
+        "id": "photometa99",
+        "@type": "PhotoMetadata",
+        "parentId": "F456",
+        "geoLocation": {
+          "latitude": 46.362,
+          "longitude": 14.090
+        },
+        "cameraMake": "Canon",
+        "cameraModel": "EOS R5",
+        "aperture": "f/2.8",
+        "shutterSpeed": "1/250",
+        "iso": 400,
+        "focalLength": "50mm",
+        "dateTaken": "2023-10-01T01:14:00Z",
+        "imageSize": {
+          "width": 6000,
+          "height": 4000
+        }
+      }
+    ],
+    "notFound": []
+  }, "c3"]
+]
+~~~
+
 # Security considerations
 
 The metadata management capabilities defined in this specification introduce several security considerations that implementers and deployers must address to protect user data and prevent abuse.
@@ -502,199 +698,6 @@ Clients that implement metadata management must also consider security:
 - Clients accessing metadata through web browsers should utilize security features such as Content Security Policy
 - Clients should clearly distinguish between private and shared metadata in the user interface to prevent users from inadvertently sharing private information
 - When parsing XML content from WebDavMetadata properties, clients must use secure XML parsers and disable dangerous features like external entity resolution
-
-# Examples
-
-This section provides practical examples demonstrating common metadata management scenarios.
-
-## Creating a Mailbox with Annotation
-
-This example shows how to create a new JMAP Mailbox and associate an Annotation object with vendor-specific properties in a single request.
-
-~~~ json
-[
-  ["Mailbox/set", {
-    "accountId": "A12345",
-    "create": {
-      "new-mailbox": {
-        "name": "Project Alpha",
-        "parentId": null,
-        "role": null
-      }
-    }
-  }, "c1"],
-  ["Metadata/set", {
-    "accountId": "A12345",
-    "create": {
-      "new-metadata": {
-        "@type": "Annotation",
-        "parentType": "Mailbox",
-        "parentId": "#new-mailbox",
-        "isPrivate": true,
-        "acme.example.com:color": "blue",
-        "acme.example.com:priority": "high",
-        "acme.example.com:project": {
-          "@type": "acme.example.com:ProjectInfo",
-          "projectId": "ALPHA-2024",
-          "deadline": "2024-12-31",
-          "team": "Engineering"
-        }
-      }
-    }
-  }, "c2"]
-]
-~~~
-
-## Retrieving a Mailbox with Metadata
-
-This example shows how to retrieve the created mailbox along with its associated Annotation metadata in a single request using the extended /get method:
-
-Request:
-
-~~~ json
-[
-  ["Mailbox/get", {
-    "accountId": "A12345",
-    "ids": ["MB789"],
-    "properties": ["name", "parentId", "role"],
-    "metadataTypes": ["Annotation"],
-    "metadataProperties": ["acme.example.com:color", 
-                           "acme.example.com:priority"]
-  }, "c3"]
-]
-~~~
-
-Response:
-
-~~~ json
-[
-  ["Mailbox/get", {
-    "accountId": "A12345",
-    "state": "m101",
-    "list": [
-      {
-        "id": "MB789",
-        "name": "Project Alpha",
-        "parentId": null,
-        "role": null
-      }
-    ],
-    "metadata": [
-      {
-        "parentId": "MB789",
-        "@type": "Annotation",
-        "acme.example.com:color": "blue",
-        "acme.example.com:priority": "high"
-      }
-    ],
-    "notFound": []
-  }, "c3"]
-]
-~~~
-
-
-## Attaching Photography Metadata to a FileNode
-
-This example demonstrates using a *fictional* registered PhotoMetadata type to attach photography information to FileNode {{I-D.ietf-jmap-filenode}} objects. The PhotoMetadata type is assumed to be an IANA-registered metadata type specifically designed for photographic data.
-
-Request:
-
-~~~json
-[
-  ["FileNode/set", {
-    "accountId": "A12345",
-    "update": {
-      "F456": {
-        "name": "sunset-beach.jpg"
-      }
-    }
-  }, "c1"],
-  ["Metadata/set", {
-    "accountId": "A12345",
-    "create": {
-      "photo-meta": {
-        "@type": "PhotoMetadata",
-        "parentType": "FileNode",
-        "parentId": "F456",
-        "isPrivate": false,
-        "geoLocation": {
-          "latitude": 34.0522,
-          "longitude": -118.2437
-        },
-        "cameraMake": "Canon",
-        "cameraModel": "EOS R5",
-        "aperture": "f/2.8",
-        "shutterSpeed": "1/250",
-        "iso": 400,
-        "focalLength": "50mm",
-        "dateTaken": "2025-11-20T19:32:00Z",
-        "imageSize": {
-          "width": 6000,
-          "height": 4000
-        }
-      }
-    }
-  }, "c2"]
-]
-~~~
-
-## Retrieving a FileNode with Photography Metadata
-
-Request:
-
-~~~json
-[
-  ["FileNode/get", {
-    "accountId": "A12345",
-    "ids": ["F456"],
-    "metadataTypes": ["PhotoMetadata"],
-    "metadataProperties": null
-  }, "c3"]
-]
-~~~
-
-Response:
-
-~~~json
-[
-  ["FileNode/get", {
-    "accountId": "A12345",
-    "state": "f201",
-    "list": [
-      {
-        "id": "F456",
-        "name": "sunset-beach.jpg",
-        "type": "image/jpeg",
-        "size": 2458624,
-        "blobId": "Gabc123def456",
-        "parentId": "folder789",
-        "createdDate": "2024-07-15T20:00:00Z",
-        "modifiedDate": "2024-10-20T15:30:00Z"
-      }
-    ],
-    "metadata": [
-      {
-        "id": "photometa99",
-        "@type": "PhotoMetadata",
-        "parentId": "F456",
-        "geoLocation": {
-          "latitude": 34.0522,
-          "longitude": -118.2437
-        },
-        "cameraMake": "Canon",
-        "cameraModel": "EOS R5",
-        "aperture": "f/2.8",
-        "iso": 400,
-        "imageSize": {
-          "width": 6000,
-          "height": 4000
-        }
-      }
-    ],
-    "notFound": []
-  }, "c3"]
-]
-~~~
 
 # IANA considerations
 
