@@ -2,3 +2,4 @@
 *.xml
 .refcache
 .ignore
+.DS_Store
