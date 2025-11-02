@@ -4,11 +4,12 @@ abbrev: JMAP Mail Sharing
 docname: draft-degennaro-jmap-mail-sharing-00
 submissionType: IETF
 category: std
-updates: 
+updates: RFC8621
 obsoletes:
 ipr: trust200902
 keyword: Internet-Draft
 stand_alone: yes
+workgroup: JMAP
 pi: [toc, sortrefs, symrefs]
 
 author:

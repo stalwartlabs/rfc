@@ -1,14 +1,15 @@
 ---
-title: IMAP OBJECTID account identifier extension
+title: IMAP OBJECTID Account Identifier extension
 abbrev: IMAP OBJECTID ACCOUNTID
 docname: draft-degennaro-imap-objectid-accountid-00
 submissionType: IETF
 category: std
-updates: 
+updates: RFC8474
 obsoletes:
 ipr: trust200902
 keyword: Internet-Draft
 stand_alone: yes
+workgroup: mailmaint
 pi: [toc, sortrefs, symrefs]
 
 author:

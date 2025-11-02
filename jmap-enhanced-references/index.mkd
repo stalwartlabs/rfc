@@ -1,7 +1,7 @@
 ---
 title: JMAP Enhanced Result References
 abbrev: JMAP Enhanced Result References
-docname: draft-degennaro-jmap-enhanced-references-00
+docname: draft-degennaro-jmap-refplus-00
 submissionType: IETF
 category: std
 updates: 
@@ -9,6 +9,7 @@ obsoletes:
 ipr: trust200902
 keyword: Internet-Draft
 stand_alone: yes
+workgroup: JMAP
 pi: [toc, sortrefs, symrefs]
 
 author:
@@ -563,7 +564,7 @@ IANA will register the "refplus" JMAP Capability as follows:
 
 \[\[This section to be removed by RFC Editor\]\]
 
-**draft-degennaro-jmap-enhanced-references-00**
+**draft-degennaro-jmap-refplus-00**
 
 * Initial version
 
