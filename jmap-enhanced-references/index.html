@@ -11,7 +11,7 @@
     " name="description">
 <meta content="xml2rfc 3.31.0" name="generator">
 <meta content="Internet-Draft" name="keyword">
-<meta content="draft-degennaro-jmap-refplus-00" name="ietf.draft">
+<meta content="draft-ietf-jmap-refplus-00" name="ietf.draft">
 <!-- Generator version information:
   xml2rfc 3.31.0
     Python 3.13.3
@@ -1219,7 +1219,7 @@ li > p:last-of-type:only-child {
 </tr></thead>
 <tfoot><tr>
 <td class="left">De Gennaro</td>
-<td class="center">Expires 6 May 2026</td>
+<td class="center">Expires 2 June 2026</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1229,15 +1229,15 @@ li > p:last-of-type:only-child {
 <dt class="label-workgroup">Workgroup:</dt>
 <dd class="workgroup">JMAP</dd>
 <dt class="label-internet-draft">Internet-Draft:</dt>
-<dd class="internet-draft">draft-degennaro-jmap-refplus-00</dd>
+<dd class="internet-draft">draft-ietf-jmap-refplus-00</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-11-02" class="published">2 November 2025</time>
+<time datetime="2025-11-29" class="published">29 November 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Standards Track</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2026-05-06">6 May 2026</time></dd>
+<dd class="expires"><time datetime="2026-06-02">2 June 2026</time></dd>
 <dt class="label-authors">Author:</dt>
 <dd class="authors">
 <div class="author">
@@ -1271,7 +1271,7 @@ li > p:last-of-type:only-child {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 6 May 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 2 June 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1766,7 +1766,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <a href="#section-2.3.1" class="section-number selfRef">2.3.1. </a><a href="#name-usage-in-patch-objects" class="section-name selfRef">Usage in Patch Objects</a>
           </h4>
 <p id="section-2.3.1-1">Enhanced result references may also be used as values within patch objects, as defined in <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.3" class="relref">Section 5.3</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>. A patch object is used to update specific properties of an existing object without having to send the entire object. When using result references in patch objects, special syntax rules apply:<a href="#section-2.3.1-1" class="pilcrow">¶</a></p>
-<p id="section-2.3.1-2">The patch object key (the path to the property being patched) <span class="bcp14">MUST</span> be a JSON Pointer as specified in <span>[<a href="#RFC6901" class="cite xref">RFC6901</a>]</span>, and <span class="bcp14">MUST</span> be prefixed with "#" to indicate that the value is a result reference. For example, to patch a property "locations/a1/city" with a value from a previous result, the patch object would include a key "#/locations/a1/city" with a ResultReference value.<a href="#section-2.3.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.3.1-2">The patch object key (the path to the property being patched) <span class="bcp14">MUST</span> be a JSON Pointer as specified in <span>[<a href="#RFC6901" class="cite xref">RFC6901</a>]</span>, and <span class="bcp14">MUST</span> be prefixed with "#" to indicate that the value is a result reference. For example, to patch a property "locations/a1/coordinates" with a value from a previous result, the patch object would include a key "#/locations/a1/coordinates" with a ResultReference value.<a href="#section-2.3.1-2" class="pilcrow">¶</a></p>
 <p id="section-2.3.1-3">The value associated with the prefixed JSON Pointer key is a ResultReference object. This ResultReference may use either JSON Pointer or JSON Path (if supported by the server) in its "path" property to extract the value from the previous method result.<a href="#section-2.3.1-3" class="pilcrow">¶</a></p>
 <p id="section-2.3.1-4">When processing patch objects, the server <span class="bcp14">MUST</span>:<a href="#section-2.3.1-4" class="pilcrow">¶</a></p>
 <ol start="1" type="1" class="normal type-1" id="section-2.3.1-5">
@@ -2306,7 +2306,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <dl class="references">
 <dt id="I-D.ietf-jmap-calendars">[I-D.ietf-jmap-calendars]</dt>
         <dd>
-<span class="refAuthor">Jenkins, N.</span> and <span class="refAuthor">M. Douglass</span>, <span class="refTitle">"JSON Meta Application Protocol (JMAP) for Calendars"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-jmap-calendars-25</span>, <time datetime="2025-10-08" class="refDate">8 October 2025</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-jmap-calendars-25">https://datatracker.ietf.org/doc/html/draft-ietf-jmap-calendars-25</a>&gt;</span>. </dd>
+<span class="refAuthor">Jenkins, N.</span> and <span class="refAuthor">M. Douglass</span>, <span class="refTitle">"JSON Meta Application Protocol (JMAP) for Calendars"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-jmap-calendars-26</span>, <time datetime="2025-11-04" class="refDate">4 November 2025</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-jmap-calendars-26">https://datatracker.ietf.org/doc/html/draft-ietf-jmap-calendars-26</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC9610">[RFC9610]</dt>
       <dd>
@@ -2323,7 +2323,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-changes" class="section-name selfRef">Changes</a>
       </h2>
 <p id="appendix-A-1">[[This section to be removed by RFC Editor]]<a href="#appendix-A-1" class="pilcrow">¶</a></p>
-<p id="appendix-A-2"><strong>draft-degennaro-jmap-refplus-00</strong><a href="#appendix-A-2" class="pilcrow">¶</a></p>
+<p id="appendix-A-2"><strong>draft-ietf-jmap-refplus-00</strong><a href="#appendix-A-2" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-3.1">
           <p id="appendix-A-3.1.1">Initial version<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>

@@ -1,7 +1,7 @@
 ---
 title: JMAP Enhanced Result References
 abbrev: JMAP Enhanced Result References
-docname: draft-degennaro-jmap-refplus-00
+docname: draft-ietf-jmap-refplus-00
 submissionType: IETF
 category: std
 updates: 
@@ -228,7 +228,7 @@ The resolved value MUST be of a type appropriate for the property being set. If 
 
 Enhanced result references may also be used as values within patch objects, as defined in {{Section 5.3 of RFC8620}}. A patch object is used to update specific properties of an existing object without having to send the entire object. When using result references in patch objects, special syntax rules apply:
 
-The patch object key (the path to the property being patched) MUST be a JSON Pointer as specified in {{RFC6901}}, and MUST be prefixed with "#" to indicate that the value is a result reference. For example, to patch a property "locations/a1/city" with a value from a previous result, the patch object would include a key "#/locations/a1/city" with a ResultReference value.
+The patch object key (the path to the property being patched) MUST be a JSON Pointer as specified in {{RFC6901}}, and MUST be prefixed with "#" to indicate that the value is a result reference. For example, to patch a property "locations/a1/coordinates" with a value from a previous result, the patch object would include a key "#/locations/a1/coordinates" with a ResultReference value.
 
 The value associated with the prefixed JSON Pointer key is a ResultReference object. This ResultReference may use either JSON Pointer or JSON Path (if supported by the server) in its "path" property to extract the value from the previous method result.
 
@@ -564,8 +564,7 @@ IANA will register the "refplus" JMAP Capability as follows:
 
 \[\[This section to be removed by RFC Editor\]\]
 
-**draft-degennaro-jmap-refplus-00**
+**draft-ietf-jmap-refplus-00**
 
 * Initial version
-
 

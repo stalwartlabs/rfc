@@ -1,7 +1,7 @@
 ---
 title: JMAP Mail Sharing
 abbrev: JMAP Mail Sharing
-docname: draft-degennaro-jmap-mail-sharing-00
+docname: draft-ietf-jmap-mail-sharing-00
 submissionType: IETF
 category: std
 updates: RFC8621
@@ -145,7 +145,7 @@ IANA will register the "mail:share" JMAP Capability as follows:
 
 \[\[This section to be removed by RFC Editor\]\]
 
-**draft-degennaro-jmap-mail-sharing-00**
+**draft-ietf-jmap-mail-sharing-00**
 
 * Initial version
 

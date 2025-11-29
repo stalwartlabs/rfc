@@ -1,7 +1,7 @@
 ---
 title: JMAP Object Metadata
 abbrev: JMAP Object Metadata
-docname: draft-degennaro-jmap-metadata-00
+docname: draft-ietf-jmap-metadata-00
 submissionType: IETF
 category: std
 updates: 
@@ -838,7 +838,7 @@ The following table lists the initial entries of the JMAP Metadata Types registr
 
 \[\[This section to be removed by RFC Editor\]\]
 
-**draft-degennaro-jmap-metadata-00**
+**draft-ietf-jmap-metadata-00**
 
 * Initial version
 
