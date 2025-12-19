@@ -1,7 +1,7 @@
 ---
 title: JMAP Object Metadata
 abbrev: JMAP Object Metadata
-docname: draft-ietf-jmap-metadata-00
+docname: draft-ietf-jmap-metadata-01
 submissionType: IETF
 category: std
 updates: 
@@ -121,7 +121,7 @@ The IMAP METADATA extension defines a hierarchical namespace of metadata entries
 
 Servers that support ImapMetadata MUST provide read access to IMAP metadata through the Metadata/get method. Write access (the ability to create, update, or destroy ImapMetadata objects through Metadata/set) is OPTIONAL. Servers that provide read-only access to IMAP metadata MUST reject modification attempts with an appropriate SetError (typically "forbidden"). Servers SHOULD document whether they provide read-only or read-write access to ImapMetadata.
 
-This metadata type can only be associated with JMAP Mailbox objects as defined in {{Section 2 of RFC8621}}. Attempts to create ImapMetadata objects with a `parentType` other than "Mailbox" MUST be rejected with an "invalidProperties" SetError.
+This metadata type can only be associated with JMAP Mailbox objects as defined in {{Section 2 of RFC8621}}. Attempts to create ImapMetadata objects with a `relatedType` other than "Mailbox" MUST be rejected with an "invalidProperties" SetError.
 
 The [@type](#type-property) property value MUST be "ImapMetadata".
 
@@ -133,7 +133,7 @@ WebDAV dead properties are identified by their expanded XML name, which consists
 
 Servers that support WebDavMetadata MUST provide read access to WebDAV dead properties through the Metadata/get method. Write access (the ability to create, update, or destroy WebDavMetadata objects through Metadata/set) is OPTIONAL. Servers that provide read-only access to WebDAV dead properties MUST reject modification attempts with an appropriate SetError (typically "forbidden"). Servers SHOULD document whether they provide read-only or read-write access to WebDavMetadata.
 
-This metadata type can be associated with Calendar {{I-D.ietf-jmap-calendars}}, CalendarEvent {{I-D.ietf-jmap-calendars}}, AddressBook {{RFC9610}}, ContactCard {{RFC9610}}, and FileNode {{I-D.ietf-jmap-filenode}} data types, corresponding to the WebDAV-based protocols such as CalDAV {{RFC4791}}, CardDAV {{RFC6352}}, and WebDAV file storage. Servers MUST enforce that WebDavMetadata objects are only created for parent types that correspond to WebDAV resources. Attempts to create WebDavMetadata objects with inappropriate `parentType` values MAY be rejected with an "invalidProperties" SetError.
+This metadata type can be associated with Calendar {{I-D.ietf-jmap-calendars}}, CalendarEvent {{I-D.ietf-jmap-calendars}}, AddressBook {{RFC9610}}, ContactCard {{RFC9610}}, and FileNode {{I-D.ietf-jmap-filenode}} data types, corresponding to the WebDAV-based protocols such as CalDAV {{RFC4791}}, CardDAV {{RFC6352}}, and WebDAV file storage. Servers MUST enforce that WebDavMetadata objects are only created for parent types that correspond to WebDAV resources. Attempts to create WebDavMetadata objects with inappropriate `relatedType` values MAY be rejected with an "invalidProperties" SetError.
 
 The [@type](#type-property) property value MUST be "WebDavMetadata".
 
@@ -153,29 +153,29 @@ Type: `Id` (server-set)
 
 The id of the Metadata object. This identifier is unique within the scope of the account and is assigned by the server upon creation.
 
-#### parentType {#parent-type-property}
+#### relatedType {#related-type-property}
 
 Type: `String` (mandatory)
 
-The JMAP data type of the object to which this Metadata object is attached, e.g., "Email", "ContactCard", "Mailbox", "CalendarEvent". The `parentType` determines the kind of object identified by the `parentId` property.
+The JMAP data type of the object to which this Metadata object is associated, e.g., "Email", "ContactCard", "Mailbox", "CalendarEvent". The `relatedType` determines the kind of object identified by the `relatedId` property.
 
-#### parentId {#parent-id-property}
+#### relatedId {#related-id-property}
 
 Type: `Id` (mandatory)
 
-The id of the JMAP object to which this Metadata object is attached. This id MUST correspond to a valid object of the type specified in `parentType` within the same account.
+The id of the JMAP object to which this Metadata object is associated. This id MUST correspond to a valid object of the type specified in `relatedType` within the same account.
 
 #### isPrivate {#is-private-property}
 
 Type: `Boolean` (default: false)
 
-Indicates whether the Metadata object is private to the authenticated user or shared among all users with access to the parent object. If true, the Metadata object represents user-specific metadata that is visible only to the user who created it. If false or omitted, the Metadata object is considered shared and can be accessed by other users with appropriate permissions on the parent object, as defined in [Access Control](#access-control).
+Indicates whether the Metadata object is private to the authenticated user or shared among all users with access to the related object. If true, the Metadata object represents user-specific metadata that is visible only to the user who created it. If false or omitted, the Metadata object is considered shared and can be accessed by other users with appropriate permissions on the related object, as defined in [Access Control](#access-control).
 
-The `isPrivate` property enables per-user metadata on shared objects. Multiple users may each have their own private Metadata objects associated with the same parent object and metadata type. When a client queries for Metadata objects with `isPrivate`: true, the server MUST return only those private Metadata objects that were created by the currently authenticated user. Private Metadata objects created by other users MUST NOT be visible to the authenticated user, even if they have access to the parent object.
+The `isPrivate` property enables per-user metadata on shared objects. Multiple users may each have their own private Metadata objects associated with the same related object and metadata type. When a client queries for Metadata objects with `isPrivate`: true, the server MUST return only those private Metadata objects that were created by the currently authenticated user. Private Metadata objects created by other users MUST NOT be visible to the authenticated user, even if they have access to the related object.
 
-Internally, the server may store multiple private Metadata objects for the same combination of `parentType`, `parentId`, and `@type` (one for each user who has set private metadata). However, from the perspective of any given authenticated user, there is at most one visible private Metadata object for each parent-type combination—specifically, the private Metadata object that they themselves created. Other users' private Metadata objects for the same parent object and type are not visible to them.
+Internally, the server may store multiple private Metadata objects for the same combination of `relatedType`, `relatedId`, and `@type` (one for each user who has set private metadata). However, from the perspective of any given authenticated user, there is at most one visible private Metadata object for each related-type combination—specifically, the private Metadata object that they themselves created. Other users' private Metadata objects for the same related object and type are not visible to them.
 
-For shared Metadata objects (`isPrivate`: false), there is at most one Metadata object per combination of `parentType`, `parentId`, and `@type`, and it is visible to all users with appropriate permissions on the parent object.
+For shared Metadata objects (`isPrivate`: false), there is at most one Metadata object per combination of `relatedType`, `relatedId`, and `@type`, and it is visible to all users with appropriate permissions on the related object.
 
 For ImapMetadata objects, this property determines whether the metadata corresponds to IMAP entries under the "/private/" or "/shared/" prefix hierarchy.
 
@@ -249,23 +249,23 @@ The XML serialization format allows round-tripping of complex WebDAV properties 
 
 This is a standard "/set" method as described in {{Section 5.2 of RFC8620}}.
 
-The Metadata/set method enforces a uniqueness constraint to ensure consistent metadata management. From the perspective of an authenticated user, their account MUST NOT contain multiple visible Metadata objects with the same combination of `parentType`, `parentId`, `@type`, and ``isPrivate`` values. This constraint ensures that for any given parent object and metadata type, the user sees at most one private Metadata object (their own) and at most one shared Metadata object.
+The Metadata/set method enforces a uniqueness constraint to ensure consistent metadata management. From the perspective of an authenticated user, their account MUST NOT contain multiple visible Metadata objects with the same combination of `relatedType`, `relatedId`, `@type`, and `isPrivate` values. This constraint ensures that for any given related object and metadata type, the user sees at most one private Metadata object (their own) and at most one shared Metadata object.
 
-For shared metadata (`isPrivate`: false), the server MUST enforce global uniqueness: only one shared Metadata object may exist for each combination of `parentType`, `parentId`, and `@type` across all users.
+For shared metadata (`isPrivate`: false), the server MUST enforce global uniqueness: only one shared Metadata object may exist for each combination of `relatedType`, `relatedId`, and `@type` across all users.
 
-For private metadata (`isPrivate`: true), the server MUST enforce per-user uniqueness: each user may have at most one private Metadata object for each combination of `parentType`, `parentId`, and `@type`. The server internally may store multiple private Metadata objects for the same parent-type combination (one per user), but each user can only see and modify their own.
+For private metadata (`isPrivate`: true), the server MUST enforce per-user uniqueness: each user may have at most one private Metadata object for each combination of `relatedType`, `relatedId`, and `@type`. The server internally may store multiple private Metadata objects for the same related-type combination (one per user), but each user can only see and modify their own.
 
-If a client attempts to create a Metadata object that would violate this uniqueness constraint for the authenticated user, the server MUST reject the create operation with an "invalidProperties" SetError. The SetError SHOULD include a description indicating that a Metadata object with the specified combination of properties already exists. Clients that wish to modify existing metadata should use the update operation rather than attempting to create a duplicate.
+If a client attempts to create a Metadata object that would violate this uniqueness constraint for the authenticated user, the server MUST reject the create operation with an "alreadyExists" SetError. The SetError SHOULD include a description indicating that a Metadata object with the specified combination of properties already exists, and MAY include an "existingId" property containing the id of the existing Metadata object. Clients that wish to modify existing metadata should use the update operation rather than attempting to create a duplicate.
 
-Similarly, if an update operation would change the `parentType`, `parentId`, `@type`, or `isPrivate` properties such that the resulting Metadata object would conflict with an existing object visible to the authenticated user, the server MUST reject the update with an "invalidProperties" SetError.
+Similarly, if an update operation would change the `relatedType`, `relatedId`, `@type`, or `isPrivate` properties such that the resulting Metadata object would conflict with an existing object visible to the authenticated user, the server MUST reject the update with an "alreadyExists" SetError.
 
 If the maySetPrivate capability is false for the account and a client attempts to create or update a Metadata object with `isPrivate`: true, the server MUST reject the operation with a "forbidden" SetError.
 
 Servers SHOULD enforce quota limits when processing Metadata/set requests. If a create or update operation would cause the account's metadata storage to exceed its quota, the server MUST reject the operation with an "overQuota" SetError. The SetError MAY include additional information about the quota limit and current usage in its description property. Quota enforcement is discussed further in [Quota](#quota).
 
-Servers MUST validate that the `parentType` and `parentId` values reference a valid existing object of the appropriate type. If the parent object does not exist or the `parentType` is not recognized, the server SHOULD reject the operation with an "invalidProperties" SetError, with the "properties" field including "`parentType`" and/or "`parentId`" as appropriate.
+Servers MUST validate that the `relatedType` and `relatedId` values reference a valid existing object of the appropriate type. If the related object does not exist or the `relatedType` is not recognized, the server SHOULD reject the operation with an "invalidProperties" SetError, with the "properties" field including "`relatedType`" and/or "`relatedId`" as appropriate.
 
-For ImapMetadata objects, servers MUST verify that the `parentType` is "Mailbox" ({{Section 2 of RFC8621}}). For WebDavMetadata objects, servers MUST verify that the `parentType` is one of the supported WebDAV-backed types (Calendar {{I-D.ietf-jmap-calendars}}, CalendarEvent {{I-D.ietf-jmap-calendars}}, AddressBook {{RFC9610}}, ContactCard {{RFC9610}}, FileNode {{I-D.ietf-jmap-filenode}}, or other appropriate types as defined by the server).
+For ImapMetadata objects, servers MUST verify that the `relatedType` is "Mailbox" ({{Section 2 of RFC8621}}). For WebDavMetadata objects, servers MUST verify that the `relatedType` is one of the supported WebDAV-backed types (Calendar {{I-D.ietf-jmap-calendars}}, CalendarEvent {{I-D.ietf-jmap-calendars}}, AddressBook {{RFC9610}}, ContactCard {{RFC9610}}, FileNode {{I-D.ietf-jmap-filenode}}, or other appropriate types as defined by the server).
 
 ## Metadata/get
 
@@ -274,6 +274,19 @@ This is a standard "/get" method as described in {{Section 5.1 of RFC8620}}. The
 ## Metadata/changes
 
 This is a standard "/changes" method as described in {{Section 5.2 of RFC8620}}.
+
+In addition to the standard arguments defined in {{Section 5.2 of RFC8620}}, the Metadata/changes method accepts the following optional arguments:
+
+{:vspace}
+**filterRelatedType**: `String|null` (default: null)
+: If specified, the response MUST include only changes to Metadata objects whose `relatedType` property equals the specified value. This allows clients to efficiently synchronize metadata changes for a specific JMAP data type (e.g., only changes to metadata associated with Email objects). If null, changes to Metadata objects of all related types are returned.
+
+**filterMetadataType**: `String[]|null` (default: null)
+: If specified, the response MUST include only changes to Metadata objects whose `@type` property value is in the specified array. This allows clients to efficiently synchronize changes for specific metadata types (e.g., only Annotation changes, or only ImapMetadata and WebDavMetadata changes). If null, changes to Metadata objects of all metadata types are returned.
+
+These filtering arguments do not affect the state string returned in the response. The state string represents the complete state of all Metadata objects in the account. However, the "created", "updated", and "destroyed" arrays in the response are filtered according to the specified criteria. Clients using these filters MUST track the returned state and use it in subsequent Metadata/changes calls with the same filter parameters to ensure consistent synchronization.
+
+If both `filterRelatedType` and `filterMetadataType` are specified, the server MUST return only changes to Metadata objects that satisfy both criteria (i.e., the filters are combined with a logical AND).
 
 ## Metadata/query
 
@@ -287,11 +300,11 @@ A **FilterCondition** object has the following properties, any of which may be o
 **@type**: `String[]`
 : Only Metadata objects whose `@type` property value is in the specified array are returned. This allows filtering for specific metadata types, for example, to retrieve only Annotation objects or only ImapMetadata objects.
 
-**parentType**: `String`
-: Only Metadata objects whose `parentType` is equal to the specified value are returned. This is useful for retrieving metadata associated with a particular JMAP data type, such as all metadata on Email objects.
+**relatedType**: `String`
+: Only Metadata objects whose `relatedType` is equal to the specified value are returned. This is useful for retrieving metadata associated with a particular JMAP data type, such as all metadata on Email objects.
 
-**parentIds**: `Id[]`
-: Only Metadata objects whose `parentId` is in the specified array are returned. This allows retrieving metadata for a specific set of parent objects.
+**relatedIds**: `Id[]`
+: Only Metadata objects whose `relatedId` is in the specified array are returned. This allows retrieving metadata for a specific set of related objects. This property MUST only be specified when `relatedType` is also specified in the same FilterCondition object. If `relatedIds` is specified without `relatedType`, the server MUST reject the query with an "invalidArguments" error indicating that `relatedType` is required when using `relatedIds`.
 
 **isPrivate**: `Boolean`
 : Only Metadata objects whose `isPrivate` property matches the specified value are returned. This allows filtering to retrieve only private metadata (true) or only shared metadata (false).
@@ -301,11 +314,15 @@ A **FilterCondition** object has the following properties, any of which may be o
 
 ### Sorting
 
+The following properties MUST be supported for sorting:
+
+- id
+
 The following properties SHOULD be supported for sorting:
 
 - @type
-- parentType
-- parentId
+- relatedType
+- relatedId
 - isPrivate
 
 ## Metadata/queryChanges
@@ -323,33 +340,57 @@ This extension enhances the standard "/get" method defined in {{Section 5.1 of R
 The following additional arguments are defined for the extended /get method:
 
 {:vspace}
-**metadataTypes**: `String[]|null` (default: \[\])
-: A list of metadata object type identifiers (`@type` values) to retrieve for the requested objects. If not provided or an empty array is provided, no metadata is returned. If null is specified, all metadata is returned. If one or more type identifiers are specified, the server returns metadata objects of those types associated with the requested objects. Servers MUST support this argument for all data types listed in the dataTypes capability.
+**fetchMetadata**: `Boolean` (default: false)
+: If true, the server will return a `metadata` property in the response containing Metadata objects associated with the objects returned in the "list" property. If false, the `metadata` property will not be returned in the response. Servers MUST support this argument for all data types listed in the dataTypes capability.
+
+**metadataTypes**: `String[]|null` (default: null)
+: This argument is only applicable when `fetchMetadata` is true. A list of metadata object type identifiers (`@type` values) to retrieve for the requested objects. If null, all metadata types are returned. If one or more type identifiers are specified, the server returns only metadata objects of those types associated with the requested objects. This argument is ignored if `fetchMetadata` is false. Servers MUST support this argument for all data types listed in the dataTypes capability.
 
 **metadataProperties**: `String[]|null` (default: null)
-: A list of metadata property names to include in the returned metadata objects. If null, all properties of the metadata objects are returned. If specified, only the requested properties are included in the response. The `@type` and `parentId` properties MUST always be included in metadata objects even if not explicitly requested, as they are necessary to correlate metadata with their parent objects and identify the metadata type. This argument follows the same semantics as the properties argument in the standard /get method. Servers MUST support this argument for all data types listed in the dataTypes capability.
+: This argument is only applicable when `fetchMetadata` is true. A list of metadata property names to include in the returned metadata objects. If null, all properties of the metadata objects are returned. If specified, only the requested properties are included in the response. The `@type` and `relatedId` properties MUST always be included in metadata objects even if not explicitly requested, as they are necessary to correlate metadata with their related objects and identify the metadata type. This argument follows the same semantics as the properties argument in the standard /get method. This argument is ignored if `fetchMetadata` is false. Servers MUST support this argument for all data types listed in the dataTypes capability.
 
-The response to an extended /get method includes the following additional property:
+The response to an extended /get method includes the following additional property when `fetchMetadata` is true:
 
 {:vspace}
-**metadata**: `Metadata[]` (default: \[\])
-: An array of Metadata objects associated with the objects returned in the list property. The metadata array contains only those metadata objects whose `parentId` corresponds to an object id in the list response and whose `@type` matches one of the types specified in the metadataTypes request argument. If metadataTypes was null or empty, this property is an empty array or may be omitted. The `parentId` property of each metadata object allows clients to correlate metadata with their parent objects.
+**metadata**: `Metadata[]`
+: An array of Metadata objects associated with the objects returned in the list property. This property is included in the response if and only if the `fetchMetadata` argument was set to true in the request. The metadata array contains only those metadata objects whose `relatedId` corresponds to an object id in the list response. If `metadataTypes` was specified, only metadata objects whose `@type` matches one of the specified types are included. The `relatedId` property of each metadata object allows clients to correlate metadata with their related objects. If no metadata exists for the returned objects (or no metadata matches the specified type filters), this property MUST be an empty array.
 
-If a requested parent object does not have any metadata of the specified types, it simply will not have corresponding entries in the metadata array.
+If a requested related object does not have any metadata of the specified types, it simply will not have corresponding entries in the metadata array.
 
 ## /set {#extended-set}
 
-This specification extends the standard "/set" method defined in {{Section 5.3 of RFC8620}} for all JMAP data types to ensure proper metadata lifecycle management.
+This specification extends the standard "/set" method defined in {{Section 5.3 of RFC8620}} for all JMAP data types specified in the dataTypes capability. The extension adds metadata management capabilities to ensure proper lifecycle management and transactional consistency between primary objects and their associated metadata.
 
-When an object is destroyed through a /set method (e.g., Email/set with a destroy operation), the server MUST automatically delete all associated Metadata objects. This includes both private and shared metadata, regardless of which user created them. This cascading deletion ensures that metadata does not become orphaned when its parent object is removed.
+The following additional arguments are defined for the extended /set method:
+
+{:vspace}
+**onSuccessCreateMetadata**: `Id[Metadata[]]|null`
+: A map of object id to an array of Metadata objects to create, associated with the object referenced by the id, if the create/update of that object succeeds. (For references to objects created in the same "/set" invocation, this is equivalent to a creation-reference, so the id will be the creation id prefixed with a "#".)
+
+  The Metadata objects in the array MUST NOT include a `relatedId` or `relatedType` property; the server MUST automatically set `relatedType` to the data type of the /set method (e.g., "Email" for Email/set) and `relatedId` to the id of the successfully created or updated object. If any Metadata object specifies a `relatedId` or `relatedType`, the server MUST reject that metadata creation with an "invalidProperties" SetError.
+
+**onSuccessUpdateMetadata**: `Id[Id[PatchObject]]|null`
+: A map of object id to a map of Metadata object id to PatchObject containing properties to update on the Metadata object, if the create/update of the referenced object succeeds. (For references to objects created in the same "/set" invocation, this is equivalent to a creation-reference, so the id will be the creation id prefixed with a "#".)
+
+  The `relatedId` and `relatedType` properties MUST NOT be modified through this mechanism; attempts to do so MUST be rejected with an "invalidProperties" SetError. The specified Metadata objects MUST be associated with the corresponding related object; attempts to update metadata associated with other objects MUST be rejected with a "notFound" SetError.
+
+If the `onSuccessCreateMetadata` or `onSuccessUpdateMetadata` arguments are specified and the corresponding object operations succeed, the server MUST perform an implicit Metadata/set call using the arguments derived from these properties. The server MUST automatically populate `relatedType` and `relatedId` values for created Metadata objects based on the data type and id of the successfully processed object.
+
+The response to the implicit Metadata/set call MUST be returned in an additional Metadata/set response immediately following the original /set response. This Metadata/set response MUST use the same method call id as the original /set request that triggered it.
+
+If the original /set request fails entirely (e.g., due to an invalid accountId), no implicit Metadata/set call is made and no Metadata/set response is returned. If individual object operations within the /set request fail, the metadata operations associated with those failed objects are simply not attempted and do not appear in the Metadata/set response.
+
+### Cascading Deletion
+
+When an object is destroyed through a /set method (e.g., Email/set with a destroy operation), the server MUST automatically delete all associated Metadata objects. This includes both private and shared metadata, regardless of which user created them. This cascading deletion ensures that metadata does not become orphaned when its related object is removed.
 
 The automatic deletion of metadata applies to all metadata types (Annotation, ImapMetadata, WebDavMetadata, and any other registered metadata types) associated with the destroyed object.
 
-Servers SHOULD NOT generate separate Metadata/set responses or state changes for automatically deleted metadata. The deletion is considered an implicit consequence of destroying the parent object. However, servers MAY emit push notifications or update metadata state strings to reflect that metadata has been deleted, if such notifications would otherwise occur for explicitly deleted metadata.
+Servers SHOULD NOT generate separate Metadata/set responses or state changes for automatically deleted metadata. The deletion is considered an implicit consequence of destroying the related object. However, servers MAY emit push notifications or update metadata state strings to reflect that metadata has been deleted, if such notifications would otherwise occur for explicitly deleted metadata.
 
-Clients do not need to manually delete metadata before destroying parent objects, and attempting to do so would be inefficient. The server handles metadata cleanup automatically.
+Clients do not need to manually delete metadata before destroying related objects, and attempting to do so would be inefficient. The server handles metadata cleanup automatically.
 
-If an error occurs during parent object deletion that prevents the destruction from completing, the associated metadata MUST NOT be deleted either, maintaining referential integrity.
+If an error occurs during related object deletion that prevents the destruction from completing, the associated metadata MUST NOT be deleted either, maintaining referential integrity.
 
 # Access Control
 
@@ -422,8 +463,8 @@ This example shows how to create a new JMAP Mailbox and associate an Annotation 
     "create": {
       "new-metadata": {
         "@type": "Annotation",
-        "parentType": "Mailbox",
-        "parentId": "#new-mailbox",
+        "relatedType": "Mailbox",
+        "relatedId": "#new-mailbox",
         "isPrivate": true,
         "acme.example.com:color": "blue",
         "acme.example.com:priority": "high",
@@ -475,7 +516,7 @@ Response:
     ],
     "metadata": [
       {
-        "parentId": "MB789",
+        "relatedId": "MB789",
         "@type": "Annotation",
         "acme.example.com:color": "blue",
         "acme.example.com:priority": "high"
@@ -508,8 +549,8 @@ Request:
     "create": {
       "photo-meta": {
         "@type": "PhotoMetadata",
-        "parentType": "FileNode",
-        "parentId": "F456",
+        "relatedType": "FileNode",
+        "relatedId": "F456",
         "isPrivate": false,
         "geoLocation": {
           "latitude": 46.362,
@@ -570,7 +611,7 @@ Response:
       {
         "id": "photometa99",
         "@type": "PhotoMetadata",
-        "parentId": "F456",
+        "relatedId": "F456",
         "geoLocation": {
           "latitude": 46.362,
           "longitude": 14.090
@@ -590,6 +631,130 @@ Response:
     ],
     "notFound": []
   }, "c3"]
+]
+~~~
+
+## Creating an Email with Annotation Atomically
+
+This example demonstrates creating an Email and associating an Annotation with it in a single atomic operation using `onSuccessCreateMetadata`. The draft Email is created and, if successful, an Annotation is attached to track workflow state.
+
+Request:
+
+~~~json
+[
+  ["Email/set", {
+    "accountId": "A12345",
+    "create": {
+      "draft1": {
+        "mailboxIds": { "MB123": true },
+        "subject": "Project Update",
+        "from": [{ "email": "alice@example.com" }],
+        "to": [{ "email": "bob@example.com" }],
+        "bodyStructure": {
+          "type": "text/plain",
+          "partId": "1"
+        },
+        "bodyValues": {
+          "1": { "value": "Here is the project update..." }
+        }
+      }
+    },
+    "onSuccessCreateMetadata": {
+      "#draft1": [
+        {
+          "@type": "Annotation",
+          "isPrivate": true,
+          "acme.example.com:workflowState": "pending-review",
+          "acme.example.com:assignedTo": "carol@example.com"
+        }
+      ]
+    }
+  }, "c1"]
+]
+~~~
+
+A successful response includes two responses with the same method call id, due to the implicit Metadata/set call:
+
+~~~json
+[
+  ["Email/set", {
+    "accountId": "A12345",
+    "oldState": "e100",
+    "newState": "e101",
+    "created": {
+      "draft1": {
+        "id": "EM456",
+        "blobId": "Gxyz789",
+        "threadId": "T001",
+        "size": 1024
+      }
+    }
+  }, "c1"],
+  ["Metadata/set", {
+    "accountId": "A12345",
+    "oldState": "md50",
+    "newState": "md51",
+    "created": {
+      "1": {
+        "id": "MD789",
+        "@type": "Annotation",
+        "relatedType": "Email",
+        "relatedId": "EM456"
+      }
+    }
+  }, "c1"]
+]
+~~~
+
+## Updating a Calendar Event and its Metadata Atomically
+
+This example demonstrates updating a CalendarEvent and its associated metadata atomically, ensuring that the metadata update only applies if the event update succeeds:
+
+Request:
+
+~~~json
+[
+  ["CalendarEvent/set", {
+    "accountId": "A12345",
+    "update": {
+      "CE789": {
+        "title": "Quarterly Review Meeting",
+        "start": "2024-12-15T14:00:00"
+      }
+    },
+    "onSuccessUpdateMetadata": {
+      "CE789": {
+        "MD456": {
+          "acme.example.com:lastModifiedReason": 
+              "Rescheduled per manager request",
+          "acme.example.com:approvalStatus": "pending"
+        }
+      }
+    }
+  }, "c1"]
+]
+~~~
+
+A successful response:
+
+~~~json
+[
+  ["CalendarEvent/set", {
+    "accountId": "A12345",
+    "oldState": "c200",
+    "newState": "c201",
+    "updated": {
+      "CE789": null
+    }
+  }, "c1"],
+  ["Metadata/set", {
+    "accountId": "A12345",
+    "oldState": "md60",
+    "newState": "md61",
+    "updated": {
+      "MD456": null
+    }
+  }, "c1"]
 ]
 ~~~
 
@@ -793,8 +958,8 @@ The following table lists the initial entries of the "JMAP Metadata Properties" 
 |--------+------------------+------------------+------------------|
 | @type | String | Annotation, ImapMetadata, WebDavMetadata | [](#type-property) |
 | id | Id | Annotation, ImapMetadata, WebDavMetadata | [](#id-property) |
-| parentType | String | Annotation, ImapMetadata, WebDavMetadata | [](#parent-type-property) |
-| parentId | Id | Annotation, ImapMetadata, WebDavMetadata | [](#parent-id-property) |
+| relatedType | String | Annotation, ImapMetadata, WebDavMetadata | [](#related-type-property) |
+| relatedId | Id | Annotation, ImapMetadata, WebDavMetadata | [](#related-id-property) |
 | isPrivate | Boolean | Annotation, ImapMetadata, WebDavMetadata | [](#is-private-property) |
 | metadata | \[String\]String | ImapMetadata, WebDavMetadata | [](#metadata-property-imap), [](#metadata-property-webdav) |
 {: #tab-metadata-properties title="Initial Contents of the \"JMAP Metadata Properties\" Registry"}
@@ -837,6 +1002,16 @@ The following table lists the initial entries of the JMAP Metadata Types registr
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-jmap-metadata-01**
+
+* Renamed `parentType` and `parentId` properties to `relatedType` and `relatedId` throughout the document to better reflect their purpose and avoid implying a strict hierarchy.
+* Added `filterRelatedType` and `filterMetadataType` optional parameters to Metadata/changes method to allow filtering changes by related object type and metadata type.
+* Changed the error type from "invalidProperties" to "alreadyExists" when a client attempts to create a Metadata object that violates the uniqueness constraint.
+* Added requirement that `relatedType` must be specified in the same FilterCondition object whenever `relatedIds` is used in Metadata/query.
+* Added `id` as a MUST support property for sorting in Metadata/query; other properties changed to SHOULD support.
+* Replaced the `metadataTypes` argument with a `fetchMetadata` Boolean argument (default: false) in the extended /get method.
+* Added `onSuccessCreateMetadata` and `onSuccessUpdateMetadata` arguments to the extended /set method to enable transactional metadata operations that are conditional on the success of the related object operation.
 
 **draft-ietf-jmap-metadata-00**
 

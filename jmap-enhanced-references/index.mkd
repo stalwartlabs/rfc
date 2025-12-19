@@ -1,7 +1,7 @@
 ---
 title: JMAP Enhanced Result References
 abbrev: JMAP Enhanced Result References
-docname: draft-ietf-jmap-refplus-00
+docname: draft-ietf-jmap-refplus-01
 submissionType: IETF
 category: std
 updates: 
@@ -69,13 +69,13 @@ The capabilities object is returned as part of the JMAP Session object; see {{Se
 
 This capability indicates that the server supports enhanced result references as defined in this specification. When this capability is present, clients may use result references within /set method object properties and FilterCondition objects, in addition to the standard method call argument usage defined in {{RFC8620}}.
 
-The value of this property in the JMAP Session "capabilities" property is an empty object. 
-
-The value of this property in an account's "accountCapabilities" property is an object that MUST contain the following information on server capabilities and permissions for that account:
+The value of this property in an account's "capabilities" property is an object that MUST contain the following information on server capabilities and permissions for that account:
 
 {:vspace}
 **jsonPath**: `Boolean`
 : Whether the server supports JSON Path expressions in result references. If true, result references may use JSON Path ({{RFC9535}}) syntax in addition to JSON Pointer ({{RFC6901}}) syntax. If false or absent, only JSON Pointer syntax is supported.
+
+The value of this property in the JMAP Session "accountCapabilities" property is an empty object. 
 
 # Enhanced Result References
 
@@ -115,7 +115,7 @@ If the JSON Path expression is syntactically invalid according to {{RFC9535}}, t
 
 If a client attempts to use a JSON Path expression (path beginning with "$") but the server does not support JSON Path (jsonPath capability is false or absent), the server MUST reject the method call with an "invalidResultReference" error. The error description SHOULD indicate that JSON Path is not supported.
 
-Servers supporting JSON Path SHOULD implement the complete JSON Path specification as defined in {{RFC9535}}, including all standard function extensions. However, servers MAY limit the complexity of JSON Path expressions for security or performance reasons, for example by restricting maximum expression length, maximum result set size, or computational complexity. If a server rejects a valid JSON Path expression due to such limitations, it SHOULD return an "invalidResultReference" error with a description indicating the specific limitation encountered.
+Servers supporting JSON Path MUST implement the complete JSON Path specification as defined in {{RFC9535}}, including all standard function extensions. This requirement ensures consistent behaviour across implementations and guarantees that clients can rely on the full expressiveness of the JSON Path query language when composing requests. However, servers MAY limit the complexity of JSON Path expressions for security or performance reasons, for example by restricting maximum expression length, maximum result set size, or computational complexity. If a server rejects a valid JSON Path expression due to such limitations, it SHOULD return an "invalidResultReference" error with a description indicating the specific limitation encountered.
 
 ## Resolution Algorithm
 
@@ -228,7 +228,7 @@ The resolved value MUST be of a type appropriate for the property being set. If 
 
 Enhanced result references may also be used as values within patch objects, as defined in {{Section 5.3 of RFC8620}}. A patch object is used to update specific properties of an existing object without having to send the entire object. When using result references in patch objects, special syntax rules apply:
 
-The patch object key (the path to the property being patched) MUST be a JSON Pointer as specified in {{RFC6901}}, and MUST be prefixed with "#" to indicate that the value is a result reference. For example, to patch a property "locations/a1/coordinates" with a value from a previous result, the patch object would include a key "#/locations/a1/coordinates" with a ResultReference value.
+The patch object key (the path to the property being patched) MUST be a JSON Pointer as specified in {{RFC6901}}, and MUST be prefixed with "#" to indicate that the value is a result reference. For example, to patch a property "locations/a1/coordinates" with a value from a previous result, the patch object would include a key "#locations/a1/coordinates" with a ResultReference value.
 
 The value associated with the prefixed JSON Pointer key is a ResultReference object. This ResultReference may use either JSON Pointer or JSON Path (if supported by the server) in its "path" property to extract the value from the previous method result.
 
@@ -262,6 +262,26 @@ If a FilterCondition contains both a property name with "#" prefix and the same 
 The resolved value MUST be of a type appropriate for the filter property being set. If the resolved value does not match the expected type for that filter property, the server MUST reject the query with an "invalidArguments" error.
 
 Enhanced result references in FilterConditions support the full range of filter compositions defined by JMAP specifications, including nested FilterCondition objects combined with FilterOperators. The server MUST recursively process all levels of FilterCondition nesting to resolve all result references before evaluating the query.
+
+# Implementation Considerations for Intermediate Layers
+
+A design goal of enhanced result references is that reference resolution can be performed as a purely syntactical transformation, independent of the semantics of specific JMAP method calls. This property enables reference resolution to be implemented in a generic layer of the JMAP server or in an intermediary proxy without requiring knowledge of the internal structure or behaviour of individual methods.
+
+## Method-Agnostic Resolution
+
+Reference resolution operates exclusively on JSON structures and does not require understanding of the types, properties, or semantics defined by specific JMAP specifications. The resolution process treats method call arguments and responses as opaque JSON documents, applying JSON Pointer or JSON Path expressions to extract values without interpreting their meaning.
+
+The type-specific resolution rules defined in this specification (determining whether a resolved value should be treated as a single value, an array, or a map) are applied by the JMAP method implementation layer, not by the reference resolution layer. This separation ensures that a proxy or generic preprocessing component need not possess knowledge of individual method signatures or property type definitions.
+
+## Recommended Architecture
+
+Implementations MAY separate reference resolution into two distinct phases:
+
+- **Syntactic Resolution Phase**: A generic reference resolution layer (which may be a proxy, a preprocessing component, or a dedicated part of the JMAP server) identifies all ResultReference objects within the request. For each reference, it evaluates the corresponding JSON Pointer or JSON Path expression against the appropriate previous method result, producing a nodelist as defined in {{RFC9535}} or a single value as defined in {{RFC6901}}. The resolution layer then replaces the ResultReference object with the extracted value or values using an internal representation suitable for communication with the method execution layer.
+
+- **Method Execution Phase**: The JMAP server component responsible for executing specific method calls receives the request with result references replaced by their resolved values. The method implementation applies the type-specific interpretation rules defined in this specification, validating that the resolved values conform to the expected types for each property.
+
+The internal representation used between these phases is an implementation detail and is not specified by this document. Implementations might, for example, represent resolved nodelists as JSON arrays internally, with the method execution layer extracting single values or validating map structures as appropriate. Alternatively, implementations might use other internal data structures suited to their architecture.
 
 # Examples
 
@@ -331,17 +351,17 @@ Example of using result references in a patch object (assuming server supports j
     "accountId": "a1",
     "update": {
       "event-123": {
-        "#/locations/a1": {
+        "#locations/a1": {
           "resultOf": "c0",
           "name": "CalendarEvent/get",
           "path": "$.list[0].locations.loc1"
         },
-        "#/organizerCalendarAddress": {
+        "#organizerCalendarAddress": {
           "resultOf": "c0",
           "name": "CalendarEvent/get",
           "path": "$.list[0].organizerCalendarAddress"
         },
-        "#/participants/p1": {
+        "#participants/p1": {
           "resultOf": "c0",
           "name": "CalendarEvent/get",
           "path": "$.list[0].participants[?@.roles.chair]"
@@ -352,7 +372,7 @@ Example of using result references in a patch object (assuming server supports j
 ]
 ~~~
 
-In this example, the patch object updates specific properties of event-123 using values extracted from a template event. The patch updates a single location entry ("locations/a1"), copies the organizer's calendar address, and adds a participant ("participants/p1") by extracting a participant with the "chair" role from the template using a JSON Path filter expression. The patch keys "#/locations/a1", "#/organizerCalendarAddress", and "#/participants/p1" use JSON Pointer syntax (prefixed with "#"), while the ResultReference path properties use a mix of JSON Path expressions (including the filter expression for selecting the chair participant) and simple paths.
+In this example, the patch object updates specific properties of event-123 using values extracted from a template event. The patch updates a single location entry ("locations/a1"), copies the organizer's calendar address, and adds a participant ("participants/p1") by extracting a participant with the "chair" role from the template using a JSON Path filter expression. The patch keys "#locations/a1", "#organizerCalendarAddress", and "#participants/p1" use JSON Pointer syntax (prefixed with "#"), while the ResultReference path properties use a mix of JSON Path expressions (including the filter expression for selecting the chair participant) and simple paths.
 
 ## Usage in /query FilterCondition
 
@@ -563,6 +583,11 @@ IANA will register the "refplus" JMAP Capability as follows:
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-jmap-refplus-01**
+
+* Changed SHOULD to MUST implement the complete JSON Path specification.
+* Added Implementation Considerations for Intermediate Layers section.
 
 **draft-ietf-jmap-refplus-00**
 
