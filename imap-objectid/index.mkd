@@ -305,6 +305,54 @@ S: 9 OK [OBJECTID (MAILBOXID NIL \
         ACCOUNTID (u1a48e8e3))] Completed
 ~~~
 
+## New Response Code for RENAME
+
+This document extends the RENAME command to include the OBJECTID
+response code in the tagged OK response on successful mailbox rename
+when OBJECTIDBIS has been enabled.
+
+The OBJECTID response code in the RENAME response conveys the object
+identifiers of the mailbox after the rename operation has been
+completed. The MAILBOXID and ACCOUNTID returned MAY differ from those
+of the source mailbox, depending on server implementation and whether
+the rename operation crosses account boundaries.
+
+When a mailbox is renamed within the same account, the server SHOULD
+return the same MAILBOXID and ACCOUNTID as the source mailbox, unless
+the server does not support persistent mailbox identifiers across
+rename operations.
+
+When a mailbox is renamed across account boundaries (for example,
+from a personal namespace to a shared namespace belonging to a
+different account), the server MAY return a different ACCOUNTID,
+a different MAILBOXID, or both, reflecting the new account context
+and any server-specific identifier allocation policy.
+
+Example (local rename, identifiers preserved):
+
+~~~
+C: 12 rename foo renamed-foo
+S: 12 OK [OBJECTID (MAILBOXID \
+        (F2212ea87-6097-4256-9d51-71338625) \
+        ACCOUNTID (u1a48e8e3))] Completed
+~~~
+
+Example (cross-account rename, new identifiers issued):
+
+~~~
+C: 13 rename bar "Other Users.shared.bar"
+S: 13 OK [OBJECTID (MAILBOXID \
+        (Fa77c2e19-84d3-4b0f-9e12-67df5c8a) \
+        ACCOUNTID (u2b59f9f4))] Completed
+~~~
+
+In the first example, the mailbox "foo" is renamed to "renamed-foo"
+within the same account, and the server preserves both the MAILBOXID
+and the ACCOUNTID. In the second example, the mailbox "bar" is renamed
+into a shared namespace belonging to a different account, and the
+server issues both a new MAILBOXID and a new ACCOUNTID reflecting the
+destination account.
+
 ## New OK Untagged Response for SELECT and EXAMINE
 
 This document adds a new untagged response code to the SELECT and
@@ -644,8 +692,6 @@ capability =/ "OBJECTIDBIS"
 enable-data =/ "OBJECTIDBIS"
         ; extends the enable-data production from [RFC5161]
 
-nil =/ "NIL"
-
 objectid-atom = 1*255(ALPHA / DIGIT / "_" / "-")
         ; the raw object identifier string
         ; characters are case significant
@@ -659,65 +705,51 @@ objectid-or-nil = objectid / nil
 ; --- FETCH request items ---
 
 fetch-att =/ "EMAILID" / "THREADID" / "ACCOUNTID" / "OBJECTID"
-        ; ACCOUNTID and OBJECTID require ENABLE OBJECTIDBIS
 
 ; --- FETCH response items ---
 
 fetch-emailid-resp = "EMAILID" SP objectid-or-nil
-        ; NIL only permitted when OBJECTIDBIS is enabled
 
 fetch-threadid-resp = "THREADID" SP objectid-or-nil
 
 fetch-accountid-resp = "ACCOUNTID" SP objectid-or-nil
-        ; only returned when OBJECTIDBIS is enabled
 
 fetch-objectid-email-resp = "OBJECTID" SP "(" \
         "EMAILID" SP objectid-or-nil SP \
         "ACCOUNTID" SP objectid-or-nil SP \
         "THREADID" SP objectid-or-nil ")"
         ; compound email object identifier response
-        ; only returned when OBJECTIDBIS is enabled
 
 msg-att-static =/ fetch-emailid-resp / fetch-threadid-resp /
         fetch-accountid-resp / fetch-objectid-email-resp
 
 ; --- Response codes ---
 
-resp-text-code =/ "MAILBOXID" SP objectid
-        ; as defined in [RFC8474]; used when OBJECTIDBIS
-        ; is not enabled
-
 resp-text-code =/ "OBJECTID" SP "(" \
         "MAILBOXID" SP objectid-or-nil SP \
         "ACCOUNTID" SP objectid-or-nil ")"
-        ; compound mailbox object identifier response code
-        ; used when OBJECTIDBIS is enabled
+        ; compound mailbox object identifier response code;
+        ; returned in tagged OK for CREATE and RENAME,
+        ; and in untagged OK for SELECT and EXAMINE
 
 ; --- SEARCH filters ---
 
 search-key =/ "EMAILID" SP objectid-atom /
         "THREADID" SP objectid-atom /
         "ACCOUNTID" SP objectid-atom
-        ; ACCOUNTID filter requires ENABLE OBJECTIDBIS
-        ; EMAILID and THREADID may be available under
-        ; OBJECTID capability per [RFC8474]
 
 ; --- STATUS attributes ---
 
 status-att =/ "MAILBOXID" / "ACCOUNTID" / "OBJECTID"
-        ; ACCOUNTID and OBJECTID require ENABLE OBJECTIDBIS
 
 status-att-val =/ "MAILBOXID" SP objectid-or-nil
-        ; NIL only permitted when OBJECTIDBIS is enabled
 
 status-att-val =/ "ACCOUNTID" SP objectid-or-nil
-        ; only returned when OBJECTIDBIS is enabled
 
 status-att-val =/ "OBJECTID" SP "(" \
         "MAILBOXID" SP objectid-or-nil SP \
         "ACCOUNTID" SP objectid-or-nil ")"
         ; compound mailbox object identifier status value
-        ; only returned when OBJECTIDBIS is enabled
 ~~~
 
 # Implementation Considerations
@@ -1005,6 +1037,10 @@ This document obsoletes {{RFC8474}} and introduces the following changes:
 
 * Added ACCOUNTID as a standalone STATUS attribute, FETCH data item,
   and SEARCH filter.
+
+* Added the OBJECTID response code to the RENAME command, enabling
+  clients to track mailbox identifier changes across rename operations,
+  including renames that cross account boundaries.  
 
 * Added OBJECTID as a compound STATUS attribute and FETCH data item
   that returns all relevant identifiers for the context.
