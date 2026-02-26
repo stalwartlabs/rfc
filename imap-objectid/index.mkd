@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTIDBIS
-docname: draft-gondwana-degennaro-imap-objectid-bis-00
+docname: draft-ietf-mailmaint-imap-objectid-bis-00
 submissionType: IETF
 category: std
 updates: 
@@ -117,7 +117,11 @@ A server that supports this extension MAY return NIL for any object
 identifier type that it does not implement. This design permits partial
 implementation, allowing servers to provide identifiers for the types
 they support without requiring full implementation of all identifier
-types.
+types. A server MAY replace a NIL value for any object identifier with a
+non-NIL value in a subsequent session, for example when a server
+upgrade or configuration change enables functionality that was
+previously unavailable. However, a server MUST NOT replace a
+previously reported non-NIL object identifier with NIL.
 
 This extension requires the use of the ENABLE command, as defined in
 {{RFC5161}}, to activate the extended response syntax. The ENABLE
@@ -255,6 +259,10 @@ irrelevant.
 The server MAY return NIL for ACCOUNTID if it does not support account
 identifiers.
 
+A server that previously returned NIL for the ACCOUNTID of a mailbox
+or message MAY return a non-NIL value in a subsequent session. However,
+once a non-NIL ACCOUNTID has been reported, it MUST NOT revert to NIL.
+
 # MAILBOXID Object Identifier {#mailboxid}
 
 The MAILBOXID is a server-allocated unique identifier for each
@@ -278,6 +286,11 @@ moving the messages).
 
 The server MAY return NIL for MAILBOXID if it does not support mailbox
 identifiers for a given mailbox (for example, for virtual folders).
+
+A server that previously returned NIL for the MAILBOXID of a mailbox
+MAY return a non-NIL value in a subsequent session. However, once a
+non-NIL MAILBOXID has been reported for a mailbox, it MUST NOT revert
+to NIL.
 
 ## New Response Code for CREATE
 
@@ -471,6 +484,11 @@ way to STORE by EMAILID.
 The server MAY return NIL for EMAILID if it does not support email
 identifiers (for example, for virtual messages).
 
+A server that previously returned NIL for the EMAILID of a message
+MAY return a non-NIL value in a subsequent session. However, once a
+non-NIL EMAILID has been reported for a message, it MUST NOT revert
+to NIL.
+
 ## THREADID Identifier for Related Messages {#threadid}
 
 The THREADID data item is an ObjectID that uniquely identifies a set
@@ -491,7 +509,12 @@ if they are in different mailboxes; for example, messages that would
 appear in the same thread if they were in the same mailbox SHOULD
 have the same THREADID, even if they are in different mailboxes.
 
-The server MUST NOT change the THREADID of a message once reported.
+The server MUST NOT change the THREADID of a message once reported
+with a non-NIL value. A server that previously returned NIL for the
+THREADID of a message MAY return a non-NIL value in a subsequent
+session, for example if threading support is enabled through a server
+upgrade or configuration change. However, once a non-NIL THREADID has
+been reported for a message, it MUST remain immutable.
 
 THREADID is OPTIONAL; if the server does not support THREADID or is
 unable to calculate relationships between messages, it MUST return
@@ -691,6 +714,9 @@ capability =/ "OBJECTIDBIS"
 
 enable-data =/ "OBJECTIDBIS"
         ; extends the enable-data production from [RFC5161]
+
+nil =/ "NIL"
+        ; the null value; case-insensitive
 
 objectid-atom = 1*255(ALPHA / DIGIT / "_" / "-")
         ; the raw object identifier string
@@ -1076,7 +1102,7 @@ working group for their contributions to this specification.
 
 \[\[This section to be removed by RFC Editor\]\]
 
-**draft-gondwana-degennaro-imap-objectid-bis-00**
+**draft-ietf-mailmaint-imap-objectid-bis-00**
 
 * Initial version
 
