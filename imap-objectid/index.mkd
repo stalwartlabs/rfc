@@ -1,10 +1,10 @@
 ---
 title: IMAP Extension for Object Identifiers
-abbrev: IMAP OBJECTIDBIS
-docname: draft-ietf-mailmaint-imap-objectid-bis-00
+abbrev: IMAP OBJECTID+
+docname: draft-ietf-mailmaint-imap-objectid-bis-01
 submissionType: IETF
 category: std
-updates: 
+updates:
 obsoletes: RFC8474
 ipr: trust200902
 keyword: Internet-Draft
@@ -51,32 +51,33 @@ normative:
     RFC5161: RFC5161
 
 informative:
+    RFC2342: RFC2342
     RFC6154: RFC6154
+    RFC7377: RFC7377
+    RFC9051: RFC9051
+    RFC9586: RFC9586
     RFC4122: RFC4122
     RFC4648: RFC4648
     RFC8620: RFC8620
 
 --- abstract
 
-This document updates {{RFC3501}} (IMAP4rev1) with persistent
-identifiers on mailboxes and messages to allow clients to more
-efficiently reuse cached data when resources have changed location on
-the server.
+This document updates {{RFC3501}} (IMAP4rev1) and {{RFC9051}}
+(IMAP4rev2) with persistent identifiers on mailboxes and messages to
+allow clients to more efficiently reuse cached data when resources
+have changed location on the server.
 
-This document obsoletes {{RFC8474}} by making all object identifier
-types optional, introducing the OBJECTIDBIS capability with mandatory
-ENABLE negotiation, and extending the framework to include account-level
-context through the ACCOUNTID identifier. The ENABLE requirement ensures
-that servers can implement the extension without altering the IMAP
-grammar for clients that do not understand the extension. The account
-identifier extension enables IMAP servers to provide account-level
-context for mailboxes when multiple accounts are accessible through a
-single IMAP connection, facilitating interoperability with the JSON Meta
-Application Protocol (JMAP) in multi-account scenarios.
+This document obsoletes {{RFC8474}} by adding the OBJECTID+
+extension, which introduces compound OBJECTID responses containing
+key-value pairs of identifiers and an ACCOUNTID identifier for
+account-level context. The OBJECTID+ extension is implicitly
+activated when a client uses any OBJECTID+-specific feature,
+ensuring backward compatibility with clients that do not understand
+the extension.
 
 --- middle
 
-# Introduction 
+# Introduction
 
 IMAP stores are often used by many clients.  Each client may cache
 data from the server so that it does not need to redownload
@@ -105,31 +106,17 @@ messages or mailboxes that have been renamed by another client.
 
 This extension also adds an optional thread identifier (THREADID) to
 messages, which can be used by the server to indicate messages that
-it has identified to be related.
+it has identified to be related.  A server that does not implement
+threading will return NIL to all requests for THREADID.
 
-Additionally, this document introduces the ACCOUNTID object identifier,
-which specifies the account to which a mailbox or message belongs. This
-is particularly relevant for environments where IMAP mailboxes include
-shared mailboxes from multiple JMAP accounts, as defined in {{RFC8620}}.
-
-All object identifier types defined in this specification are optional.
-A server that supports this extension MAY return NIL for any object
-identifier type that it does not implement. This design permits partial
-implementation, allowing servers to provide identifiers for the types
-they support without requiring full implementation of all identifier
-types. A server MAY replace a NIL value for any object identifier with a
-non-NIL value in a subsequent session, for example when a server
-upgrade or configuration change enables functionality that was
-previously unavailable. However, a server MUST NOT replace a
-previously reported non-NIL object identifier with NIL.
-
-This extension requires the use of the ENABLE command, as defined in
-{{RFC5161}}, to activate the extended response syntax. The ENABLE
-requirement ensures that servers can implement the extension without
-introducing incompatible changes to the IMAP grammar for clients that
-do not understand the extension. Until the client issues
-ENABLE OBJECTIDBIS, the server MUST NOT return any of the extended
-response formats defined in this document.
+Additionally, this document introduces the OBJECTID+ extension,
+which adds an ACCOUNTID identifier for account-level context and
+a compound OBJECTID response format that bundles multiple identifiers
+into key-value pairs. This is particularly relevant for environments
+where IMAP mailboxes include shared mailboxes from multiple JMAP
+accounts, as defined in {{RFC8620}}. The compound format allows
+servers to include only the identifiers they support, with
+unsupported identifiers simply omitted from the response.
 
 ## Notational Conventions
 
@@ -137,76 +124,100 @@ response formats defined in this document.
 
 # CAPABILITY Identification
 
-IMAP servers that support this extension MUST include "OBJECTIDBIS" in
-the response list to the CAPABILITY command.
+## OBJECTID Capability
 
-A server MAY advertise both the "OBJECTID" capability defined in
-{{RFC8474}} and the "OBJECTIDBIS" capability defined in this document.
-When both capabilities are advertised, the server MUST conform to the
-behaviour specified in {{RFC8474}} unless and until the client issues
-ENABLE OBJECTIDBIS, at which point the server MUST conform to the
-behaviour specified in this document.
+A server that supports the basic object identifier functionality
+as defined in {{RFC8474}} MUST include "OBJECTID" in the response
+list to the CAPABILITY command.
 
-If the client has not issued ENABLE OBJECTIDBIS, the server MUST NOT
-return any of the extended response formats defined in this document,
-including OBJECTID response codes, OBJECTID status attributes, OBJECTID
-fetch data items, or ACCOUNTID attributes. This restriction ensures
-that the IMAP grammar remains unaltered for clients that do not
-understand the extension.
+A server advertising "OBJECTID" MUST support MAILBOXID, EMAILID,
+and THREADID as described in this document. The behavior of
+OBJECTID without OBJECTID+ is identical to {{RFC8474}}.
 
-## ENABLE Requirement
+## OBJECTID+ Capability
 
-The OBJECTIDBIS extension MUST be activated by the client through the
-ENABLE command as defined in {{RFC5161}}. A client that wishes to use
-the facilities defined in this document MUST issue ENABLE OBJECTIDBIS
-before relying on any of the extended responses.
+A server that supports the extended object identifier functionality
+defined in this document MUST include "OBJECTID+" in the response
+list to the CAPABILITY command.
 
-Example:
+A server advertising "OBJECTID+" MUST also advertise "OBJECTID".
+
+The OBJECTID+ extension adds:
+
+* The ACCOUNTID identifier ({{accountid}})
+* The compound OBJECTID response format ({{objectid-compound}})
+* The OBJECTID SELECT/EXAMINE parameter ({{select-objectid}})
+* The OBJECTID FETCH data item ({{fetch-objectid}})
+* The OBJECTID STATUS attribute ({{status-objectid}})
+* The OBJECTID response code on CREATE and RENAME ({{create-objectid}}, {{rename-objectid}})
+
+## Activation of OBJECTID+ {#activation}
+
+A client activates the OBJECTID+ extension by using any
+OBJECTID+-specific feature. The server MUST NOT send
+OBJECTID+-specific responses until the extension has been
+activated.
+
+The extension is activated by any of the following:
+
+* The client issues ENABLE OBJECTID+ ({{RFC5161}})
+* The client uses the OBJECTID parameter on SELECT or EXAMINE ({{select-objectid}})
+* The client requests the OBJECTID status attribute ({{status-objectid}})
+* The client requests the OBJECTID FETCH data item ({{fetch-objectid}})
+
+When the extension is activated by any mechanism other than
+ENABLE, the server MUST send an untagged ENABLED response
+listing OBJECTID+ before any response that is affected by
+the activation:
 
 ~~~
-C: 7 enable objectidbis
-S: * ENABLED OBJECTIDBIS
-S: 7 OK Completed
+* ENABLED OBJECTID+
 ~~~
 
-After the server confirms that OBJECTIDBIS has been enabled, the
-extended response formats defined in this document become active for
-the remainder of the IMAP session.
+Once activated, the OBJECTID+ extension remains active for the
+duration of the IMAP session. Activation MUST NOT be reversed.
 
-# OBJECTID Compound Identifier {#objectid-compound}
+Once OBJECTID+ is activated, the server MUST use the compound
+OBJECTID response code ({{objectid-compound}}) in place of the
+MAILBOXID response code in all subsequent SELECT, EXAMINE,
+CREATE, and RENAME responses.
 
-The OBJECTID is a compound data item that aggregates all object
-identifiers relevant to a given context into a single response element.
-The composition of the OBJECTID depends on whether it pertains to a
-mailbox or a message.
+# OBJECTID Compound Format {#objectid-compound}
 
-## Mailbox Context
+The OBJECTID+ extension introduces the compound OBJECTID format,
+which bundles multiple identifiers into a parenthesized list of
+key-value pairs.
 
-When used in the context of a mailbox (response codes for CREATE,
-SELECT, and EXAMINE; STATUS attributes), the OBJECTID compound
-contains the following elements:
+Each key identifies the type of object identifier (e.g., MAILBOXID,
+ACCOUNTID, EMAILID, THREADID), and each value is the corresponding
+ObjectID. Keys that the server does not support or that are not
+applicable in a given context are simply omitted from the response.
+An empty compound response "OBJECTID ()" is valid and indicates that
+the server supports the OBJECTID+ extension but does not have any
+identifiers to return in this context.
 
-Syntax: "OBJECTID" SP "(" "MAILBOXID" SP objectid-or-nil SP \
-        "ACCOUNTID" SP objectid-or-nil ")"
+The compound OBJECTID format is used in the following contexts once
+OBJECTID+ has been activated:
 
-The MAILBOXID element contains the mailbox identifier, and the
-ACCOUNTID element contains the account identifier. Either element
-MAY be NIL if the server does not support the corresponding
-identifier type.
+* As a response code in SELECT/EXAMINE untagged OK responses
+* As a response code in tagged OK responses to CREATE and RENAME
+* As a STATUS attribute
+* As a FETCH data item
 
-## Message Context
+The contents of the compound OBJECTID vary by context:
 
-When used in the context of a message (FETCH data items), the OBJECTID
-compound contains the following elements:
+* For mailbox context (SELECT, EXAMINE, CREATE, RENAME, STATUS):
+  the server SHOULD include MAILBOXID and ACCOUNTID.
 
-Syntax: "OBJECTID" SP "(" "EMAILID" SP objectid-or-nil SP \
-        "ACCOUNTID" SP objectid-or-nil SP \
-        "THREADID" SP objectid-or-nil ")"
+* For message context (FETCH): the server SHOULD include EMAILID
+  and THREADID. ACCOUNTID is not included in FETCH OBJECTID
+  responses because the account context is already established by
+  the SELECT or EXAMINE response for the current mailbox.
 
-The EMAILID element contains the email identifier, the ACCOUNTID
-element contains the account identifier, and the THREADID element
-contains the thread identifier. Any element MAY be NIL if the server
-does not support the corresponding identifier type.
+Identifiers that the server does not support are omitted rather
+than returned as NIL. This allows the compound format to
+self-describe the server's capabilities without requiring clients
+to handle placeholder values.
 
 ## Relationship to Individual Attributes
 
@@ -224,28 +235,28 @@ enumerating each attribute separately.
 # ACCOUNTID Object Identifier {#accountid}
 
 The ACCOUNTID is a server-allocated identifier that specifies the
-account to which a mailbox or message belongs. When used in conjunction
+account to which a mailbox belongs. When used in conjunction
 with MAILBOXID, the ACCOUNTID provides complete disambiguation of
-mailboxes in environments where multiple accounts are accessible through
-a single IMAP session.
+mailboxes in environments where multiple accounts are accessible
+through a single IMAP session.
 
 The ACCOUNTID is represented as an opaque string using the same
 character set and syntactic constraints as other object identifiers
 defined in this specification (see {{objectid-syntax}}).
 
-The server MUST return the same ACCOUNTID for all mailboxes and messages
-that belong to the same account. Conversely, the server MUST NOT return
-the same ACCOUNTID for mailboxes or messages that belong to different
-accounts, even if accessed within the same IMAP session.
+The server MUST return the same ACCOUNTID for all mailboxes that
+belong to the same account. Conversely, the server MUST NOT return
+the same ACCOUNTID for mailboxes that belong to different accounts,
+even if accessed within the same IMAP session.
 
 When a server advertises the "JMAPACCESS" capability as defined in
 {{RFC9698}}, it MUST ensure that the ACCOUNTID returned via IMAP matches
 the accountId property of the corresponding account in JMAP, as defined
 in {{Section 1.6.2 of RFC8620}}. This correspondence is essential for
-clients to correlate mailboxes and messages across the two protocols.
+clients to correlate mailboxes across the two protocols.
 
-When a mailbox or message is accessed exclusively through IMAP and does
-not have a corresponding representation in JMAP, the server MAY still
+When a mailbox is accessed exclusively through IMAP and does not
+have a corresponding representation in JMAP, the server MAY still
 assign an ACCOUNTID to maintain consistency in the IMAP representation.
 However, such ACCOUNTIDs need not correspond to any JMAP account
 identifier.
@@ -255,13 +266,6 @@ IMAP session. However, if the underlying account is deleted or the
 user's access to that account is revoked, the associated mailboxes will
 no longer be accessible via IMAP, and their ACCOUNTIDs become
 irrelevant.
-
-The server MAY return NIL for ACCOUNTID if it does not support account
-identifiers.
-
-A server that previously returned NIL for the ACCOUNTID of a mailbox
-or message MAY return a non-NIL value in a subsequent session. However,
-once a non-NIL ACCOUNTID has been reported, it MUST NOT revert to NIL.
 
 # MAILBOXID Object Identifier {#mailboxid}
 
@@ -284,144 +288,77 @@ messages (but see {{RFC3501}} for the special case regarding the
 renaming of INBOX, which is treated as creating a new mailbox and
 moving the messages).
 
-The server MAY return NIL for MAILBOXID if it does not support mailbox
-identifiers for a given mailbox (for example, for virtual folders).
+## MAILBOXID Response Code for CREATE
 
-A server that previously returned NIL for the MAILBOXID of a mailbox
-MAY return a non-NIL value in a subsequent session. However, once a
-non-NIL MAILBOXID has been reported for a mailbox, it MUST NOT revert
-to NIL.
+This document extends the CREATE command to have the response code
+MAILBOXID on successful mailbox creation.
 
-## New Response Code for CREATE
+A server advertising the OBJECTID capability MUST include the
+MAILBOXID response code in the tagged OK response to all successful
+CREATE commands unless OBJECTID+ has been activated, in which case
+the OBJECTID response code ({{create-objectid}}) is used instead.
 
-This document extends the CREATE command to include object identifiers
-in the response code on successful mailbox creation.
-
-When OBJECTIDBIS has been enabled, the server MUST include the OBJECTID
-response code in the tagged OK response to all successful CREATE
-commands.
+Syntax: "MAILBOXID" SP "\(" objectid "\)"
 
 Example:
 
 ~~~
-C: 8 create bar
-S: 8 OK [OBJECTID (MAILBOXID \
-        (F6352ae03-b7f5-463c-896f-d8b48ee3) \
-        ACCOUNTID (u1a48e8e3))] Completed
+C: 3 create foo
+S: 3 OK [MAILBOXID (F2212ea87-6097-4256-9d51-71338625)] \
+        Completed
 ~~~
 
-Example (MAILBOXID not supported):
+## MAILBOXID Untagged Response for SELECT and EXAMINE
 
-~~~
-C: 9 create virtual-folder
-S: 9 OK [OBJECTID (MAILBOXID NIL \
-        ACCOUNTID (u1a48e8e3))] Completed
-~~~
+A server advertising the OBJECTID capability MUST return an untagged
+OK response with the MAILBOXID response code on all successful
+SELECT and EXAMINE commands, unless OBJECTID+ has been activated,
+in which case the OBJECTID response code ({{select-objectid}}) is
+used instead.
 
-## New Response Code for RENAME
-
-This document extends the RENAME command to include the OBJECTID
-response code in the tagged OK response on successful mailbox rename
-when OBJECTIDBIS has been enabled.
-
-The OBJECTID response code in the RENAME response conveys the object
-identifiers of the mailbox after the rename operation has been
-completed. The MAILBOXID and ACCOUNTID returned MAY differ from those
-of the source mailbox, depending on server implementation and whether
-the rename operation crosses account boundaries.
-
-When a mailbox is renamed within the same account, the server SHOULD
-return the same MAILBOXID and ACCOUNTID as the source mailbox, unless
-the server does not support persistent mailbox identifiers across
-rename operations.
-
-When a mailbox is renamed across account boundaries (for example,
-from a personal namespace to a shared namespace belonging to a
-different account), the server MAY return a different ACCOUNTID,
-a different MAILBOXID, or both, reflecting the new account context
-and any server-specific identifier allocation policy.
-
-Example (local rename, identifiers preserved):
-
-~~~
-C: 12 rename foo renamed-foo
-S: 12 OK [OBJECTID (MAILBOXID \
-        (F2212ea87-6097-4256-9d51-71338625) \
-        ACCOUNTID (u1a48e8e3))] Completed
-~~~
-
-Example (cross-account rename, new identifiers issued):
-
-~~~
-C: 13 rename bar "Other Users.shared.bar"
-S: 13 OK [OBJECTID (MAILBOXID \
-        (Fa77c2e19-84d3-4b0f-9e12-67df5c8a) \
-        ACCOUNTID (u2b59f9f4))] Completed
-~~~
-
-In the first example, the mailbox "foo" is renamed to "renamed-foo"
-within the same account, and the server preserves both the MAILBOXID
-and the ACCOUNTID. In the second example, the mailbox "bar" is renamed
-into a shared namespace belonging to a different account, and the
-server issues both a new MAILBOXID and a new ACCOUNTID reflecting the
-destination account.
-
-## New OK Untagged Response for SELECT and EXAMINE
-
-This document adds a new untagged response code to the SELECT and
-EXAMINE commands.
-
-When OBJECTIDBIS has been enabled, the server MUST return an untagged
-OK response with the OBJECTID response code on all successful SELECT
-and EXAMINE commands.
+Syntax: "OK" SP "\[" "MAILBOXID" SP "\(" objectid "\)" "\]" SP text
 
 Example:
 
 ~~~
-C: 9 select "bar"
+C: 27 select "foo"
 [...]
-S: * OK [OBJECTID (MAILBOXID \
-        (F6352ae03-b7f5-463c-896f-d8b48ee3) \
-        ACCOUNTID (u1a48e8e3))] Ok
+S: * OK [MAILBOXID (F2212ea87-6097-4256-9d51-71338625)] Ok
 [...]
-S: 9 OK [READ-WRITE] Completed
+S: 27 OK [READ-WRITE] Completed
 ~~~
 
-## New Attributes for STATUS
+## MAILBOXID Attribute for STATUS
 
-This document adds the MAILBOXID, ACCOUNTID, and OBJECTID attributes
-to the STATUS command using the extended syntax defined in {{RFC4466}}.
+This document adds the MAILBOXID attribute to the STATUS command
+using the extended syntax defined in {{RFC4466}}.
 
-A server that has OBJECTIDBIS enabled MUST support the MAILBOXID,
-ACCOUNTID, and OBJECTID status attributes.
+A server that advertises the OBJECTID capability MUST support the
+MAILBOXID status attribute.
 
-The MAILBOXID status attribute returns the mailbox identifier for the
-specified mailbox. The ACCOUNTID status attribute returns the account
-identifier for the specified mailbox. The OBJECTID status attribute
-returns both the mailbox identifier and the account identifier as a
-compound value.
+Syntax: "MAILBOXID"
 
-The server MAY return NIL for any identifier that it does not support.
+The attribute in the STATUS command.
+
+Syntax: "MAILBOXID" SP "\(" objectid "\)"
+
+The response item in the STATUS response contains the server-assigned
+identifier for this mailbox.
 
 Example:
 
 ~~~
 C: 6 status foo (mailboxid)
-S: * STATUS foo (MAILBOXID \
-        (F2212ea87-6097-4256-9d51-71338625))
+S: * STATUS foo (MAILBOXID (F2212ea87-6097-4256-9d51-71338625))
 S: 6 OK Completed
-C: 7 status bar (mailboxid accountid)
-S: * STATUS bar (MAILBOXID \
-        (F6352ae03-b7f5-463c-896f-d8b48ee3) \
-        ACCOUNTID (u1a48e8e3))
+C: 7 status bar (mailboxid)
+S: * STATUS bar (MAILBOXID (F6352ae03-b7f5-463c-896f-d8b48ee3))
 S: 7 OK Completed
 C: 8 rename foo renamed
-S: * OK rename foo renamed
 S: 8 OK Completed
-C: 9 status renamed (objectid)
-S: * STATUS renamed (OBJECTID (MAILBOXID \
-        (F2212ea87-6097-4256-9d51-71338625) \
-        ACCOUNTID (u1a48e8e3)))
+C: 9 status renamed (mailboxid)
+S: * STATUS renamed (MAILBOXID \
+        (F2212ea87-6097-4256-9d51-71338625))
 S: 9 OK Completed
 ~~~
 
@@ -431,30 +368,18 @@ available, the STATUS command can be combined with the LIST command.
 Example:
 
 ~~~
-C: 11 list "" "*" return (status (objectid))
+C: 11 list "" "*" return (status (mailboxid))
 S: * LIST (\HasNoChildren) "." INBOX
-S: * STATUS INBOX (OBJECTID (MAILBOXID \
-        (Ff8e3ead4-9389-4aff-adb1-d8d89efd8cbf) \
-        ACCOUNTID (u1a48e8e3)))
+S: * STATUS INBOX (MAILBOXID \
+        (Ff8e3ead4-9389-4aff-adb1-d8d89efd8cbf))
 S: * LIST (\HasNoChildren) "." bar
-S: * STATUS bar (OBJECTID (MAILBOXID \
-        (F6352ae03-b7f5-463c-896f-d8b48ee3) \
-        ACCOUNTID (u1a48e8e3)))
+S: * STATUS bar (MAILBOXID \
+        (F6352ae03-b7f5-463c-896f-d8b48ee3))
 S: * LIST (\HasNoChildren) "." renamed
-S: * STATUS renamed (OBJECTID (MAILBOXID \
-        (F2212ea87-6097-4256-9d51-71338625) \
-        ACCOUNTID (u1a48e8e3)))
-S: * LIST (\HasNoChildren) "." "Other Users.other.sub.folder"
-S: * STATUS "Other Users.other.sub.folder" (OBJECTID (\
-        MAILBOXID (F8839dca12-3ef8-4a72-b63d-54f9e8a1) \
-        ACCOUNTID (u2b59f9f4)))
-S: 11 OK Completed (0.001 secs 4 calls)
+S: * STATUS renamed (MAILBOXID \
+        (F2212ea87-6097-4256-9d51-71338625))
+S: 11 OK Completed (0.001 secs 3 calls)
 ~~~
-
-This example demonstrates how clients can efficiently retrieve object
-identifiers for multiple mailboxes, including mailboxes belonging to
-different accounts, using the extended LIST command with STATUS return
-option.
 
 # EMAILID Object Identifier and THREADID Correlator {#emailid}
 
@@ -468,9 +393,13 @@ messages with the same EMAILID.
 The server MUST return the same EMAILID for the same triple; hence,
 EMAILID is immutable.
 
-The server MUST return the same EMAILID as the source message for the
-matching destination message in the COPYUID pairing after a COPY or
-MOVE command {{RFC6851}}.
+The server SHOULD return the same EMAILID as the source message for
+the matching destination message in the COPYUID pairing after a COPY
+or MOVE command {{RFC6851}}.  When the source and destination mailboxes
+have the same ACCOUNTID, the server SHOULD preserve the EMAILID.
+When a COPY or MOVE crosses ACCOUNTID boundaries, the server MAY
+assign a different EMAILID in the destination, as the identifier
+namespaces are scoped per ACCOUNTID.
 
 The server MAY assign the same EMAILID as an existing message upon
 APPEND (e.g., if it detects that the new message has exactly
@@ -480,14 +409,6 @@ NOTE: EMAILID only identifies the immutable content of the message.
 In particular, it is possible for different messages with the same
 EMAILID to have different keywords.  This document does not specify a
 way to STORE by EMAILID.
-
-The server MAY return NIL for EMAILID if it does not support email
-identifiers (for example, for virtual messages).
-
-A server that previously returned NIL for the EMAILID of a message
-MAY return a non-NIL value in a subsequent session. However, once a
-non-NIL EMAILID has been reported for a message, it MUST NOT revert
-to NIL.
 
 ## THREADID Identifier for Related Messages {#threadid}
 
@@ -509,12 +430,7 @@ if they are in different mailboxes; for example, messages that would
 appear in the same thread if they were in the same mailbox SHOULD
 have the same THREADID, even if they are in different mailboxes.
 
-The server MUST NOT change the THREADID of a message once reported
-with a non-NIL value. A server that previously returned NIL for the
-THREADID of a message MAY return a non-NIL value in a subsequent
-session, for example if threading support is enabled through a server
-upgrade or configuration change. However, once a non-NIL THREADID has
-been reported for a message, it MUST remain immutable.
+The server MUST NOT change the THREADID of a message once reported.
 
 THREADID is OPTIONAL; if the server does not support THREADID or is
 unable to calculate relationships between messages, it MUST return
@@ -526,9 +442,9 @@ THREADIDs.  If they are stored with the same value internally, the
 server can generate prefixed values (as shown in the examples below
 with M and T prefixes) to avoid clashes.
 
-## New Message Data Items in FETCH and UID FETCH Commands
+## EMAILID and THREADID in FETCH and UID FETCH Commands
 
-This document defines the following FETCH request items:
+This document defines two FETCH items:
 
 Syntax: "EMAILID"
 
@@ -540,47 +456,48 @@ Syntax: "THREADID"
 The THREADID message data item causes the server to return THREADID
 FETCH response data items.
 
-Syntax: "ACCOUNTID"
+This document defines the following responses:
 
-The ACCOUNTID message data item causes the server to return ACCOUNTID
-FETCH response data items.
-
-Syntax: "OBJECTID"
-
-The OBJECTID message data item causes the server to return OBJECTID
-FETCH response data items containing all email-related object
-identifiers as a compound value.
-
-This document defines the following FETCH response items:
-
-Syntax: "EMAILID" SP objectid-or-nil
+Syntax: "EMAILID" SP "\(" objectid "\)"
 
 The EMAILID response data item contains the server-assigned ObjectID
-for each message, or NIL if the server does not support email
-identifiers.
+for each message.
 
-Syntax: "THREADID" SP objectid-or-nil
+Syntax: "THREADID" SP "\(" objectid "\)"
 
 The THREADID response data item contains the server-assigned ObjectID
-for the set of related messages to which this message belongs.  NIL
-is returned when the server does not support THREADID calculation.
+for the set of related messages to which this message belongs.
 
-Syntax: "ACCOUNTID" SP objectid-or-nil
+Syntax: "THREADID" SP nil
 
-The ACCOUNTID response data item contains the account identifier for
-the message, or NIL if the server does not support account
-identifiers.
+The NIL value is returned for the THREADID response data item when
+the server mailbox does not support THREADID calculation.
 
-Syntax: "OBJECTID" SP "(" "EMAILID" SP objectid-or-nil SP \
-        "ACCOUNTID" SP objectid-or-nil SP \
-        "THREADID" SP objectid-or-nil ")"
-
-The OBJECTID response data item contains all email-related object
-identifiers as a compound value.
-
-Example (EMAILID and THREADID):
+Example:
 
 ~~~
+C: 5 append inbox "20-Mar-2018 03:07:37 +1100" {733}
+[...]
+Subject: Message A
+Message-ID: <fake.1521475657.54797@example.com>
+[...]
+S: 5 OK [APPENDUID 1521475658 1] Completed
+
+C: 11 append inbox "20-Mar-2018 03:07:37 +1100" {793}
+[...]
+Subject: Re: Message A
+Message-ID: <fake.1521475657.21213@example.org>
+References: <fake.1521475657.54797@example.com>
+[...]
+S: 11 OK [APPENDUID 1521475658 2] Completed
+
+C: 17 append inbox "20-Mar-2018 03:07:37 +1100" {736}
+[...]
+Subject: Message C
+Message-ID: <fake.1521475657.60280@example.com>
+[...]
+S: 17 OK [APPENDUID 1521475658 3] Completed
+
 C: 22 fetch 1:* (emailid threadid)
 S: * 1 FETCH (EMAILID (M6d99ac3275bb4e) \
         THREADID (T64b478a75b7ea9))
@@ -611,20 +528,7 @@ S: * 1 FETCH (EMAILID (M288836c4c7a762) \
 S: 26 OK Completed (0.000 sec)
 ~~~
 
-Example (OBJECTID compound value):
-
-~~~
-C: 30 fetch 1:* (objectid)
-S: * 1 FETCH (OBJECTID (EMAILID (M6d99ac3275bb4e) \
-        ACCOUNTID (u1a48e8e3) \
-        THREADID (T64b478a75b7ea9)))
-S: * 2 FETCH (OBJECTID (EMAILID (M5fdc09b49ea703) \
-        ACCOUNTID (u1a48e8e3) \
-        THREADID (T11863d02dd95b5)))
-S: 30 OK Completed (0.000 sec)
-~~~
-
-Example (no THREADID support):
+Example: (no THREADID support)
 
 ~~~
 C: 26 fetch 1:* (emailid threadid)
@@ -633,51 +537,242 @@ S: * 2 FETCH (EMAILID (M00000002) THREADID NIL)
 S: 26 OK Completed (0.000 sec)
 ~~~
 
-Example (OBJECTID with no THREADID support):
+## Compound OBJECTID in FETCH {#fetch-objectid}
+
+When the OBJECTID+ extension has been activated ({{activation}}),
+the client can request the compound OBJECTID FETCH data item.
+
+Syntax: "OBJECTID"
+
+The OBJECTID FETCH data item causes the server to return a compound
+OBJECTID response containing the EMAILID and, if supported, the
+THREADID for each message.
+
+Requesting the OBJECTID FETCH data item activates the OBJECTID+
+extension.
+
+ACCOUNTID is not included in the FETCH OBJECTID response because
+the account context is already established by the SELECT or EXAMINE
+response for the current mailbox.
+
+Example:
+
+~~~
+C: 30 fetch 1:* (objectid)
+S: * ENABLED OBJECTID+
+S: * 1 FETCH (OBJECTID (EMAILID M6d99ac3275bb4e \
+        THREADID T64b478a75b7ea9))
+S: * 2 FETCH (OBJECTID (EMAILID M5fdc09b49ea703 \
+        THREADID T11863d02dd95b5))
+S: 30 OK Completed (0.000 sec)
+~~~
+
+Example: (no THREADID support)
 
 ~~~
 C: 31 fetch 1:* (objectid)
-S: * 1 FETCH (OBJECTID (EMAILID (M00000001) \
-        ACCOUNTID (u1a48e8e3) THREADID NIL))
-S: * 2 FETCH (OBJECTID (EMAILID (M00000002) \
-        ACCOUNTID (u1a48e8e3) THREADID NIL))
+S: * 1 FETCH (OBJECTID (EMAILID M00000001))
+S: * 2 FETCH (OBJECTID (EMAILID M00000002))
 S: 31 OK Completed (0.000 sec)
 ~~~
 
-Example (no EMAILID support):
+Example: (server supports no message identifiers)
 
 ~~~
 C: 32 fetch 1:* (objectid)
-S: * 1 FETCH (OBJECTID (EMAILID NIL \
-        ACCOUNTID (u1a48e8e3) THREADID NIL))
+S: * 1 FETCH (OBJECTID ())
+S: * 2 FETCH (OBJECTID ())
 S: 32 OK Completed (0.000 sec)
 ~~~
 
+The individual EMAILID and THREADID FETCH items continue to work
+as described above, regardless of whether OBJECTID+ has been
+activated. A client may use either the individual items or the
+compound OBJECTID item, or both.
+
+# OBJECTID+ Extensions to Existing Commands
+
+## OBJECTID Parameter on SELECT and EXAMINE {#select-objectid}
+
+This document extends SELECT and EXAMINE to accept an OBJECTID
+parameter in the optional parameters list.
+
+Including OBJECTID in the SELECT or EXAMINE parameters activates
+the OBJECTID+ extension ({{activation}}) and requests that the
+server return the compound OBJECTID response code instead of the
+MAILBOXID response code.
+
+Example:
+
+~~~
+C: 27 select "foo" (OBJECTID)
+S: * ENABLED OBJECTID+
+[...]
+S: * OK [OBJECTID (MAILBOXID F2212ea87-6097-4256-9d51-71338625 \
+        ACCOUNTID u1a48e8e3)] Ok
+[...]
+S: 27 OK [READ-WRITE] Completed
+
+C: 28 select "shared/team"
+[...]
+S: * OK [OBJECTID (MAILBOXID F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
+        ACCOUNTID u2b59f9f4)] Ok
+[...]
+S: 28 OK [READ-WRITE] Completed
+~~~
+
+Note that in the second SELECT, the server does not send ENABLED
+again because the extension was already activated by the first
+SELECT. Also note that the second mailbox has a different
+ACCOUNTID, indicating it belongs to a different account (e.g.,
+a shared mailbox).
+
+## OBJECTID Response Code for CREATE {#create-objectid}
+
+When OBJECTID+ has been activated, the server MUST use the
+OBJECTID response code instead of MAILBOXID in the tagged OK
+response to successful CREATE commands.
+
+Example:
+
+~~~
+C: 3 create foo
+S: 3 OK [OBJECTID (MAILBOXID \
+        F2212ea87-6097-4256-9d51-71338625 \
+        ACCOUNTID u1a48e8e3)] Completed
+C: 4 create bar
+S: 4 OK [OBJECTID (MAILBOXID \
+        F6352ae03-b7f5-463c-896f-d8b48ee3 \
+        ACCOUNTID u1a48e8e3)] Completed
+C: 5 create shared/team
+S: 5 OK [OBJECTID (MAILBOXID \
+        F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
+        ACCOUNTID u2b59f9f4)] Completed
+~~~
+
+## OBJECTID Response Code for RENAME {#rename-objectid}
+
+When OBJECTID+ has been activated, the server MUST include the
+OBJECTID response code in the tagged OK response to successful
+RENAME commands.
+
+The MAILBOXID in the response reflects the (unchanged) identifier
+of the renamed mailbox. The ACCOUNTID reflects the account to
+which the mailbox belongs after the rename.
+
+When a mailbox is renamed within the same account, the server MUST
+return the same MAILBOXID and ACCOUNTID as the source mailbox.
+
+When a mailbox is renamed across account boundaries (for example,
+from a personal namespace to a shared namespace belonging to a
+different account), the server MAY return a different ACCOUNTID,
+a different MAILBOXID, or both, reflecting the new account context
+and any server-specific identifier allocation policy.
+
+Example (local rename, identifiers preserved):
+
+~~~
+C: 8 rename foo renamed
+S: 8 OK [OBJECTID (MAILBOXID \
+        F2212ea87-6097-4256-9d51-71338625 \
+        ACCOUNTID u1a48e8e3)] Completed
+~~~
+
+Example (cross-account rename, new identifiers issued):
+
+~~~
+C: 13 rename bar "Other Users.shared.bar"
+S: 13 OK [OBJECTID (MAILBOXID \
+        Fa77c2e19-84d3-4b0f-9e12-67df5c8a \
+        ACCOUNTID u2b59f9f4)] Completed
+~~~
+
+## OBJECTID Attribute for STATUS {#status-objectid}
+
+When OBJECTID+ has been activated, the OBJECTID STATUS attribute
+is available. It requests the compound OBJECTID response, which
+includes both the MAILBOXID and ACCOUNTID for the queried mailbox.
+
+Syntax: "OBJECTID"
+
+Requesting the OBJECTID status attribute activates the OBJECTID+
+extension ({{activation}}).
+
+Example:
+
+~~~
+C: 6 status foo (objectid)
+S: * ENABLED OBJECTID+
+S: * STATUS foo (OBJECTID (MAILBOXID \
+        F2212ea87-6097-4256-9d51-71338625 \
+        ACCOUNTID u1a48e8e3))
+S: 6 OK Completed
+
+C: 7 status bar (objectid)
+S: * STATUS bar (OBJECTID (MAILBOXID \
+        F6352ae03-b7f5-463c-896f-d8b48ee3 \
+        ACCOUNTID u1a48e8e3))
+S: 7 OK Completed
+
+C: 8 status shared/team (objectid)
+S: * STATUS shared/team (OBJECTID (MAILBOXID \
+        F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
+        ACCOUNTID u2b59f9f4))
+S: 8 OK Completed
+~~~
+
+The MAILBOXID status attribute from {{RFC8474}} continues to work
+as an individual attribute regardless of whether OBJECTID+ has
+been activated.
+
+When the LIST-STATUS IMAP capability defined in {{RFC5819}} is also
+available, the STATUS command can be combined with the LIST command.
+
+Example:
+
+~~~
+C: 11 list "" "*" return (status (objectid))
+S: * ENABLED OBJECTID+
+S: * LIST (\HasNoChildren) "." INBOX
+S: * STATUS INBOX (OBJECTID (MAILBOXID \
+        Ff8e3ead4-9389-4aff-adb1-d8d89efd8cbf \
+        ACCOUNTID u1a48e8e3))
+S: * LIST (\HasNoChildren) "." bar
+S: * STATUS bar (OBJECTID (MAILBOXID \
+        F6352ae03-b7f5-463c-896f-d8b48ee3 \
+        ACCOUNTID u1a48e8e3))
+S: * LIST (\HasNoChildren) "." "Other Users.other.sub.folder"
+S: * STATUS "Other Users.other.sub.folder" (OBJECTID ( \
+        MAILBOXID F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
+        ACCOUNTID u2b59f9f4))
+S: 11 OK Completed (0.001 secs 3 calls)
+~~~
+
+This example demonstrates how clients can efficiently retrieve
+object identifiers for multiple mailboxes, including mailboxes
+belonging to different accounts, using the extended LIST command
+with STATUS return option.
+
 # New Filters on SEARCH Command
 
-This document defines the filters EMAILID, THREADID, and ACCOUNTID on
-the SEARCH command.
+This document defines the filters EMAILID and THREADID on the SEARCH
+command.
 
-The EMAILID and THREADID filters require ENABLE OBJECTIDBIS to be in
-effect. However, if the server also advertises the OBJECTID capability
-defined in {{RFC8474}}, it MAY support the EMAILID and THREADID filters
-without requiring ENABLE OBJECTIDBIS, using the syntax defined in
-{{RFC8474}}.
-
-The ACCOUNTID filter is only available when OBJECTIDBIS has been
-enabled.
-
-Syntax: "EMAILID" SP objectid-atom
+Syntax: "EMAILID" SP objectid
 
 Messages whose EMAILID is exactly the specified ObjectID.
 
-Syntax: "THREADID" SP objectid-atom
+Syntax: "THREADID" SP objectid
 
 Messages whose THREADID is exactly the specified ObjectID.
 
-Syntax: "ACCOUNTID" SP objectid-atom
-
-Messages whose ACCOUNTID is exactly the specified ObjectID.
+When using the MULTISEARCH extension defined in {{RFC7377}} to search
+across multiple mailboxes, clients SHOULD only search for EMAILID or
+THREADID across mailboxes that share the same ACCOUNTID. Since object
+identifiers are only guaranteed to be unique within the scope of a
+single ACCOUNTID, searching across mailboxes with different ACCOUNTIDs
+may produce incorrect results if identifiers from different accounts
+happen to collide.
 
 Example: (as if run before the MOVE shown above when the mailbox had
 three messages)
@@ -689,9 +784,6 @@ S: 27 OK Completed (1 msgs in 0.000 secs)
 C: 28 search threadid T64b478a75b7ea9
 S: * SEARCH 1 2
 S: 28 OK Completed (2 msgs in 0.000 secs)
-C: 29 search accountid u1a48e8e3
-S: * SEARCH 1 2 3
-S: 29 OK Completed (3 msgs in 0.000 secs)
 ~~~
 
 # Formal Syntax {#objectid-syntax}
@@ -710,72 +802,62 @@ accept these strings in a case-insensitive fashion.
 Please note specifically that ObjectID values are case sensitive.
 
 ~~~
-capability =/ "OBJECTIDBIS"
+capability =/ "OBJECTID" / "OBJECTID+"
 
-enable-data =/ "OBJECTIDBIS"
+enable-data =/ "OBJECTID+"
         ; extends the enable-data production from [RFC5161]
 
-nil =/ "NIL"
-        ; the null value; case-insensitive
+objectid = 1*255(ALPHA / DIGIT / "_" / "-")
+        ; characters in object identifiers are case
+        ; significant
 
-objectid-atom = 1*255(ALPHA / DIGIT / "_" / "-")
-        ; the raw object identifier string
-        ; characters are case significant
+objectid-key = "MAILBOXID" / "ACCOUNTID" / "EMAILID" / "THREADID"
 
-objectid = "(" objectid-atom ")"
-        ; parenthesized object identifier
+objectid-kvpair = objectid-key SP objectid
 
-objectid-or-nil = objectid / nil
-        ; parenthesized object identifier or NIL
+objectid-compound = "OBJECTID" SP "(" *(objectid-kvpair) ")"
+        ; key-value pairs of identifiers
+        ; keys not supported by the server are omitted
+        ; an empty list "OBJECTID ()" is valid
 
-; --- FETCH request items ---
+; --- OBJECTID capability (RFC 8474 compatible) ---
 
-fetch-att =/ "EMAILID" / "THREADID" / "ACCOUNTID" / "OBJECTID"
+fetch-att =/ "EMAILID" / "THREADID"
 
-; --- FETCH response items ---
+fetch-emailid-resp = "EMAILID" SP "(" objectid ")"
+        ; follows tagged-ext production from [RFC4466]
 
-fetch-emailid-resp = "EMAILID" SP objectid-or-nil
+fetch-threadid-resp = "THREADID" SP ( "(" objectid ")" / nil )
+        ; follows tagged-ext production from [RFC4466]
 
-fetch-threadid-resp = "THREADID" SP objectid-or-nil
+msg-att-static =/ fetch-emailid-resp / fetch-threadid-resp
 
-fetch-accountid-resp = "ACCOUNTID" SP objectid-or-nil
+resp-text-code =/ "MAILBOXID" SP "(" objectid ")"
+        ; incorporated before the expansion rule of
+        ;  atom [SP 1*<any TEXT-CHAR except "]">]
+        ; that appears in [RFC3501]
 
-fetch-objectid-email-resp = "OBJECTID" SP "(" \
-        "EMAILID" SP objectid-or-nil SP \
-        "ACCOUNTID" SP objectid-or-nil SP \
-        "THREADID" SP objectid-or-nil ")"
-        ; compound email object identifier response
+search-key =/ "EMAILID" SP objectid / "THREADID" SP objectid
 
-msg-att-static =/ fetch-emailid-resp / fetch-threadid-resp /
-        fetch-accountid-resp / fetch-objectid-email-resp
+status-att =/ "MAILBOXID"
 
-; --- Response codes ---
+status-att-val =/ "MAILBOXID" SP "(" objectid ")"
+        ; follows tagged-ext production from [RFC4466]
 
-resp-text-code =/ "OBJECTID" SP "(" \
-        "MAILBOXID" SP objectid-or-nil SP \
-        "ACCOUNTID" SP objectid-or-nil ")"
-        ; compound mailbox object identifier response code;
-        ; returned in tagged OK for CREATE and RENAME,
-        ; and in untagged OK for SELECT and EXAMINE
+; --- OBJECTID+ extensions ---
 
-; --- SEARCH filters ---
+select-param =/ "OBJECTID"
 
-search-key =/ "EMAILID" SP objectid-atom /
-        "THREADID" SP objectid-atom /
-        "ACCOUNTID" SP objectid-atom
+fetch-att =/ "OBJECTID"
 
-; --- STATUS attributes ---
+msg-att-static =/ objectid-compound
 
-status-att =/ "MAILBOXID" / "ACCOUNTID" / "OBJECTID"
+resp-text-code =/ objectid-compound
 
-status-att-val =/ "MAILBOXID" SP objectid-or-nil
+status-att =/ "OBJECTID"
 
-status-att-val =/ "ACCOUNTID" SP objectid-or-nil
-
-status-att-val =/ "OBJECTID" SP "(" \
-        "MAILBOXID" SP objectid-or-nil SP \
-        "ACCOUNTID" SP objectid-or-nil ")"
-        ; compound mailbox object identifier status value
+status-att-val =/ objectid-compound
+        ; follows tagged-ext production from [RFC4466]
 ~~~
 
 # Implementation Considerations
@@ -819,18 +901,20 @@ alphabetical character.
 The case of RENAME INBOX may need special handling because it has
 special behavior, as defined in {{Section 6.3.5 of RFC3501}}.
 
-It is advisable (though not required) to have MAILBOXID be globally
-unique, but it is only required to be unique within messages offered
-to a single client login to a single server hostname.  For example, a
-proxy that aggregates multiple independent servers MUST NOT advertise
-the OBJECTIDBIS capability unless it can guarantee that different
-objects will never use the same identifiers, even if backend object
-identifiers collide.
+It is advisable (though not required) to have MAILBOXID values
+be globally unique, but it is only required to be unique within
+the scope of a single ACCOUNTID as seen by a single client login
+to a single server hostname.
 
-The ACCOUNTID provides additional disambiguation in multi-account
-environments, ensuring that even if two backend servers use the same
-MAILBOXID, the combination of ACCOUNTID and MAILBOXID remains unique
-within the IMAP session.
+Object identifiers such as MAILBOXID, EMAILID, and THREADID need
+only be unique within the scope of a single ACCOUNTID. A proxy
+that aggregates multiple independent backend servers MUST return
+a different ACCOUNTID for each set of mailboxes served by different
+backends, unless it can guarantee that all object identifiers are
+unique across those backends. This ensures that clients can rely
+on the combination of ACCOUNTID and any other object identifier
+being unique within the IMAP session, even when the backend servers
+independently assign identifiers that might otherwise collide.
 
 ## Client Usage
 
@@ -860,33 +944,96 @@ push notification with the ACCOUNTID, clients can efficiently
 determine which IMAP mailbox corresponds to a newly delivered message
 without requiring additional synchronization operations.
 
-Clients SHOULD be prepared to handle servers that return NIL for any
-of the object identifier types. In such cases, clients should
-gracefully degrade functionality to use only the supported object
-identifier types and fall back to the guarantees of {{RFC3501}}.
-
 ## Interaction with the OBJECTID Capability
 
 A server that advertises both the OBJECTID capability defined in
-{{RFC8474}} and the OBJECTIDBIS capability defined in this document
+{{RFC8474}} and the OBJECTID+ capability defined in this document
 MUST behave as follows:
 
-* When OBJECTIDBIS has not been enabled, the server MUST conform to
+* When OBJECTID+ has not been activated, the server MUST conform to
   the behaviour specified in {{RFC8474}} for all OBJECTID-related
   responses. The server MUST NOT return OBJECTID response codes,
-  OBJECTID status attributes, ACCOUNTID attributes, or NIL values
-  for MAILBOXID or EMAILID.
+  OBJECTID status attributes, or ACCOUNTID attributes.
 
-* When OBJECTIDBIS has been enabled, the server MUST conform to
+* When OBJECTID+ has been activated, the server MUST conform to
   the behaviour specified in this document. The server MUST use
   OBJECTID response codes in place of MAILBOXID response codes for
-  CREATE, SELECT, and EXAMINE commands. The server MUST support
-  ACCOUNTID, MAILBOXID, and OBJECTID as STATUS attributes and FETCH
-  data items.
+  CREATE, RENAME, SELECT, and EXAMINE commands. The server MUST
+  support OBJECTID as a STATUS attribute and as a FETCH data item.
 
 This design allows servers to support both the original and extended
 specifications without breaking the IMAP grammar for clients that
 understand only one of the two extensions.
+
+## Interaction with IMAP4rev2
+
+This specification is written in terms of {{RFC3501}} (IMAP4rev1) but
+applies equally to {{RFC9051}} (IMAP4rev2). IMAP4rev2 incorporates
+the ENABLE command and the MOVE extension natively, so no separate
+capability negotiation is needed for those features.
+
+The formal syntax in this document extends the ABNF productions
+defined in {{RFC3501}}. Servers implementing IMAP4rev2 SHOULD apply
+the same extensions to the corresponding productions in {{RFC9051}}.
+
+## Interaction with MOVE
+
+The MOVE command {{RFC6851}} atomically moves messages between
+mailboxes. As specified in {{emailid}}, the server SHOULD preserve
+the EMAILID of moved messages when the source and destination
+mailboxes share the same ACCOUNTID. When a MOVE crosses ACCOUNTID
+boundaries, the server MAY assign new EMAILIDs and THREADIDs in
+the destination, as identifier namespaces are scoped per ACCOUNTID.
+
+The MOVE command does not receive an OBJECTID response code. The
+COPYUID response code already provides the UID mapping between
+source and destination.
+
+## Interaction with NAMESPACE
+
+The NAMESPACE extension {{RFC2342}} exposes that a single IMAP
+connection may provide access to mailboxes from different
+namespaces, including personal, other users', and shared namespaces.
+
+The ACCOUNTID returned for a mailbox SHOULD reflect the account
+that owns the mailbox data, not the account of the authenticated
+user accessing it. For example:
+
+* Mailboxes in the personal namespace have the authenticated
+  user's ACCOUNTID.
+
+* Mailboxes in the "Other Users" namespace that belong to a
+  different user SHOULD have that other user's ACCOUNTID.
+
+* Mailboxes in a shared namespace SHOULD have the ACCOUNTID of
+  the account that owns the shared data.
+
+This ensures that ACCOUNTID provides meaningful account-level
+disambiguation and, when JMAPACCESS is advertised, correctly
+correlates with the JMAP accountId that owns the corresponding
+Mailbox objects.
+
+## Interaction with UIDONLY
+
+When the UIDONLY extension {{RFC9586}} is active, FETCH responses
+are replaced with UIDFETCH responses. The OBJECTID FETCH data
+item works identically in UIDFETCH responses. A server that
+supports both OBJECTID+ and UIDONLY MUST include the OBJECTID
+data item in UIDFETCH responses when requested.
+
+## Interaction with SORT and THREAD
+
+The THREAD command defined in {{RFC5256}} computes thread
+relationships algorithmically based on message headers and returns
+a thread structure for display purposes. The THREADID defined in
+this document is a persistent identifier assigned by the server
+to group related messages.
+
+THREADID and the THREAD command are independent. A server MAY use
+different algorithms for THREAD responses and THREADID assignment,
+and the thread groupings need not correlate. Clients MUST NOT
+assume that messages sharing a THREADID will appear in the same
+thread structure returned by the THREAD command, or vice versa.
 
 ## Advice to Client Implementers
 
@@ -925,13 +1072,13 @@ and message listings by THREADID could be proposed.
 IANA is requested to add the following entry to the "IMAP Capabilities"
 registry located at <https://www.iana.org/assignments/imap-capabilities>:
 
-| Capability  | Reference     |
-|-------------|---------------|
-| OBJECTIDBIS | This document |
+| Capability | Reference     |
+|------------|---------------|
+| OBJECTID+  | This document |
 
 The existing "OBJECTID" entry in the "IMAP Capabilities" registry,
 registered by {{RFC8474}}, remains unchanged. Servers MAY advertise
-both OBJECTID and OBJECTIDBIS as described in this document.
+both OBJECTID and OBJECTID+ as described in this document.
 
 ## IMAP Response Codes Registry
 
@@ -973,18 +1120,18 @@ See also the security considerations in {{Section 11 of RFC3501}}.
 
 ## Account Identifier Exposure
 
-The account identifier component of MAILBOXID reveals information about
-the account structure of the server and which mailboxes belong to which
-accounts. While this information is generally not considered sensitive
-in the context of an authenticated IMAP session, servers that wish to
-minimize information disclosure MAY choose to generate account identifiers
-using unpredictable values (such as UUIDs) rather than sequential numbers
+The ACCOUNTID reveals information about the account structure of the
+server and which mailboxes belong to which accounts. While this
+information is generally not considered sensitive in the context of an
+authenticated IMAP session, servers that wish to minimize information
+disclosure MAY choose to generate account identifiers using
+unpredictable values (such as UUIDs) rather than sequential numbers
 or other patterns that might reveal information about account creation
 order or the total number of accounts on the server.
 
 ## Cross-Account Information Leakage
 
-Servers MUST ensure that the MAILBOXID mechanism does not inadvertently
+Servers MUST ensure that the ACCOUNTID mechanism does not inadvertently
 grant users access to information about accounts they are not authorized
 to access. In particular, servers MUST NOT return account identifiers
 for accounts that the authenticated user does not have permission to
@@ -992,11 +1139,11 @@ access, even if such accounts exist on the server.
 
 ## Consistency with JMAP Authentication
 
-When a server advertises both "OBJECTID" (or "OBJECTID=MAILBOXID") and
-"JMAPACCESS" capabilities, the server MUST ensure that the same
-authentication credentials used for the IMAP session would grant access
-to the corresponding JMAP accounts. Inconsistencies in authentication
-or authorization between IMAP and JMAP could lead to situations where
+When a server advertises both "OBJECTID+" and "JMAPACCESS"
+capabilities, the server MUST ensure that the same authentication
+credentials used for the IMAP session would grant access to the
+corresponding JMAP accounts. Inconsistencies in authentication or
+authorization between IMAP and JMAP could lead to situations where
 a client receives account identifiers that it cannot subsequently use
 to access the corresponding JMAP resources, potentially revealing the
 existence of accounts the user cannot access.
@@ -1048,50 +1195,25 @@ The server has significant leeway here.
 
 This document obsoletes {{RFC8474}} and introduces the following changes:
 
-* Replaced the OBJECTID capability with the OBJECTIDBIS capability,
-  which requires activation through the ENABLE command.
-
-* Introduced the OBJECTID compound response format, which combines
-  multiple object identifiers into a single response element. For
-  mailboxes, the OBJECTID response includes MAILBOXID and ACCOUNTID.
-  For emails, the OBJECTID response includes EMAILID, ACCOUNTID, and
-  THREADID.
-
-* Added the ACCOUNTID object identifier, which specifies the account
-  to which a mailbox or message belongs, enabling correlation with
-  JMAP account identifiers.
-
-* Added ACCOUNTID as a standalone STATUS attribute, FETCH data item,
-  and SEARCH filter.
-
-* Added the OBJECTID response code to the RENAME command, enabling
-  clients to track mailbox identifier changes across rename operations,
-  including renames that cross account boundaries.  
-
-* Added OBJECTID as a compound STATUS attribute and FETCH data item
-  that returns all relevant identifiers for the context.
-
-* Added the ENABLE requirement to ensure backward compatibility with
-  clients that do not understand the extended response syntax.
-
-* Defined coexistence rules for servers that advertise both the
-  OBJECTID capability from {{RFC8474}} and the OBJECTIDBIS capability
-  from this document.
-
-* Revised the formal syntax to introduce the objectid-atom,
-  objectid, and objectid-or-nil productions, providing consistent
-  parenthesization and NIL handling across all response types.
-
-* Corrected the THREADID response syntax from {{RFC8474}}, which
-  inconsistently applied parenthesization between the objectid and
-  NIL alternatives.
-
-* Updated IANA registrations to include the OBJECTIDBIS capability
-  and OBJECTID response code.
+* Added the OBJECTID+ capability and extension, which provides:
+  * The ACCOUNTID identifier for account-level context
+  * A compound OBJECTID response format using key-value pairs,
+    where unsupported identifiers are omitted rather than returned
+    as NIL
+  * Implicit activation when clients use any OBJECTID+-specific
+    feature, with an untagged ENABLED response to signal activation
+  * The OBJECTID SELECT/EXAMINE parameter
+  * The OBJECTID FETCH data item (EMAILID and THREADID, without
+    ACCOUNTID which is redundant per-message)
+  * The OBJECTID STATUS attribute (compound MAILBOXID + ACCOUNTID)
+  * The OBJECTID response code on CREATE and RENAME
 
 * Added security considerations for account identifier exposure,
   cross-account information leakage, JMAP authentication consistency,
   and privacy in multi-tenant environments.
+
+* Updated IANA registrations to include the OBJECTID+ capability
+  and OBJECTID response code.
 
 # Acknowledgements
 
@@ -1102,8 +1224,28 @@ working group for their contributions to this specification.
 
 \[\[This section to be removed by RFC Editor\]\]
 
+**draft-ietf-mailmaint-imap-objectid-bis-01**
+
+* Replaced mandatory ENABLE with implicit activation model:
+  OBJECTID+ is activated when the client uses any
+  OBJECTID+-specific feature (OBJECTID in SELECT/FETCH/STATUS,
+  or ENABLE OBJECTID+)
+* Changed compound OBJECTID format from positional with NIL to
+  key-value pairs where unsupported identifiers are omitted
+* Removed ACCOUNTID from FETCH OBJECTID (redundant with SELECT)
+* Removed standalone ACCOUNTID STATUS attribute, FETCH data item,
+  and SEARCH filter; ACCOUNTID is only available through compound
+  OBJECTID responses
+* Added OBJECTID parameter for SELECT/EXAMINE as an activation
+  trigger
+* MAILBOXID reverted to single objectid format in individual
+  items (compatible with RFC 8474)
+* Renamed capability from OBJECTIDBIS to OBJECTID+
+* Clarified that object identifiers only need to be unique within
+  the scope of a single ACCOUNTID; proxies MUST assign different
+  ACCOUNTIDs for different backends
+
 **draft-ietf-mailmaint-imap-objectid-bis-00**
 
 * Initial version
-
 
