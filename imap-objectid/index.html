@@ -8,21 +8,17 @@
 <meta content="Bron Gondwana" name="author">
 <meta content="Mauro De Gennaro" name="author">
 <meta content="
-       This document updates   (IMAP4rev1) and  
-(IMAP4rev2) with persistent identifiers on mailboxes and messages to
-allow clients to more efficiently reuse cached data when resources
-have changed location on the server. 
-       This document obsoletes   by adding the OBJECTID+
-extension, which introduces compound OBJECTID responses containing
-key-value pairs of identifiers and an ACCOUNTID identifier for
-account-level context. The OBJECTID+ extension is implicitly
-activated when a client uses any OBJECTID+-specific feature,
-ensuring backward compatibility with clients that do not understand
-the extension. 
+       This document obsoletes   (OBJECTID extension for IMAP).
+It adds the OBJECTID+ extension, which introduces compound OBJECTID
+responses containing key-value pairs of identifiers, an ACCOUNTID
+identifier for account-level context, and ID-based mailbox selection.
+The OBJECTID+ extension is implicitly activated when a client uses
+any OBJECTID+-specific feature, ensuring backward compatibility
+with clients that only support  . 
     " name="description">
 <meta content="xml2rfc 3.32.0" name="generator">
 <meta content="Internet-Draft" name="keyword">
-<meta content="draft-ietf-mailmaint-imap-objectid-bis-01" name="ietf.draft">
+<meta content="draft-ietf-mailmaint-imap-objectid-bis-02" name="ietf.draft">
 <!-- Generator version information:
   xml2rfc 3.32.0
     Python 3.14.3
@@ -1240,10 +1236,13 @@ li > p:last-of-type:only-child {
 <dt class="label-workgroup">Workgroup:</dt>
 <dd class="workgroup">mailmaint</dd>
 <dt class="label-internet-draft">Internet-Draft:</dt>
-<dd class="internet-draft">draft-ietf-mailmaint-imap-objectid-bis-01</dd>
+<dd class="internet-draft">draft-ietf-mailmaint-imap-objectid-bis-02</dd>
 <dt class="label-obsoletes">Obsoletes:</dt>
 <dd class="obsoletes">
 <a href="https://www.rfc-editor.org/rfc/rfcRFC8474" class="eref">RFC8474</a> (if approved)</dd>
+<dt class="label-updates">Updates:</dt>
+<dd class="updates">
+<a href="https://www.rfc-editor.org/rfc/rfcRFC3501" class="eref">RFC3501</a>, <a href="https://www.rfc-editor.org/rfc/rfcRFC9051" class="eref">RFC9051</a> (if approved)</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
 <time datetime="2026-03-15" class="published">15 March 2026</time>
@@ -1268,17 +1267,13 @@ li > p:last-of-type:only-child {
 <h1 id="title">IMAP Extension for Object Identifiers</h1>
 <section id="section-abstract">
       <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
-<p id="section-abstract-1">This document updates <span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span> (IMAP4rev1) and <span>[<a href="#RFC9051" class="cite xref">RFC9051</a>]</span>
-(IMAP4rev2) with persistent identifiers on mailboxes and messages to
-allow clients to more efficiently reuse cached data when resources
-have changed location on the server.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
-<p id="section-abstract-2">This document obsoletes <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> by adding the OBJECTID+
-extension, which introduces compound OBJECTID responses containing
-key-value pairs of identifiers and an ACCOUNTID identifier for
-account-level context. The OBJECTID+ extension is implicitly
-activated when a client uses any OBJECTID+-specific feature,
-ensuring backward compatibility with clients that do not understand
-the extension.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
+<p id="section-abstract-1">This document obsoletes <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> (OBJECTID extension for IMAP).
+It adds the OBJECTID+ extension, which introduces compound OBJECTID
+responses containing key-value pairs of identifiers, an ACCOUNTID
+identifier for account-level context, and ID-based mailbox selection.
+The OBJECTID+ extension is implicitly activated when a client uses
+any OBJECTID+-specific feature, ensuring backward compatibility
+with clients that only support <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span>.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
 </section>
 <div id="status-of-memo">
 <section id="section-boilerplate.1">
@@ -1340,13 +1335,10 @@ the extension.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
             <p id="section-toc.1-1.2.1"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-capability-identification" class="internal xref">CAPABILITY Identification</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1">
-                <p id="section-toc.1-1.2.2.1.1" class="keepWithNext"><a href="#section-2.1" class="auto internal xref">2.1</a>.  <a href="#name-objectid-capability" class="internal xref">OBJECTID Capability</a></p>
+                <p id="section-toc.1-1.2.2.1.1" class="keepWithNext"><a href="#section-2.1" class="auto internal xref">2.1</a>.  <a href="#name-objectid-and-objectid-capab" class="internal xref">OBJECTID and OBJECTID+ Capabilities</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2">
-                <p id="section-toc.1-1.2.2.2.1"><a href="#section-2.2" class="auto internal xref">2.2</a>.  <a href="#name-objectid-capability-2" class="internal xref">OBJECTID+ Capability</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.3">
-                <p id="section-toc.1-1.2.2.3.1"><a href="#section-2.3" class="auto internal xref">2.3</a>.  <a href="#name-activation-of-objectid" class="internal xref">Activation of OBJECTID+</a></p>
+                <p id="section-toc.1-1.2.2.2.1"><a href="#section-2.2" class="auto internal xref">2.2</a>.  <a href="#name-activation-of-objectid" class="internal xref">Activation of OBJECTID+</a></p>
 </li>
             </ul>
 </li>
@@ -1363,17 +1355,6 @@ the extension.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
             <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-mailboxid-object-identifier" class="internal xref">MAILBOXID Object Identifier</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
-                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-mailboxid-response-code-for" class="internal xref">MAILBOXID Response Code for CREATE</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2">
-                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="auto internal xref">5.2</a>.  <a href="#name-mailboxid-untagged-response" class="internal xref">MAILBOXID Untagged Response for SELECT and EXAMINE</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3">
-                <p id="section-toc.1-1.5.2.3.1"><a href="#section-5.3" class="auto internal xref">5.3</a>.  <a href="#name-mailboxid-attribute-for-sta" class="internal xref">MAILBOXID Attribute for STATUS</a></p>
-</li>
-            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
             <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-emailid-object-identifier-a" class="internal xref">EMAILID Object Identifier and THREADID Correlator</a></p>
@@ -1519,38 +1500,42 @@ the extension.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
       <h2 id="name-introduction">
 <a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
       </h2>
-<p id="section-1-1">IMAP stores are often used by many clients.  Each client may cache
-data from the server so that it does not need to redownload
-information.  <span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span> states that a mailbox can be uniquely
-referenced by its name and UIDVALIDITY, and a message within that
-mailbox can be uniquely referenced by its mailbox (name +
-UIDVALIDITY) and unique identifier (UID).  The triple of mailbox
-name, UIDVALIDITY, and UID is guaranteed to be immutable.<a href="#section-1-1" class="pilcrow">¶</a></p>
-<p id="section-1-2"><span>[<a href="#RFC4315" class="cite xref">RFC4315</a>]</span> defines a COPYUID response that allows a client that copies
-messages to know the mapping between the UIDs in the source and
-destination mailboxes and, hence, update its local cache.<a href="#section-1-2" class="pilcrow">¶</a></p>
-<p id="section-1-3">If a mailbox is successfully renamed by a client, that client will
-know that the same messages exist in the destination mailbox name as
-previously existed in the source mailbox name.<a href="#section-1-3" class="pilcrow">¶</a></p>
-<p id="section-1-4">The result is that the client that copies (or moves <span>[<a href="#RFC6851" class="cite xref">RFC6851</a>]</span>)
-messages or renames a mailbox can update its local cache, but any
-other client connected to the same store cannot know with certainty
-that the messages are identical, so it will redownload everything.<a href="#section-1-4" class="pilcrow">¶</a></p>
-<p id="section-1-5">This extension adds new properties to a message (EMAILID) and mailbox
-(MAILBOXID).  These properties allow a client to quickly identify
-messages or mailboxes that have been renamed by another client.<a href="#section-1-5" class="pilcrow">¶</a></p>
-<p id="section-1-6">This extension also adds an optional thread identifier (THREADID) to
-messages, which can be used by the server to indicate messages that
-it has identified to be related.  A server that does not implement
-threading will return NIL to all requests for THREADID.<a href="#section-1-6" class="pilcrow">¶</a></p>
-<p id="section-1-7">Additionally, this document introduces the OBJECTID+ extension,
-which adds an ACCOUNTID identifier for account-level context and
-a compound OBJECTID response format that bundles multiple identifiers
-into key-value pairs. This is particularly relevant for environments
-where IMAP mailboxes include shared mailboxes from multiple JMAP
-accounts, as defined in <span>[<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>. The compound format allows
-servers to include only the identifiers they support, with
-unsupported identifiers simply omitted from the response.<a href="#section-1-7" class="pilcrow">¶</a></p>
+<p id="section-1-1">This document obsoletes <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> and defines persistent
+identifiers on mailboxes and messages to allow clients to more
+efficiently reuse cached data when resources have changed location
+on the server.<a href="#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">This document defines:<a href="#section-1-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-1-3.1">
+          <p id="section-1-3.1.1">ACCOUNTID: an identifier for account-level context, enabling
+disambiguation of mailboxes in environments where multiple
+accounts are accessible through a single IMAP session.<a href="#section-1-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-1-3.2">
+          <p id="section-1-3.2.1">MAILBOXID: a server-allocated identifier for each mailbox that
+persists across renames, allowing clients to detect that a
+mailbox has been renamed rather than deleted and recreated.<a href="#section-1-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-1-3.3">
+          <p id="section-1-3.3.1">EMAILID: an identifier for message content that persists across
+COPY and MOVE operations, allowing clients to avoid redownloading
+messages that have changed location.<a href="#section-1-3.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-1-3.4">
+          <p id="section-1-3.4.1">THREADID: an optional identifier grouping related messages,
+allowing clients to display conversations.<a href="#section-1-3.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-1-3.5">
+          <p id="section-1-3.5.1">A compound OBJECTID response format that bundles multiple
+identifiers into key-value pairs, with unsupported identifiers
+simply omitted.<a href="#section-1-3.5.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-1-3.6">
+          <p id="section-1-3.6.1">ID-based mailbox selection via the OBJECTID parameter on
+SELECT and EXAMINE, allowing clients to reliably reselect
+mailboxes after renames.<a href="#section-1-3.6.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
 <div id="notational-conventions">
 <section id="section-1.1">
         <h3 id="name-notational-conventions">
@@ -1569,90 +1554,78 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
       <h2 id="name-capability-identification">
 <a href="#section-2" class="section-number selfRef">2. </a><a href="#name-capability-identification" class="section-name selfRef">CAPABILITY Identification</a>
       </h2>
-<div id="objectid-capability">
+<div id="objectid-and-objectid-capabilities">
 <section id="section-2.1">
-        <h3 id="name-objectid-capability">
-<a href="#section-2.1" class="section-number selfRef">2.1. </a><a href="#name-objectid-capability" class="section-name selfRef">OBJECTID Capability</a>
+        <h3 id="name-objectid-and-objectid-capab">
+<a href="#section-2.1" class="section-number selfRef">2.1. </a><a href="#name-objectid-and-objectid-capab" class="section-name selfRef">OBJECTID and OBJECTID+ Capabilities</a>
         </h3>
-<p id="section-2.1-1">A server that supports the basic object identifier functionality
-as defined in <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> <span class="bcp14">MUST</span> include "OBJECTID" in the response
-list to the CAPABILITY command.<a href="#section-2.1-1" class="pilcrow">¶</a></p>
-<p id="section-2.1-2">A server advertising "OBJECTID" <span class="bcp14">MUST</span> support MAILBOXID, EMAILID,
-and THREADID as described in this document. The behavior of
-OBJECTID without OBJECTID+ is identical to <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span>.<a href="#section-2.1-2" class="pilcrow">¶</a></p>
-</section>
-</div>
-<div id="objectid-capability-1">
-<section id="section-2.2">
-        <h3 id="name-objectid-capability-2">
-<a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-objectid-capability-2" class="section-name selfRef">OBJECTID+ Capability</a>
-        </h3>
-<p id="section-2.2-1">A server that supports the extended object identifier functionality
-defined in this document <span class="bcp14">MUST</span> include "OBJECTID+" in the response
-list to the CAPABILITY command.<a href="#section-2.2-1" class="pilcrow">¶</a></p>
-<p id="section-2.2-2">A server advertising "OBJECTID+" <span class="bcp14">MUST</span> also advertise "OBJECTID".<a href="#section-2.2-2" class="pilcrow">¶</a></p>
-<p id="section-2.2-3">The OBJECTID+ extension adds:<a href="#section-2.2-3" class="pilcrow">¶</a></p>
+<p id="section-2.1-1">This document obsoletes <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span>.  A server implementing this
+document <span class="bcp14">MUST</span> advertise both "OBJECTID" and "OBJECTID+" in the
+response list to the CAPABILITY command.<a href="#section-2.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.1-2">A server <span class="bcp14">MAY</span> also implement only "OBJECTID" without "OBJECTID+",
+in which case the behavior is as defined in <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span>.<a href="#section-2.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.1-3">The OBJECTID+ extension adds:<a href="#section-2.1-3" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-2.2-4.1">
-            <p id="section-2.2-4.1.1">The ACCOUNTID identifier (<a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#section-2.2-4.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-2.1-4.1">
+            <p id="section-2.1-4.1.1">The ACCOUNTID identifier (<a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#section-2.1-4.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-2.2-4.2">
-            <p id="section-2.2-4.2.1">The compound OBJECTID response format (<a href="#objectid-compound" class="auto internal xref">Section 3</a>)<a href="#section-2.2-4.2.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-2.1-4.2">
+            <p id="section-2.1-4.2.1">The compound OBJECTID response format (<a href="#objectid-compound" class="auto internal xref">Section 3</a>)<a href="#section-2.1-4.2.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-2.2-4.3">
-            <p id="section-2.2-4.3.1">The OBJECTID SELECT/EXAMINE parameter (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>)<a href="#section-2.2-4.3.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-2.1-4.3">
+            <p id="section-2.1-4.3.1">The OBJECTID SELECT/EXAMINE parameter (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>)<a href="#section-2.1-4.3.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-2.2-4.4">
-            <p id="section-2.2-4.4.1">The OBJECTID FETCH data item (<a href="#fetch-objectid" class="auto internal xref">Section 6.4</a>)<a href="#section-2.2-4.4.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-2.1-4.4">
+            <p id="section-2.1-4.4.1">The OBJECTID FETCH data item (<a href="#fetch-objectid" class="auto internal xref">Section 6.4</a>)<a href="#section-2.1-4.4.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-2.2-4.5">
-            <p id="section-2.2-4.5.1">The OBJECTID STATUS attribute (<a href="#status-objectid" class="auto internal xref">Section 7.4</a>)<a href="#section-2.2-4.5.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-2.1-4.5">
+            <p id="section-2.1-4.5.1">The OBJECTID STATUS attribute (<a href="#status-objectid" class="auto internal xref">Section 7.4</a>)<a href="#section-2.1-4.5.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-2.2-4.6">
-            <p id="section-2.2-4.6.1">The OBJECTID response code on CREATE and RENAME (<a href="#create-objectid" class="auto internal xref">Section 7.2</a>, <a href="#rename-objectid" class="auto internal xref">Section 7.3</a>)<a href="#section-2.2-4.6.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-2.1-4.6">
+            <p id="section-2.1-4.6.1">The OBJECTID response code on CREATE and RENAME (<a href="#create-objectid" class="auto internal xref">Section 7.2</a>, <a href="#rename-objectid" class="auto internal xref">Section 7.3</a>)<a href="#section-2.1-4.6.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 </section>
 </div>
 <div id="activation">
-<section id="section-2.3">
+<section id="section-2.2">
         <h3 id="name-activation-of-objectid">
-<a href="#section-2.3" class="section-number selfRef">2.3. </a><a href="#name-activation-of-objectid" class="section-name selfRef">Activation of OBJECTID+</a>
+<a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-activation-of-objectid" class="section-name selfRef">Activation of OBJECTID+</a>
         </h3>
-<p id="section-2.3-1">A client activates the OBJECTID+ extension by using any
+<p id="section-2.2-1">A client activates the OBJECTID+ extension by using any
 OBJECTID+-specific feature. The server <span class="bcp14">MUST NOT</span> send
 OBJECTID+-specific responses until the extension has been
-activated.<a href="#section-2.3-1" class="pilcrow">¶</a></p>
-<p id="section-2.3-2">The extension is activated by any of the following:<a href="#section-2.3-2" class="pilcrow">¶</a></p>
+activated.<a href="#section-2.2-1" class="pilcrow">¶</a></p>
+<p id="section-2.2-2">The extension is activated by any of the following:<a href="#section-2.2-2" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-2.3-3.1">
-            <p id="section-2.3-3.1.1">The client issues ENABLE OBJECTID+ (<span>[<a href="#RFC5161" class="cite xref">RFC5161</a>]</span>)<a href="#section-2.3-3.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-2.2-3.1">
+            <p id="section-2.2-3.1.1">The client issues ENABLE OBJECTID+ (<span>[<a href="#RFC5161" class="cite xref">RFC5161</a>]</span>)<a href="#section-2.2-3.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-2.3-3.2">
-            <p id="section-2.3-3.2.1">The client uses the OBJECTID parameter on SELECT or EXAMINE (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>)<a href="#section-2.3-3.2.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-2.2-3.2">
+            <p id="section-2.2-3.2.1">The client uses the OBJECTID parameter on SELECT or EXAMINE (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>)<a href="#section-2.2-3.2.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-2.3-3.3">
-            <p id="section-2.3-3.3.1">The client requests the OBJECTID status attribute (<a href="#status-objectid" class="auto internal xref">Section 7.4</a>)<a href="#section-2.3-3.3.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-2.2-3.3">
+            <p id="section-2.2-3.3.1">The client requests the OBJECTID status attribute (<a href="#status-objectid" class="auto internal xref">Section 7.4</a>)<a href="#section-2.2-3.3.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-2.3-3.4">
-            <p id="section-2.3-3.4.1">The client requests the OBJECTID FETCH data item (<a href="#fetch-objectid" class="auto internal xref">Section 6.4</a>)<a href="#section-2.3-3.4.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-2.2-3.4">
+            <p id="section-2.2-3.4.1">The client requests the OBJECTID FETCH data item (<a href="#fetch-objectid" class="auto internal xref">Section 6.4</a>)<a href="#section-2.2-3.4.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-2.3-4">When the extension is activated by any mechanism other than
+<p id="section-2.2-4">When the extension is activated by any mechanism other than
 ENABLE, the server <span class="bcp14">MUST</span> send an untagged ENABLED response
 listing OBJECTID+ before any response that is affected by
-the activation:<a href="#section-2.3-4" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-2.3-5">
+the activation:<a href="#section-2.2-4" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-2.2-5">
 <pre>
 * ENABLED OBJECTID+
-</pre><a href="#section-2.3-5" class="pilcrow">¶</a>
+</pre><a href="#section-2.2-5" class="pilcrow">¶</a>
 </div>
-<p id="section-2.3-6">Once activated, the OBJECTID+ extension remains active for the
-duration of the IMAP session. Activation <span class="bcp14">MUST NOT</span> be reversed.<a href="#section-2.3-6" class="pilcrow">¶</a></p>
-<p id="section-2.3-7">Once OBJECTID+ is activated, the server <span class="bcp14">MUST</span> use the compound
+<p id="section-2.2-6">Once activated, the OBJECTID+ extension remains active for the
+duration of the IMAP session. Activation <span class="bcp14">MUST NOT</span> be reversed.<a href="#section-2.2-6" class="pilcrow">¶</a></p>
+<p id="section-2.2-7">Once OBJECTID+ is activated, the server <span class="bcp14">MUST</span> use the compound
 OBJECTID response code (<a href="#objectid-compound" class="auto internal xref">Section 3</a>) in place of the
 MAILBOXID response code in all subsequent SELECT, EXAMINE,
-CREATE, and RENAME responses.<a href="#section-2.3-7" class="pilcrow">¶</a></p>
+CREATE, and RENAME responses.<a href="#section-2.2-7" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -1705,6 +1678,9 @@ the SELECT or EXAMINE response for the current mailbox.<a href="#section-3-6.2.1
 than returned as NIL. This allows the compound format to
 self-describe the server's capabilities without requiring clients
 to handle placeholder values.<a href="#section-3-7" class="pilcrow">¶</a></p>
+<p id="section-3-8">Clients <span class="bcp14">MUST</span> ignore any unrecognised key-value pairs in a compound
+OBJECTID response. This allows future extensions to add new
+identifier types without breaking existing clients.<a href="#section-3-8" class="pilcrow">¶</a></p>
 <div id="relationship-to-individual-attributes">
 <section id="section-3.1">
         <h3 id="name-relationship-to-individual-">
@@ -1766,112 +1742,23 @@ irrelevant.<a href="#section-4-6" class="pilcrow">¶</a></p>
 mailbox.<a href="#section-5-1" class="pilcrow">¶</a></p>
 <p id="section-5-2">The server <span class="bcp14">MUST</span> return the same MAILBOXID for a mailbox with the same
 name and UIDVALIDITY.<a href="#section-5-2" class="pilcrow">¶</a></p>
-<p id="section-5-3">The server <span class="bcp14">MUST NOT</span> report the same MAILBOXID for two mailboxes at
-the same time.<a href="#section-5-3" class="pilcrow">¶</a></p>
+<p id="section-5-3">The server <span class="bcp14">MUST NOT</span> report the same (ACCOUNTID, MAILBOXID) pair for
+two different mailboxes at the same time.<a href="#section-5-3" class="pilcrow">¶</a></p>
 <p id="section-5-4">The server <span class="bcp14">MUST NOT</span> reuse the same MAILBOXID for a mailbox that does
 not obey all the invariants that <span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span> defines for a mailbox that
 does not change name or UIDVALIDITY.<a href="#section-5-4" class="pilcrow">¶</a></p>
-<p id="section-5-5">The server <span class="bcp14">MUST</span> keep the same MAILBOXID for the source and
+<p id="section-5-5">The server <span class="bcp14">SHOULD</span> keep the same MAILBOXID for the source and
 destination when renaming a mailbox in a way that keeps the same
 messages (but see <span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span> for the special case regarding the
 renaming of INBOX, which is treated as creating a new mailbox and
 moving the messages).<a href="#section-5-5" class="pilcrow">¶</a></p>
-<div id="mailboxid-response-code-for-create">
-<section id="section-5.1">
-        <h3 id="name-mailboxid-response-code-for">
-<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-mailboxid-response-code-for" class="section-name selfRef">MAILBOXID Response Code for CREATE</a>
-        </h3>
-<p id="section-5.1-1">This document extends the CREATE command to have the response code
-MAILBOXID on successful mailbox creation.<a href="#section-5.1-1" class="pilcrow">¶</a></p>
-<p id="section-5.1-2">A server advertising the OBJECTID capability <span class="bcp14">MUST</span> include the
-MAILBOXID response code in the tagged OK response to all successful
-CREATE commands unless OBJECTID+ has been activated, in which case
-the OBJECTID response code (<a href="#create-objectid" class="auto internal xref">Section 7.2</a>) is used instead.<a href="#section-5.1-2" class="pilcrow">¶</a></p>
-<p id="section-5.1-3">Syntax: "MAILBOXID" SP "(" objectid ")"<a href="#section-5.1-3" class="pilcrow">¶</a></p>
-<p id="section-5.1-4">Example:<a href="#section-5.1-4" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-5.1-5">
-<pre>
-C: 3 create foo
-S: 3 OK [MAILBOXID (F2212ea87-6097-4256-9d51-71338625)] \
-        Completed
-</pre><a href="#section-5.1-5" class="pilcrow">¶</a>
-</div>
-</section>
-</div>
-<div id="mailboxid-untagged-response-for-select-and-examine">
-<section id="section-5.2">
-        <h3 id="name-mailboxid-untagged-response">
-<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-mailboxid-untagged-response" class="section-name selfRef">MAILBOXID Untagged Response for SELECT and EXAMINE</a>
-        </h3>
-<p id="section-5.2-1">A server advertising the OBJECTID capability <span class="bcp14">MUST</span> return an untagged
-OK response with the MAILBOXID response code on all successful
-SELECT and EXAMINE commands, unless OBJECTID+ has been activated,
-in which case the OBJECTID response code (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>) is
-used instead.<a href="#section-5.2-1" class="pilcrow">¶</a></p>
-<p id="section-5.2-2">Syntax: "OK" SP "[" "MAILBOXID" SP "(" objectid ")" "]" SP text<a href="#section-5.2-2" class="pilcrow">¶</a></p>
-<p id="section-5.2-3">Example:<a href="#section-5.2-3" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-5.2-4">
-<pre>
-C: 27 select "foo"
-[...]
-S: * OK [MAILBOXID (F2212ea87-6097-4256-9d51-71338625)] Ok
-[...]
-S: 27 OK [READ-WRITE] Completed
-</pre><a href="#section-5.2-4" class="pilcrow">¶</a>
-</div>
-</section>
-</div>
-<div id="mailboxid-attribute-for-status">
-<section id="section-5.3">
-        <h3 id="name-mailboxid-attribute-for-sta">
-<a href="#section-5.3" class="section-number selfRef">5.3. </a><a href="#name-mailboxid-attribute-for-sta" class="section-name selfRef">MAILBOXID Attribute for STATUS</a>
-        </h3>
-<p id="section-5.3-1">This document adds the MAILBOXID attribute to the STATUS command
-using the extended syntax defined in <span>[<a href="#RFC4466" class="cite xref">RFC4466</a>]</span>.<a href="#section-5.3-1" class="pilcrow">¶</a></p>
-<p id="section-5.3-2">A server that advertises the OBJECTID capability <span class="bcp14">MUST</span> support the
-MAILBOXID status attribute.<a href="#section-5.3-2" class="pilcrow">¶</a></p>
-<p id="section-5.3-3">Syntax: "MAILBOXID"<a href="#section-5.3-3" class="pilcrow">¶</a></p>
-<p id="section-5.3-4">The attribute in the STATUS command.<a href="#section-5.3-4" class="pilcrow">¶</a></p>
-<p id="section-5.3-5">Syntax: "MAILBOXID" SP "(" objectid ")"<a href="#section-5.3-5" class="pilcrow">¶</a></p>
-<p id="section-5.3-6">The response item in the STATUS response contains the server-assigned
-identifier for this mailbox.<a href="#section-5.3-6" class="pilcrow">¶</a></p>
-<p id="section-5.3-7">Example:<a href="#section-5.3-7" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-5.3-8">
-<pre>
-C: 6 status foo (mailboxid)
-S: * STATUS foo (MAILBOXID (F2212ea87-6097-4256-9d51-71338625))
-S: 6 OK Completed
-C: 7 status bar (mailboxid)
-S: * STATUS bar (MAILBOXID (F6352ae03-b7f5-463c-896f-d8b48ee3))
-S: 7 OK Completed
-C: 8 rename foo renamed
-S: 8 OK Completed
-C: 9 status renamed (mailboxid)
-S: * STATUS renamed (MAILBOXID \
-        (F2212ea87-6097-4256-9d51-71338625))
-S: 9 OK Completed
-</pre><a href="#section-5.3-8" class="pilcrow">¶</a>
-</div>
-<p id="section-5.3-9">When the LIST-STATUS IMAP capability defined in <span>[<a href="#RFC5819" class="cite xref">RFC5819</a>]</span> is also
-available, the STATUS command can be combined with the LIST command.<a href="#section-5.3-9" class="pilcrow">¶</a></p>
-<p id="section-5.3-10">Example:<a href="#section-5.3-10" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-5.3-11">
-<pre>
-C: 11 list "" "*" return (status (mailboxid))
-S: * LIST (\HasNoChildren) "." INBOX
-S: * STATUS INBOX (MAILBOXID \
-        (Ff8e3ead4-9389-4aff-adb1-d8d89efd8cbf))
-S: * LIST (\HasNoChildren) "." bar
-S: * STATUS bar (MAILBOXID \
-        (F6352ae03-b7f5-463c-896f-d8b48ee3))
-S: * LIST (\HasNoChildren) "." renamed
-S: * STATUS renamed (MAILBOXID \
-        (F2212ea87-6097-4256-9d51-71338625))
-S: 11 OK Completed (0.001 secs 3 calls)
-</pre><a href="#section-5.3-11" class="pilcrow">¶</a>
-</div>
-</section>
-</div>
+<p id="section-5-6">A server advertising the OBJECTID capability <span class="bcp14">MUST</span> return MAILBOXID
+in response to CREATE, SELECT, EXAMINE, and STATUS commands.  When
+OBJECTID+ has been activated (<a href="#activation" class="auto internal xref">Section 2.2</a>), the compound OBJECTID
+response code (<a href="#objectid-compound" class="auto internal xref">Section 3</a>) replaces the MAILBOXID
+response code in SELECT, EXAMINE, CREATE, and RENAME responses.
+The MAILBOXID STATUS attribute continues to work as a standalone
+attribute regardless of OBJECTID+ activation.<a href="#section-5-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="emailid">
@@ -1888,22 +1775,23 @@ S: 11 OK Completed (0.001 secs 3 calls)
 content of a single message.  Anything that must remain immutable on
 a {name, uidvalidity, uid} triple must also be the same between
 messages with the same EMAILID.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
-<p id="section-6.1-2">The server <span class="bcp14">MUST</span> return the same EMAILID for the same triple; hence,
-EMAILID is immutable.<a href="#section-6.1-2" class="pilcrow">¶</a></p>
-<p id="section-6.1-3">The server <span class="bcp14">SHOULD</span> return the same EMAILID as the source message for
-the matching destination message in the COPYUID pairing after a COPY
-or MOVE command <span>[<a href="#RFC6851" class="cite xref">RFC6851</a>]</span>.  When the source and destination mailboxes
-have the same ACCOUNTID, the server <span class="bcp14">SHOULD</span> preserve the EMAILID.
-When a COPY or MOVE crosses ACCOUNTID boundaries, the server <span class="bcp14">MAY</span>
-assign a different EMAILID in the destination, as the identifier
-namespaces are scoped per ACCOUNTID.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
-<p id="section-6.1-4">The server <span class="bcp14">MAY</span> assign the same EMAILID as an existing message upon
+<p id="section-6.1-2">The server <span class="bcp14">MUST</span> return the same EMAILID for the same {name,
+uidvalidity, uid} triple; hence, EMAILID is immutable.<a href="#section-6.1-2" class="pilcrow">¶</a></p>
+<p id="section-6.1-3">Messages with the same EMAILID <span class="bcp14">MUST</span> have identical immutable
+content.  Messages with identical content <span class="bcp14">SHOULD</span> have the same
+EMAILID, but the server is not required to detect content
+duplication.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
+<p id="section-6.1-4">A COPY or MOVE command <span>[<a href="#RFC6851" class="cite xref">RFC6851</a>]</span> is allowed to create a new
+EMAILID for the destination message.  The server <span class="bcp14">SHOULD</span> preserve
+the EMAILID when the source and destination mailboxes have the
+same ACCOUNTID, but is not required to do so.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
+<p id="section-6.1-5">The server <span class="bcp14">MAY</span> assign the same EMAILID as an existing message upon
 APPEND (e.g., if it detects that the new message has exactly
-identical content to that of an existing message).<a href="#section-6.1-4" class="pilcrow">¶</a></p>
-<p id="section-6.1-5">NOTE: EMAILID only identifies the immutable content of the message.
+identical content to that of an existing message).<a href="#section-6.1-5" class="pilcrow">¶</a></p>
+<p id="section-6.1-6">NOTE: EMAILID only identifies the immutable content of the message.
 In particular, it is possible for different messages with the same
 EMAILID to have different keywords.  This document does not specify a
-way to STORE by EMAILID.<a href="#section-6.1-5" class="pilcrow">¶</a></p>
+way to STORE by EMAILID.<a href="#section-6.1-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="threadid">
@@ -1948,41 +1836,18 @@ FETCH response data items.<a href="#section-6.3-3" class="pilcrow">¶</a></p>
 <p id="section-6.3-4">Syntax: "THREADID"<a href="#section-6.3-4" class="pilcrow">¶</a></p>
 <p id="section-6.3-5">The THREADID message data item causes the server to return THREADID
 FETCH response data items.<a href="#section-6.3-5" class="pilcrow">¶</a></p>
-<p id="section-6.3-6">This document defines the following responses:<a href="#section-6.3-6" class="pilcrow">¶</a></p>
-<p id="section-6.3-7">Syntax: "EMAILID" SP "(" objectid ")"<a href="#section-6.3-7" class="pilcrow">¶</a></p>
-<p id="section-6.3-8">The EMAILID response data item contains the server-assigned ObjectID
-for each message.<a href="#section-6.3-8" class="pilcrow">¶</a></p>
-<p id="section-6.3-9">Syntax: "THREADID" SP "(" objectid ")"<a href="#section-6.3-9" class="pilcrow">¶</a></p>
-<p id="section-6.3-10">The THREADID response data item contains the server-assigned ObjectID
-for the set of related messages to which this message belongs.<a href="#section-6.3-10" class="pilcrow">¶</a></p>
-<p id="section-6.3-11">Syntax: "THREADID" SP nil<a href="#section-6.3-11" class="pilcrow">¶</a></p>
-<p id="section-6.3-12">The NIL value is returned for the THREADID response data item when
-the server mailbox does not support THREADID calculation.<a href="#section-6.3-12" class="pilcrow">¶</a></p>
-<p id="section-6.3-13">Example:<a href="#section-6.3-13" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.3-14">
+<p id="section-6.3-6">Syntax: "EMAILID" SP "(" objectid ")"<a href="#section-6.3-6" class="pilcrow">¶</a></p>
+<p id="section-6.3-7">The EMAILID response data item contains the server-assigned ObjectID
+for each message.<a href="#section-6.3-7" class="pilcrow">¶</a></p>
+<p id="section-6.3-8">Syntax: "THREADID" SP "(" objectid ")"<a href="#section-6.3-8" class="pilcrow">¶</a></p>
+<p id="section-6.3-9">The THREADID response data item contains the server-assigned ObjectID
+for the set of related messages to which this message belongs.<a href="#section-6.3-9" class="pilcrow">¶</a></p>
+<p id="section-6.3-10">Syntax: "THREADID" SP nil<a href="#section-6.3-10" class="pilcrow">¶</a></p>
+<p id="section-6.3-11">The NIL value is returned for the THREADID response data item when
+the server does not support THREADID calculation.<a href="#section-6.3-11" class="pilcrow">¶</a></p>
+<p id="section-6.3-12">Example:<a href="#section-6.3-12" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.3-13">
 <pre>
-C: 5 append inbox "20-Mar-2018 03:07:37 +1100" {733}
-[...]
-Subject: Message A
-Message-ID: &lt;fake.1521475657.54797@example.com&gt;
-[...]
-S: 5 OK [APPENDUID 1521475658 1] Completed
-
-C: 11 append inbox "20-Mar-2018 03:07:37 +1100" {793}
-[...]
-Subject: Re: Message A
-Message-ID: &lt;fake.1521475657.21213@example.org&gt;
-References: &lt;fake.1521475657.54797@example.com&gt;
-[...]
-S: 11 OK [APPENDUID 1521475658 2] Completed
-
-C: 17 append inbox "20-Mar-2018 03:07:37 +1100" {736}
-[...]
-Subject: Message C
-Message-ID: &lt;fake.1521475657.60280@example.com&gt;
-[...]
-S: 17 OK [APPENDUID 1521475658 3] Completed
-
 C: 22 fetch 1:* (emailid threadid)
 S: * 1 FETCH (EMAILID (M6d99ac3275bb4e) \
         THREADID (T64b478a75b7ea9))
@@ -1991,36 +1856,16 @@ S: * 2 FETCH (EMAILID (M288836c4c7a762) \
 S: * 3 FETCH (EMAILID (M5fdc09b49ea703) \
         THREADID (T11863d02dd95b5))
 S: 22 OK Completed (0.000 sec)
-
-C: 23 move 2 foo
-S: * OK [COPYUID 1521475659 2 1] Completed
-S: * 2 EXPUNGE
-S: 23 OK Completed
-
-C: 24 fetch 1:* (emailid threadid)
-S: * 1 FETCH (EMAILID (M6d99ac3275bb4e) \
-        THREADID (T64b478a75b7ea9))
-S: * 2 FETCH (EMAILID (M5fdc09b49ea703) \
-        THREADID (T11863d02dd95b5))
-S: 24 OK Completed (0.000 sec)
-
-C: 25 select "foo"
-[...]
-S: 25 OK [READ-WRITE] Completed
-C: 26 fetch 1:* (emailid threadid)
-S: * 1 FETCH (EMAILID (M288836c4c7a762) \
-        THREADID (T64b478a75b7ea9))
-S: 26 OK Completed (0.000 sec)
-</pre><a href="#section-6.3-14" class="pilcrow">¶</a>
+</pre><a href="#section-6.3-13" class="pilcrow">¶</a>
 </div>
-<p id="section-6.3-15">Example: (no THREADID support)<a href="#section-6.3-15" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.3-16">
+<p id="section-6.3-14">Example: (no THREADID support)<a href="#section-6.3-14" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.3-15">
 <pre>
 C: 26 fetch 1:* (emailid threadid)
 S: * 1 FETCH (EMAILID (M00000001) THREADID NIL)
 S: * 2 FETCH (EMAILID (M00000002) THREADID NIL)
 S: 26 OK Completed (0.000 sec)
-</pre><a href="#section-6.3-16" class="pilcrow">¶</a>
+</pre><a href="#section-6.3-15" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -2029,7 +1874,7 @@ S: 26 OK Completed (0.000 sec)
         <h3 id="name-compound-objectid-in-fetch">
 <a href="#section-6.4" class="section-number selfRef">6.4. </a><a href="#name-compound-objectid-in-fetch" class="section-name selfRef">Compound OBJECTID in FETCH</a>
         </h3>
-<p id="section-6.4-1">When the OBJECTID+ extension has been activated (<a href="#activation" class="auto internal xref">Section 2.3</a>),
+<p id="section-6.4-1">When the OBJECTID+ extension has been activated (<a href="#activation" class="auto internal xref">Section 2.2</a>),
 the client can request the compound OBJECTID FETCH data item.<a href="#section-6.4-1" class="pilcrow">¶</a></p>
 <p id="section-6.4-2">Syntax: "OBJECTID"<a href="#section-6.4-2" class="pilcrow">¶</a></p>
 <p id="section-6.4-3">The OBJECTID FETCH data item causes the server to return a compound
@@ -2070,10 +1915,10 @@ S: * 2 FETCH (OBJECTID ())
 S: 32 OK Completed (0.000 sec)
 </pre><a href="#section-6.4-11" class="pilcrow">¶</a>
 </div>
-<p id="section-6.4-12">The individual EMAILID and THREADID FETCH items continue to work
-as described above, regardless of whether OBJECTID+ has been
-activated. A client may use either the individual items or the
-compound OBJECTID item, or both.<a href="#section-6.4-12" class="pilcrow">¶</a></p>
+<p id="section-6.4-12">The individual EMAILID and THREADID FETCH items as defined in
+<span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> continue to work regardless of whether OBJECTID+ has
+been activated. A client may use either the individual items or
+the compound OBJECTID item, or both.<a href="#section-6.4-12" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -2089,13 +1934,40 @@ compound OBJECTID item, or both.<a href="#section-6.4-12" class="pilcrow">¶</a>
 <a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-objectid-parameter-on-selec" class="section-name selfRef">OBJECTID Parameter on SELECT and EXAMINE</a>
         </h3>
 <p id="section-7.1-1">This document extends SELECT and EXAMINE to accept an OBJECTID
-parameter in the optional parameters list.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
-<p id="section-7.1-2">Including OBJECTID in the SELECT or EXAMINE parameters activates
-the OBJECTID+ extension (<a href="#activation" class="auto internal xref">Section 2.3</a>) and requests that the
-server return the compound OBJECTID response code instead of the
-MAILBOXID response code.<a href="#section-7.1-2" class="pilcrow">¶</a></p>
-<p id="section-7.1-3">Example:<a href="#section-7.1-3" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-4">
+parameter in the optional parameters list, as defined in
+<span>[<a href="#RFC4466" class="cite xref">RFC4466</a>]</span>.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+<p id="section-7.1-2">The OBJECTID parameter has two forms:<a href="#section-7.1-2" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-7.1-3">
+<li id="section-7.1-3.1">
+            <p id="section-7.1-3.1.1">Without arguments: <code>SELECT "mailbox" (OBJECTID)</code> activates
+the OBJECTID+ extension (<a href="#activation" class="auto internal xref">Section 2.2</a>) and requests the
+compound OBJECTID response code in place of the MAILBOXID
+response code.<a href="#section-7.1-3.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-7.1-3.2">
+            <p id="section-7.1-3.2.1">With arguments: <code>SELECT "mailbox" (OBJECTID (MAILBOXID id
+ACCOUNTID id))</code> additionally requests that the server select
+the mailbox identified by the given MAILBOXID and ACCOUNTID
+rather than by name.  The mailbox name serves as a fallback
+if no mailbox matches the given identifiers.<a href="#section-7.1-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-7.1-4">In the second form, the parenthesized list after OBJECTID
+contains the same key-value pairs that the server returns in
+its compound OBJECTID response (<a href="#objectid-compound" class="auto internal xref">Section 3</a>).  The
+client <span class="bcp14">SHOULD</span> include all identifiers that the server provided
+in the most recent compound OBJECTID response for the mailbox.<a href="#section-7.1-4" class="pilcrow">¶</a></p>
+<p id="section-7.1-5">When the server receives the second form, it <span class="bcp14">MUST</span> attempt to
+locate a mailbox matching the provided identifiers.  If a match
+is found, the server selects that mailbox regardless of whether
+the mailbox name in the command still refers to it.  If no
+match is found, the server falls back to selecting the mailbox
+by name, following the normal SELECT semantics.<a href="#section-7.1-5" class="pilcrow">¶</a></p>
+<p id="section-7.1-6">This mechanism allows clients to reliably reselect a mailbox
+after it has been renamed by another client, following the same
+pattern as the Sieve <code>:mailboxid</code> extension in <span>[<a href="#RFC9042" class="cite xref">RFC9042</a>]</span>.<a href="#section-7.1-6" class="pilcrow">¶</a></p>
+<p id="section-7.1-7">Example (activation only, no ID-based selection):<a href="#section-7.1-7" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-8">
 <pre>
 C: 27 select "foo" (OBJECTID)
 S: * ENABLED OBJECTID+
@@ -2104,20 +1976,54 @@ S: * OK [OBJECTID (MAILBOXID F2212ea87-6097-4256-9d51-71338625 \
         ACCOUNTID u1a48e8e3)] Ok
 [...]
 S: 27 OK [READ-WRITE] Completed
-
-C: 28 select "shared/team"
+</pre><a href="#section-7.1-8" class="pilcrow">¶</a>
+</div>
+<p id="section-7.1-9">Example (ID-based selection after a rename):<a href="#section-7.1-9" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-10">
+<pre>
+C: 28 select "foo" (OBJECTID (MAILBOXID \
+        F2212ea87-6097-4256-9d51-71338625 \
+        ACCOUNTID u1a48e8e3))
+[...]
+S: * OK [OBJECTID (MAILBOXID F2212ea87-6097-4256-9d51-71338625 \
+        ACCOUNTID u1a48e8e3)] Ok
+[...]
+S: 28 OK [READ-WRITE] Completed
+</pre><a href="#section-7.1-10" class="pilcrow">¶</a>
+</div>
+<p id="section-7.1-11">Here the mailbox was previously named "foo" but may have been
+renamed.  The server locates it by MAILBOXID and ACCOUNTID
+regardless of its current name.<a href="#section-7.1-11" class="pilcrow">¶</a></p>
+<p id="section-7.1-12">Example (ID-based selection, fallback to name):<a href="#section-7.1-12" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-13">
+<pre>
+C: 29 select "foo" (OBJECTID (MAILBOXID \
+        Fno-longer-exists ACCOUNTID u1a48e8e3))
+[...]
+S: * OK [OBJECTID (MAILBOXID F9999new-id-for-foo \
+        ACCOUNTID u1a48e8e3)] Ok
+[...]
+S: 29 OK [READ-WRITE] Completed
+</pre><a href="#section-7.1-13" class="pilcrow">¶</a>
+</div>
+<p id="section-7.1-14">The MAILBOXID did not match any mailbox, so the server fell
+back to selecting "foo" by name.  The response contains the
+actual OBJECTID of the selected mailbox.<a href="#section-7.1-14" class="pilcrow">¶</a></p>
+<p id="section-7.1-15">Example (shared mailbox with different ACCOUNTID):<a href="#section-7.1-15" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-16">
+<pre>
+C: 30 select "shared/team"
 [...]
 S: * OK [OBJECTID (MAILBOXID F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
         ACCOUNTID u2b59f9f4)] Ok
 [...]
-S: 28 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-4" class="pilcrow">¶</a>
+S: 30 OK [READ-WRITE] Completed
+</pre><a href="#section-7.1-16" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-5">Note that in the second SELECT, the server does not send ENABLED
-again because the extension was already activated by the first
-SELECT. Also note that the second mailbox has a different
-ACCOUNTID, indicating it belongs to a different account (e.g.,
-a shared mailbox).<a href="#section-7.1-5" class="pilcrow">¶</a></p>
+<p id="section-7.1-17">Note that in this example, the server does not send ENABLED
+again because the extension was already activated.  The shared
+mailbox has a different ACCOUNTID, indicating it belongs to a
+different account.<a href="#section-7.1-17" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="create-objectid">
@@ -2155,11 +2061,13 @@ S: 5 OK [OBJECTID (MAILBOXID \
 <p id="section-7.3-1">When OBJECTID+ has been activated, the server <span class="bcp14">MUST</span> include the
 OBJECTID response code in the tagged OK response to successful
 RENAME commands.<a href="#section-7.3-1" class="pilcrow">¶</a></p>
-<p id="section-7.3-2">The MAILBOXID in the response reflects the (unchanged) identifier
-of the renamed mailbox. The ACCOUNTID reflects the account to
-which the mailbox belongs after the rename.<a href="#section-7.3-2" class="pilcrow">¶</a></p>
-<p id="section-7.3-3">When a mailbox is renamed within the same account, the server <span class="bcp14">MUST</span>
-return the same MAILBOXID and ACCOUNTID as the source mailbox.<a href="#section-7.3-3" class="pilcrow">¶</a></p>
+<p id="section-7.3-2">The MAILBOXID in the response <span class="bcp14">SHOULD</span> be the same as the source
+mailbox when the rename preserves all mailbox invariants.  The
+ACCOUNTID reflects the account to which the mailbox belongs after
+the rename.<a href="#section-7.3-2" class="pilcrow">¶</a></p>
+<p id="section-7.3-3">When a mailbox is renamed within the same account, the server
+<span class="bcp14">SHOULD</span> return the same MAILBOXID and ACCOUNTID as the source
+mailbox.<a href="#section-7.3-3" class="pilcrow">¶</a></p>
 <p id="section-7.3-4">When a mailbox is renamed across account boundaries (for example,
 from a personal namespace to a shared namespace belonging to a
 different account), the server <span class="bcp14">MAY</span> return a different ACCOUNTID,
@@ -2195,7 +2103,7 @@ is available. It requests the compound OBJECTID response, which
 includes both the MAILBOXID and ACCOUNTID for the queried mailbox.<a href="#section-7.4-1" class="pilcrow">¶</a></p>
 <p id="section-7.4-2">Syntax: "OBJECTID"<a href="#section-7.4-2" class="pilcrow">¶</a></p>
 <p id="section-7.4-3">Requesting the OBJECTID status attribute activates the OBJECTID+
-extension (<a href="#activation" class="auto internal xref">Section 2.3</a>).<a href="#section-7.4-3" class="pilcrow">¶</a></p>
+extension (<a href="#activation" class="auto internal xref">Section 2.2</a>).<a href="#section-7.4-3" class="pilcrow">¶</a></p>
 <p id="section-7.4-4">Example:<a href="#section-7.4-4" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-7.4-5">
 <pre>
@@ -2270,8 +2178,7 @@ identifiers are only guaranteed to be unique within the scope of a
 single ACCOUNTID, searching across mailboxes with different ACCOUNTIDs
 may produce incorrect results if identifiers from different accounts
 happen to collide.<a href="#section-8-6" class="pilcrow">¶</a></p>
-<p id="section-8-7">Example: (as if run before the MOVE shown above when the mailbox had
-three messages)<a href="#section-8-7" class="pilcrow">¶</a></p>
+<p id="section-8-7">Example:<a href="#section-8-7" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-8-8">
 <pre>
 C: 27 search emailid M6d99ac3275bb4e
@@ -2311,11 +2218,15 @@ objectid = 1*255(ALPHA / DIGIT / "_" / "-")
         ; significant
 
 objectid-key = "MAILBOXID" / "ACCOUNTID" / "EMAILID" / "THREADID"
+             / atom
+        ; future extensions may define additional keys
+        ; clients MUST ignore unrecognised keys
 
 objectid-kvpair = objectid-key SP objectid
 
-objectid-compound = "OBJECTID" SP "(" *(objectid-kvpair) ")"
-        ; key-value pairs of identifiers
+objectid-compound = "OBJECTID" SP "(" [objectid-kvpair
+        *(SP objectid-kvpair)] ")"
+        ; space-separated key-value pairs of identifiers
         ; keys not supported by the server are omitted
         ; an empty list "OBJECTID ()" is valid
 
@@ -2345,7 +2256,11 @@ status-att-val =/ "MAILBOXID" SP "(" objectid ")"
 
 ; --- OBJECTID+ extensions ---
 
-select-param =/ "OBJECTID"
+select-param =/ "OBJECTID" [SP "(" objectid-kvpair
+        *(SP objectid-kvpair) ")"]
+        ; without arguments: activation only
+        ; with arguments: ID-based mailbox selection
+        ; with fallback to the mailbox name
 
 fetch-att =/ "OBJECTID"
 
@@ -2462,27 +2377,12 @@ without requiring additional synchronization operations.<a href="#section-10.3-5
         <h3 id="name-interaction-with-the-object">
 <a href="#section-10.4" class="section-number selfRef">10.4. </a><a href="#name-interaction-with-the-object" class="section-name selfRef">Interaction with the OBJECTID Capability</a>
         </h3>
-<p id="section-10.4-1">A server that advertises both the OBJECTID capability defined in
-<span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> and the OBJECTID+ capability defined in this document
-<span class="bcp14">MUST</span> behave as follows:<a href="#section-10.4-1" class="pilcrow">¶</a></p>
-<ul class="normal">
-<li class="normal" id="section-10.4-2.1">
-            <p id="section-10.4-2.1.1">When OBJECTID+ has not been activated, the server <span class="bcp14">MUST</span> conform to
-the behaviour specified in <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> for all OBJECTID-related
-responses. The server <span class="bcp14">MUST NOT</span> return OBJECTID response codes,
-OBJECTID status attributes, or ACCOUNTID attributes.<a href="#section-10.4-2.1.1" class="pilcrow">¶</a></p>
-</li>
-          <li class="normal" id="section-10.4-2.2">
-            <p id="section-10.4-2.2.1">When OBJECTID+ has been activated, the server <span class="bcp14">MUST</span> conform to
-the behaviour specified in this document. The server <span class="bcp14">MUST</span> use
-OBJECTID response codes in place of MAILBOXID response codes for
-CREATE, RENAME, SELECT, and EXAMINE commands. The server <span class="bcp14">MUST</span>
-support OBJECTID as a STATUS attribute and as a FETCH data item.<a href="#section-10.4-2.2.1" class="pilcrow">¶</a></p>
-</li>
-        </ul>
-<p id="section-10.4-3">This design allows servers to support both the original and extended
-specifications without breaking the IMAP grammar for clients that
-understand only one of the two extensions.<a href="#section-10.4-3" class="pilcrow">¶</a></p>
+<p id="section-10.4-1">A server that advertises both OBJECTID and OBJECTID+ <span class="bcp14">MUST</span> behave
+as an <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> server until the client activates OBJECTID+
+(<a href="#activation" class="auto internal xref">Section 2.2</a>).  Once OBJECTID+ has been activated, the server
+<span class="bcp14">MUST</span> use OBJECTID response codes in place of MAILBOXID response
+codes for CREATE, RENAME, SELECT, and EXAMINE commands, and <span class="bcp14">MUST</span>
+support the OBJECTID STATUS attribute and FETCH data item.<a href="#section-10.4-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="interaction-with-imap4rev2">
@@ -2505,14 +2405,13 @@ the same extensions to the corresponding productions in <span>[<a href="#RFC9051
 <a href="#section-10.6" class="section-number selfRef">10.6. </a><a href="#name-interaction-with-move" class="section-name selfRef">Interaction with MOVE</a>
         </h3>
 <p id="section-10.6-1">The MOVE command <span>[<a href="#RFC6851" class="cite xref">RFC6851</a>]</span> atomically moves messages between
-mailboxes. As specified in <a href="#emailid" class="auto internal xref">Section 6</a>, the server <span class="bcp14">SHOULD</span> preserve
-the EMAILID of moved messages when the source and destination
-mailboxes share the same ACCOUNTID. When a MOVE crosses ACCOUNTID
-boundaries, the server <span class="bcp14">MAY</span> assign new EMAILIDs and THREADIDs in
-the destination, as identifier namespaces are scoped per ACCOUNTID.<a href="#section-10.6-1" class="pilcrow">¶</a></p>
+mailboxes. As specified in <a href="#emailid" class="auto internal xref">Section 6</a>, MOVE is allowed to create
+new EMAILIDs and THREADIDs for the destination messages.  The
+server <span class="bcp14">SHOULD</span> preserve the EMAILID when the source and destination
+mailboxes share the same ACCOUNTID, but is not required to do so.<a href="#section-10.6-1" class="pilcrow">¶</a></p>
 <p id="section-10.6-2">The MOVE command does not receive an OBJECTID response code. The
-COPYUID response code already provides the UID mapping between
-source and destination.<a href="#section-10.6-2" class="pilcrow">¶</a></p>
+COPYUID response code <span>[<a href="#RFC4315" class="cite xref">RFC4315</a>]</span> already provides the UID mapping
+between source and destination.<a href="#section-10.6-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="interaction-with-namespace">
@@ -2602,12 +2501,10 @@ fetching the same data repeatedly without user interaction.<a href="#section-10.
       </h2>
 <p id="section-11-1">This extension is intentionally defined to be compatible with the
 data model in JMAP for Mail.<a href="#section-11-1" class="pilcrow">¶</a></p>
-<p id="section-11-2">A future extension could be proposed to give a way to SELECT a
-mailbox by MAILBOXID rather than name.<a href="#section-11-2" class="pilcrow">¶</a></p>
-<p id="section-11-3">A future extension to <span>[<a href="#RFC5228" class="cite xref">RFC5228</a>]</span> could allow fileinto by MAILBOXID
-rather than name.<a href="#section-11-3" class="pilcrow">¶</a></p>
-<p id="section-11-4">An extension to allow fetching message content directly via EMAILID
-and message listings by THREADID could be proposed.<a href="#section-11-4" class="pilcrow">¶</a></p>
+<p id="section-11-2">A future extension to the Sieve <code>:mailboxid</code> extension <span>[<a href="#RFC9042" class="cite xref">RFC9042</a>]</span>
+could add ACCOUNTID support for multi-account environments.<a href="#section-11-2" class="pilcrow">¶</a></p>
+<p id="section-11-3">An extension to allow fetching message content directly via EMAILID
+and message listings by THREADID could be proposed.<a href="#section-11-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="iana-considerations">
@@ -2777,10 +2674,6 @@ is explicitly intended to be visible.<a href="#section-13.5-1" class="pilcrow">�
         <dd>
 <span class="refAuthor">Crispin, M.</span>, <span class="refTitle">"INTERNET MESSAGE ACCESS PROTOCOL - VERSION 4rev1"</span>, <span class="seriesInfo">RFC 3501</span>, <span class="seriesInfo">DOI 10.17487/RFC3501</span>, <time datetime="2003-03" class="refDate">March 2003</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc3501">https://www.rfc-editor.org/rfc/rfc3501</a>&gt;</span>. </dd>
 <dd class="break"></dd>
-<dt id="RFC4315">[RFC4315]</dt>
-        <dd>
-<span class="refAuthor">Crispin, M.</span>, <span class="refTitle">"Internet Message Access Protocol (IMAP) - UIDPLUS extension"</span>, <span class="seriesInfo">RFC 4315</span>, <span class="seriesInfo">DOI 10.17487/RFC4315</span>, <time datetime="2005-12" class="refDate">December 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4315">https://www.rfc-editor.org/rfc/rfc4315</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="RFC4466">[RFC4466]</dt>
         <dd>
 <span class="refAuthor">Melnikov, A.</span> and <span class="refAuthor">C. Daboo</span>, <span class="refTitle">"Collected Extensions to IMAP4 ABNF"</span>, <span class="seriesInfo">RFC 4466</span>, <span class="seriesInfo">DOI 10.17487/RFC4466</span>, <time datetime="2006-04" class="refDate">April 2006</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4466">https://www.rfc-editor.org/rfc/rfc4466</a>&gt;</span>. </dd>
@@ -2788,10 +2681,6 @@ is explicitly intended to be visible.<a href="#section-13.5-1" class="pilcrow">�
 <dt id="RFC5161">[RFC5161]</dt>
         <dd>
 <span class="refAuthor">Gulbrandsen, A., Ed.</span> and <span class="refAuthor">A. Melnikov, Ed.</span>, <span class="refTitle">"The IMAP ENABLE Extension"</span>, <span class="seriesInfo">RFC 5161</span>, <span class="seriesInfo">DOI 10.17487/RFC5161</span>, <time datetime="2008-03" class="refDate">March 2008</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc5161">https://www.rfc-editor.org/rfc/rfc5161</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="RFC5228">[RFC5228]</dt>
-        <dd>
-<span class="refAuthor">Guenther, P., Ed.</span> and <span class="refAuthor">T. Showalter, Ed.</span>, <span class="refTitle">"Sieve: An Email Filtering Language"</span>, <span class="seriesInfo">RFC 5228</span>, <span class="seriesInfo">DOI 10.17487/RFC5228</span>, <time datetime="2008-01" class="refDate">January 2008</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc5228">https://www.rfc-editor.org/rfc/rfc5228</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC5234">[RFC5234]</dt>
         <dd>
@@ -2817,6 +2706,10 @@ is explicitly intended to be visible.<a href="#section-13.5-1" class="pilcrow">�
         <dd>
 <span class="refAuthor">Gondwana, B., Ed.</span>, <span class="refTitle">"IMAP Extension for Object Identifiers"</span>, <span class="seriesInfo">RFC 8474</span>, <span class="seriesInfo">DOI 10.17487/RFC8474</span>, <time datetime="2018-09" class="refDate">September 2018</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8474">https://www.rfc-editor.org/rfc/rfc8474</a>&gt;</span>. </dd>
 <dd class="break"></dd>
+<dt id="RFC9051">[RFC9051]</dt>
+        <dd>
+<span class="refAuthor">Melnikov, A., Ed.</span> and <span class="refAuthor">B. Leiba, Ed.</span>, <span class="refTitle">"Internet Message Access Protocol (IMAP) - Version 4rev2"</span>, <span class="seriesInfo">RFC 9051</span>, <span class="seriesInfo">DOI 10.17487/RFC9051</span>, <time datetime="2021-08" class="refDate">August 2021</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9051">https://www.rfc-editor.org/rfc/rfc9051</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="RFC9698">[RFC9698]</dt>
       <dd>
 <span class="refAuthor">Gulbrandsen, A.</span> and <span class="refAuthor">B. Gondwana</span>, <span class="refTitle">"The JMAPACCESS Extension for IMAP"</span>, <span class="seriesInfo">RFC 9698</span>, <span class="seriesInfo">DOI 10.17487/RFC9698</span>, <time datetime="2025-01" class="refDate">January 2025</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9698">https://www.rfc-editor.org/rfc/rfc9698</a>&gt;</span>. </dd>
@@ -2838,6 +2731,10 @@ is explicitly intended to be visible.<a href="#section-13.5-1" class="pilcrow">�
         <dd>
 <span class="refAuthor">Leach, P.</span>, <span class="refAuthor">Mealling, M.</span>, and <span class="refAuthor">R. Salz</span>, <span class="refTitle">"A Universally Unique IDentifier (UUID) URN Namespace"</span>, <span class="seriesInfo">RFC 4122</span>, <span class="seriesInfo">DOI 10.17487/RFC4122</span>, <time datetime="2005-07" class="refDate">July 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4122">https://www.rfc-editor.org/rfc/rfc4122</a>&gt;</span>. </dd>
 <dd class="break"></dd>
+<dt id="RFC4315">[RFC4315]</dt>
+        <dd>
+<span class="refAuthor">Crispin, M.</span>, <span class="refTitle">"Internet Message Access Protocol (IMAP) - UIDPLUS extension"</span>, <span class="seriesInfo">RFC 4315</span>, <span class="seriesInfo">DOI 10.17487/RFC4315</span>, <time datetime="2005-12" class="refDate">December 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4315">https://www.rfc-editor.org/rfc/rfc4315</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="RFC4648">[RFC4648]</dt>
         <dd>
 <span class="refAuthor">Josefsson, S.</span>, <span class="refTitle">"The Base16, Base32, and Base64 Data Encodings"</span>, <span class="seriesInfo">RFC 4648</span>, <span class="seriesInfo">DOI 10.17487/RFC4648</span>, <time datetime="2006-10" class="refDate">October 2006</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4648">https://www.rfc-editor.org/rfc/rfc4648</a>&gt;</span>. </dd>
@@ -2854,9 +2751,9 @@ is explicitly intended to be visible.<a href="#section-13.5-1" class="pilcrow">�
         <dd>
 <span class="refAuthor">Jenkins, N.</span> and <span class="refAuthor">C. Newman</span>, <span class="refTitle">"The JSON Meta Application Protocol (JMAP)"</span>, <span class="seriesInfo">RFC 8620</span>, <span class="seriesInfo">DOI 10.17487/RFC8620</span>, <time datetime="2019-07" class="refDate">July 2019</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8620">https://www.rfc-editor.org/rfc/rfc8620</a>&gt;</span>. </dd>
 <dd class="break"></dd>
-<dt id="RFC9051">[RFC9051]</dt>
+<dt id="RFC9042">[RFC9042]</dt>
         <dd>
-<span class="refAuthor">Melnikov, A., Ed.</span> and <span class="refAuthor">B. Leiba, Ed.</span>, <span class="refTitle">"Internet Message Access Protocol (IMAP) - Version 4rev2"</span>, <span class="seriesInfo">RFC 9051</span>, <span class="seriesInfo">DOI 10.17487/RFC9051</span>, <time datetime="2021-08" class="refDate">August 2021</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9051">https://www.rfc-editor.org/rfc/rfc9051</a>&gt;</span>. </dd>
+<span class="refAuthor">Gondwana, B., Ed.</span>, <span class="refTitle">"Sieve Email Filtering: Delivery by MAILBOXID"</span>, <span class="seriesInfo">RFC 9042</span>, <span class="seriesInfo">DOI 10.17487/RFC9042</span>, <time datetime="2021-06" class="refDate">June 2021</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9042">https://www.rfc-editor.org/rfc/rfc9042</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC9586">[RFC9586]</dt>
       <dd>
@@ -2988,47 +2885,75 @@ working group for their contributions to this specification.<a href="#appendix-C
 <a href="#appendix-D" class="section-number selfRef">Appendix D. </a><a href="#name-changes" class="section-name selfRef">Changes</a>
       </h2>
 <p id="appendix-D-1">[[This section to be removed by RFC Editor]]<a href="#appendix-D-1" class="pilcrow">¶</a></p>
-<p id="appendix-D-2"><strong>draft-ietf-mailmaint-imap-objectid-bis-01</strong><a href="#appendix-D-2" class="pilcrow">¶</a></p>
+<p id="appendix-D-2"><strong>draft-ietf-mailmaint-imap-objectid-bis-02</strong><a href="#appendix-D-2" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-D-3.1">
-          <p id="appendix-D-3.1.1">Replaced mandatory ENABLE with implicit activation model:
-OBJECTID+ is activated when the client uses any
-OBJECTID+-specific feature (OBJECTID in SELECT/FETCH/STATUS,
-or ENABLE OBJECTID+)<a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.1.1">Extended SELECT/EXAMINE OBJECTID parameter to support ID-based
+mailbox selection with fallback to mailbox name, following the
+pattern established by <span>[<a href="#RFC9042" class="cite xref">RFC9042</a>]</span><a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.2">
-          <p id="appendix-D-3.2.1">Changed compound OBJECTID format from positional with NIL to
-key-value pairs where unsupported identifiers are omitted<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.2.1">Removed restatement of <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span> behavior for MAILBOXID,
+EMAILID, and THREADID; this document now references <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span>
+for base OBJECTID behavior and focuses on OBJECTID+ extensions<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.3">
-          <p id="appendix-D-3.3.1">Removed ACCOUNTID from FETCH OBJECTID (redundant with SELECT)<a href="#appendix-D-3.3.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.3.1">Reduced introduction length<a href="#appendix-D-3.3.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.4">
-          <p id="appendix-D-3.4.1">Removed standalone ACCOUNTID STATUS attribute, FETCH data item,
-and SEARCH filter; ACCOUNTID is only available through compound
-OBJECTID responses<a href="#appendix-D-3.4.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.4.1">Clients <span class="bcp14">MUST</span> ignore unrecognised key-value pairs in compound
+OBJECTID responses (extensibility)<a href="#appendix-D-3.4.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.5">
-          <p id="appendix-D-3.5.1">Added OBJECTID parameter for SELECT/EXAMINE as an activation
-trigger<a href="#appendix-D-3.5.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.5.1">ABNF objectid-key extended to allow future keys via atom<a href="#appendix-D-3.5.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.6">
-          <p id="appendix-D-3.6.1">MAILBOXID reverted to single objectid format in individual
-items (compatible with RFC 8474)<a href="#appendix-D-3.6.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-D-3.7">
-          <p id="appendix-D-3.7.1">Renamed capability from OBJECTIDBIS to OBJECTID+<a href="#appendix-D-3.7.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-D-3.8">
-          <p id="appendix-D-3.8.1">Clarified that object identifiers only need to be unique within
-the scope of a single ACCOUNTID; proxies <span class="bcp14">MUST</span> assign different
-ACCOUNTIDs for different backends<a href="#appendix-D-3.8.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.6.1">Clarified COPY/MOVE EMAILID semantics: COPY/MOVE <span class="bcp14">MAY</span> create
+new EMAILIDs; same EMAILID <span class="bcp14">MUST</span> have same content; same
+content <span class="bcp14">SHOULD</span> have same EMAILID<a href="#appendix-D-3.6.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-00</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
+<p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-01</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-D-5.1">
-          <p id="appendix-D-5.1.1">Initial version<a href="#appendix-D-5.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-5.1.1">Replaced mandatory ENABLE with implicit activation model:
+OBJECTID+ is activated when the client uses any
+OBJECTID+-specific feature (OBJECTID in SELECT/FETCH/STATUS,
+or ENABLE OBJECTID+)<a href="#appendix-D-5.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-5.2">
+          <p id="appendix-D-5.2.1">Changed compound OBJECTID format from positional with NIL to
+key-value pairs where unsupported identifiers are omitted<a href="#appendix-D-5.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-5.3">
+          <p id="appendix-D-5.3.1">Removed ACCOUNTID from FETCH OBJECTID (redundant with SELECT)<a href="#appendix-D-5.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-5.4">
+          <p id="appendix-D-5.4.1">Removed standalone ACCOUNTID STATUS attribute, FETCH data item,
+and SEARCH filter; ACCOUNTID is only available through compound
+OBJECTID responses<a href="#appendix-D-5.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-5.5">
+          <p id="appendix-D-5.5.1">Added OBJECTID parameter for SELECT/EXAMINE as an activation
+trigger<a href="#appendix-D-5.5.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-5.6">
+          <p id="appendix-D-5.6.1">MAILBOXID reverted to single objectid format in individual
+items (compatible with RFC 8474)<a href="#appendix-D-5.6.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-5.7">
+          <p id="appendix-D-5.7.1">Renamed capability from OBJECTIDBIS to OBJECTID+<a href="#appendix-D-5.7.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-5.8">
+          <p id="appendix-D-5.8.1">Clarified that object identifiers only need to be unique within
+the scope of a single ACCOUNTID; proxies <span class="bcp14">MUST</span> assign different
+ACCOUNTIDs for different backends<a href="#appendix-D-5.8.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="appendix-D-6"><strong>draft-ietf-mailmaint-imap-objectid-bis-00</strong><a href="#appendix-D-6" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-D-7.1">
+          <p id="appendix-D-7.1.1">Initial version<a href="#appendix-D-7.1.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 </section>
