@@ -409,7 +409,7 @@ S: 11 OK Completed
 
 ## FETCH with OBJECTID
 
-The `OBJECTID` FETCH data item returns `EMAILID` and `THREADID` in compound form. Requesting it **activates** OBJECTID+. `ACCOUNTID` is omitted since the account context is established by SELECT/EXAMINE.
+The `OBJECTID` FETCH data item returns `EMAILID` and `THREADID` in compound form. `ACCOUNTID` is omitted since the account context is established by SELECT/EXAMINE.
 
 ```
 C: 30 FETCH 1:* (OBJECTID)
