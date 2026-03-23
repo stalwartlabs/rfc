@@ -1,10 +1,10 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-02
+docname: draft-ietf-mailmaint-imap-objectid-bis-03
 submissionType: IETF
 category: std
-updates: RFC3501, RFC9051
+updates: RFC3501, RFC9051, RFC9698
 obsoletes: RFC8474
 ipr: trust200902
 keyword: Internet-Draft
@@ -45,6 +45,7 @@ normative:
     RFC5819: RFC5819
     RFC6851: RFC6851
     RFC8474: RFC8474
+    RFC8620: RFC8620
     RFC9051: RFC9051
     RFC9698: RFC9698
     RFC5161: RFC5161
@@ -56,7 +57,6 @@ informative:
     RFC4648: RFC4648
     RFC6154: RFC6154
     RFC7377: RFC7377
-    RFC8620: RFC8620
     RFC9042: RFC9042
     RFC9586: RFC9586
 
@@ -70,7 +70,9 @@ response codes for the RENAME command, and identifier-based mailbox
 selection via SELECT and EXAMINE. The OBJECTID+ extension is
 activated implicitly when a client uses any OBJECTID+-specific
 feature, ensuring backward compatibility with clients that only
-support {{RFC8474}}.
+support {{RFC8474}}.  This document also updates {{RFC9698}}: when
+JMAPACCESS is advertised alongside OBJECTID+, ACCOUNTID values MUST
+correspond to JMAP accountIds.
 
 --- middle
 
@@ -79,7 +81,9 @@ support {{RFC8474}}.
 This document obsoletes {{RFC8474}} and defines persistent
 identifiers on mailboxes and messages to allow clients to more
 efficiently reuse cached data when resources have changed location
-on the server.
+on the server.  It also updates {{RFC9698}}: when JMAPACCESS is
+advertised alongside OBJECTID+, ACCOUNTID values MUST correspond
+to JMAP accountIds.
 
 The OBJECTID+ extension builds upon the identifier framework
 established by {{RFC8474}} and introduces several new capabilities.
@@ -139,8 +143,9 @@ The OBJECTID+ extension adds the ACCOUNTID identifier
 ({{objectid-compound}}), the OBJECTID SELECT/EXAMINE parameter
 ({{select-objectid}}), the OBJECTID FETCH data item
 ({{fetch-objectid}}), the OBJECTID STATUS attribute
-({{status-objectid}}), and the OBJECTID response code on CREATE
-({{create-objectid}}) and RENAME ({{rename-objectid}}).
+({{status-objectid}}), the OBJECTID response code on CREATE
+({{create-objectid}}) and RENAME ({{rename-objectid}}), and the
+JMAPACCESS capability and GETJMAPACCESS command ({{jmapaccess}}).
 
 ## Activation of OBJECTID+ {#activation}
 
@@ -241,11 +246,9 @@ belong to the same account. Conversely, the server MUST NOT return
 the same ACCOUNTID for mailboxes that belong to different accounts,
 even if accessed within the same IMAP session.
 
-When a server advertises the "JMAPACCESS" capability as defined in
-{{RFC9698}}, it MUST ensure that the ACCOUNTID returned via IMAP matches
-the accountId property of the corresponding account in JMAP, as defined
-in {{Section 1.6.2 of RFC8620}}. This correspondence is essential for
-clients to correlate mailboxes across the two protocols.
+When a server advertises both JMAPACCESS and OBJECTID+, the
+ACCOUNTID for each mailbox MUST correspond to the JMAP accountId
+for that account (see {{jmapaccess}}).
 
 When a mailbox is accessed exclusively through IMAP and does not
 have a corresponding representation in JMAP, the server MAY still
@@ -263,6 +266,11 @@ irrelevant.
 
 The MAILBOXID is a server-allocated unique identifier for each
 mailbox.
+
+This document relaxes the uniqueness requirement from {{RFC8474}},
+which required MAILBOXID to be unique across the entire server;
+MAILBOXID is now only required to be unique within the scope of
+a single ACCOUNTID.
 
 The server MUST return the same MAILBOXID for a mailbox with the same
 name and UIDVALIDITY.
@@ -296,6 +304,9 @@ content of a single message.  Anything that must remain immutable on
 a {name, uidvalidity, uid} triple must also be the same between
 messages with the same EMAILID.
 
+EMAILID uniqueness is scoped to a single ACCOUNTID; the same EMAILID
+value MAY appear in different accounts referring to different messages.
+
 The server MUST return the same EMAILID for the same {name,
 uidvalidity, uid} triple; hence, EMAILID is immutable.
 
@@ -323,6 +334,9 @@ way to STORE by EMAILID.
 The THREADID data item is an ObjectID that uniquely identifies a set
 of messages that the server believes should be grouped together when
 presented.
+
+THREADID uniqueness is scoped to a single ACCOUNTID, the same as
+EMAILID.
 
 THREADID calculation is generally based on some combination of
 References, In-Reply-To, and Subject, but the exact logic is left up
@@ -688,6 +702,22 @@ S: * SEARCH 1 2
 S: 28 OK Completed (2 msgs in 0.000 secs)
 ~~~
 
+# Additional Conditions for JMAPACCESS {#jmapaccess}
+
+The JMAPACCESS capability and GETJMAPACCESS command are defined in
+{{RFC9698}}.  This document updates those semantics: when a server
+advertises both JMAPACCESS and OBJECTID+, it additionally asserts
+that the IMAP ACCOUNTID for each mailbox corresponds directly to the
+JMAP accountId for that account, as defined in
+{{Section 1.6.2 of RFC8620}}.
+
+A server that advertises both JMAPACCESS and OBJECTID+ is not
+required to also advertise OBJECTID ({{RFC8474}}); OBJECTID+ is
+sufficient to satisfy the capability prerequisite for JMAPACCESS.
+
+Clients that encounter JMAPACCESS without OBJECTID+ should interpret
+it as defined in {{RFC9698}}.
+
 # Formal Syntax {#objectid-syntax}
 
 The following syntax specification uses the Augmented Backus-Naur
@@ -804,13 +834,8 @@ alphabetical character.
 The case of RENAME INBOX may need special handling because it has
 special behavior, as defined in {{Section 6.3.5 of RFC3501}}.
 
-It is advisable (though not required) to have MAILBOXID values
-be globally unique, but it is only required to be unique within
-the scope of a single ACCOUNTID as seen by a single client login
-to a single server hostname.
-
-Object identifiers such as MAILBOXID, EMAILID, and THREADID need
-only be unique within the scope of a single ACCOUNTID. A proxy
+It is advisable (though not required) to have object identifier
+values be globally unique as an implementation convenience.  A proxy
 that aggregates multiple independent backend servers MUST return
 a different ACCOUNTID for each set of mailboxes served by different
 backends, unless it can guarantee that all object identifiers are
@@ -970,9 +995,13 @@ registry located at <https://www.iana.org/assignments/imap-capabilities>:
 |------------|---------------|
 | OBJECTID+  | This document |
 
-The existing "OBJECTID" entry in the "IMAP Capabilities" registry,
-registered by {{RFC8474}}, remains unchanged. Servers MAY advertise
-both OBJECTID and OBJECTID+ as described in this document.
+IANA is requested to update the reference for the existing
+"JMAPACCESS" entry in the "IMAP Capabilities" registry from
+{{RFC9698}} to this document.
+
+The existing "OBJECTID" entry registered by {{RFC8474}} remains
+unchanged. Servers MAY advertise OBJECTID alongside OBJECTID+ for
+backward compatibility as described in this document.
 
 ## IMAP Response Codes Registry
 
@@ -1033,14 +1062,19 @@ access, even if such accounts exist on the server.
 
 ## Consistency with JMAP Authentication
 
-When a server advertises both "OBJECTID+" and "JMAPACCESS"
-capabilities, the server MUST ensure that the same authentication
-credentials used for the IMAP session would grant access to the
-corresponding JMAP accounts. Inconsistencies in authentication or
+A server MUST NOT advertise JMAPACCESS unless the authentication
+credentials used for the IMAP session are sufficient to also
+authenticate via JMAP.  Inconsistencies in authentication or
 authorization between IMAP and JMAP could lead to situations where
 a client receives account identifiers that it cannot subsequently use
 to access the corresponding JMAP resources, potentially revealing the
 existence of accounts the user cannot access.
+
+The JMAP session URL returned by GETJMAPACCESS is available to any
+authenticated IMAP client.  This reveals that a JMAP server exists
+for the user, but since an authenticated client with valid credentials
+could discover this independently via {{RFC8620}} Section 2.2, this
+does not represent a meaningful increase in exposure.
 
 ## Privacy in Multi-Tenant Environments
 
@@ -1085,10 +1119,10 @@ message creation to efficiently find matching messages for threading.
 Threading may be either across mailboxes or within each mailbox only.
 The server has significant leeway here.
 
-# Changes from RFC 8474
+# Changes from RFC 8474 and RFC 9698
 
-This document obsoletes {{RFC8474}} and introduces the following
-changes:
+This document obsoletes {{RFC8474}}, updates {{RFC9698}}, and
+introduces the following changes:
 
 The OBJECTID+ capability and extension is defined as an independent
 extension that may be advertised alongside or in place of the
@@ -1122,12 +1156,17 @@ The OBJECTID FETCH data item provides EMAILID and THREADID in
 compound form.  The OBJECTID STATUS attribute provides MAILBOXID
 and ACCOUNTID in compound form.
 
+The JMAPACCESS capability and GETJMAPACCESS command defined in
+{{RFC9698}} are updated: when a server advertises both JMAPACCESS
+and OBJECTID+, it additionally asserts that IMAP ACCOUNTIDs
+correspond directly to JMAP accountIds.
+
 Security considerations are added for account identifier exposure,
 cross-account information leakage, JMAP authentication consistency,
 and privacy in multi-tenant environments.
 
-IANA registrations are updated to include the OBJECTID+ capability
-and OBJECTID response code.
+IANA registrations are updated to include the OBJECTID+ capability,
+JMAPACCESS capability, and OBJECTID response code.
 
 # Acknowledgements
 
@@ -1137,6 +1176,13 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-03**
+
+* Relaxed uniqueness scope for MAILBOXID, EMAILID, and THREADID
+  from server-wide ({{RFC8474}}) to within a single ACCOUNTID
+* Updated JMAPACCESS ({{RFC9698}}): when advertised with OBJECTID+,
+  server additionally asserts ACCOUNTID corresponds to JMAP accountId
 
 **draft-ietf-mailmaint-imap-objectid-bis-02**
 
