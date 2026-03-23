@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-02
+docname: draft-ietf-mailmaint-imap-objectid-bis-03
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051
@@ -264,6 +264,11 @@ irrelevant.
 The MAILBOXID is a server-allocated unique identifier for each
 mailbox.
 
+This document relaxes the uniqueness requirement from {{RFC8474}},
+which required MAILBOXID to be unique across the entire server;
+MAILBOXID is now only required to be unique within the scope of
+a single ACCOUNTID.
+
 The server MUST return the same MAILBOXID for a mailbox with the same
 name and UIDVALIDITY.
 
@@ -296,6 +301,9 @@ content of a single message.  Anything that must remain immutable on
 a {name, uidvalidity, uid} triple must also be the same between
 messages with the same EMAILID.
 
+EMAILID uniqueness is scoped to a single ACCOUNTID; the same EMAILID
+value MAY appear in different accounts referring to different messages.
+
 The server MUST return the same EMAILID for the same {name,
 uidvalidity, uid} triple; hence, EMAILID is immutable.
 
@@ -323,6 +331,9 @@ way to STORE by EMAILID.
 The THREADID data item is an ObjectID that uniquely identifies a set
 of messages that the server believes should be grouped together when
 presented.
+
+THREADID uniqueness is scoped to a single ACCOUNTID, the same as
+EMAILID.
 
 THREADID calculation is generally based on some combination of
 References, In-Reply-To, and Subject, but the exact logic is left up
@@ -804,13 +815,8 @@ alphabetical character.
 The case of RENAME INBOX may need special handling because it has
 special behavior, as defined in {{Section 6.3.5 of RFC3501}}.
 
-It is advisable (though not required) to have MAILBOXID values
-be globally unique, but it is only required to be unique within
-the scope of a single ACCOUNTID as seen by a single client login
-to a single server hostname.
-
-Object identifiers such as MAILBOXID, EMAILID, and THREADID need
-only be unique within the scope of a single ACCOUNTID. A proxy
+It is advisable (though not required) to have object identifier
+values be globally unique as an implementation convenience.  A proxy
 that aggregates multiple independent backend servers MUST return
 a different ACCOUNTID for each set of mailboxes served by different
 backends, unless it can guarantee that all object identifiers are
@@ -1137,6 +1143,11 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-03**
+
+* Relaxed uniqueness scope for MAILBOXID, EMAILID, and THREADID
+  from server-wide ({{RFC8474}}) to within a single ACCOUNTID
 
 **draft-ietf-mailmaint-imap-objectid-bis-02**
 
