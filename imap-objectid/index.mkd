@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-03
+docname: draft-ietf-mailmaint-imap-objectid-bis-04
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051, RFC9698
@@ -116,7 +116,7 @@ All identifier types are optional within the compound OBJECTID
 response; a server that does not support a particular identifier
 simply omits it.  The empty compound response "OBJECTID ()" is
 valid and indicates that the server supports the OBJECTID+ extension
-but does not have any identifiers to return in a given context.
+but does not have any identifiers to return in the current context.
 
 ## Notational Conventions
 
@@ -180,9 +180,12 @@ CREATE, and RENAME responses.
 
 # OBJECTID Compound Format {#objectid-compound}
 
-The OBJECTID+ extension introduces the compound OBJECTID format,
-which bundles multiple identifiers into a parenthesized list of
-key-value pairs.
+The OBJECTID+ extension introduces a compound OBJECTID format: a
+parenthesized list of key-value pairs that bundles multiple
+identifiers.  The same syntax is used by the server in response
+codes, STATUS attribute values, and FETCH data item values, and by
+the client when supplying identifiers as an argument to the OBJECTID
+parameter on SELECT and EXAMINE ({{select-objectid}}).
 
 Each key identifies the type of object identifier (e.g., MAILBOXID,
 ACCOUNTID, EMAILID, THREADID), and each value is the corresponding
@@ -190,7 +193,7 @@ ObjectID. Keys that the server does not support or that are not
 applicable in a given context are simply omitted from the response.
 An empty compound response "OBJECTID ()" is valid and indicates that
 the server supports the OBJECTID+ extension but does not have any
-identifiers to return in this context.
+identifiers to return in the current context.
 
 Once OBJECTID+ has been activated, the compound OBJECTID format is
 used as a response code in SELECT and EXAMINE untagged OK responses,
@@ -215,19 +218,6 @@ to handle placeholder values.
 Clients MUST ignore any unrecognised key-value pairs in a compound
 OBJECTID response. This allows future extensions to add new
 identifier types without breaking existing clients.
-
-## Relationship to Individual Attributes
-
-The OBJECTID compound is functionally equivalent to requesting each
-of its constituent identifiers individually. A server MUST return the
-same values for identifiers whether they are requested individually
-or as part of an OBJECTID compound. For example, the MAILBOXID
-returned within an OBJECTID STATUS response MUST be identical to the
-MAILBOXID returned when requested as a standalone STATUS attribute.
-
-The OBJECTID compound is provided as a convenience for clients that
-wish to retrieve all available identifiers in a single request without
-enumerating each attribute separately.
 
 # ACCOUNTID Object Identifier {#accountid}
 
@@ -261,6 +251,13 @@ IMAP session. However, if the underlying account is deleted or the
 user's access to that account is revoked, the associated mailboxes will
 no longer be accessible via IMAP, and their ACCOUNTIDs become
 irrelevant.
+
+When OBJECTID+ has been activated ({{activation}}), the server
+returns ACCOUNTID within the compound OBJECTID response code for
+SELECT, EXAMINE, CREATE, and RENAME commands, and within the
+compound OBJECTID STATUS attribute.  ACCOUNTID is not exposed as a
+standalone attribute; it is only available through the compound
+OBJECTID format.
 
 # MAILBOXID Object Identifier {#mailboxid}
 
@@ -301,13 +298,13 @@ MAILBOXID attribute as defined in {{RFC8474}}.
 
 The EMAILID data item is an ObjectID that uniquely identifies the
 content of a single message.  Anything that must remain immutable on
-a {name, uidvalidity, uid} triple must also be the same between
-messages with the same EMAILID.
+a {mailbox name, uidvalidity, uid} triple must also be the same
+between messages with the same EMAILID.
 
 EMAILID uniqueness is scoped to a single ACCOUNTID; the same EMAILID
 value MAY appear in different accounts referring to different messages.
 
-The server MUST return the same EMAILID for the same {name,
+The server MUST return the same EMAILID for the same {mailbox name,
 uidvalidity, uid} triple; hence, EMAILID is immutable.
 
 Messages with the same EMAILID MUST have identical immutable
@@ -452,6 +449,19 @@ The MAILBOXID did not match any mailbox, so the server fell
 back to selecting "foo" by name.  The response contains the
 actual OBJECTID of the selected mailbox.
 
+When the server selects a mailbox via the provided identifiers
+and the mailbox name in the command no longer refers to that
+mailbox, the response identifies the mailbox by its OBJECTID but
+does not directly convey its current name.  Clients can determine
+the current name using LIST: in IMAP4rev2 ({{RFC9051}}), the
+OLDNAME extended data item on the LIST response (Section 6.3.9.7
+of {{RFC9051}}) reports the former name alongside the current
+one, allowing the client to correlate its cached name with the
+renamed mailbox.  Clients implementing only IMAP4rev1
+({{RFC3501}}) can reissue LIST with an appropriate reference and
+pattern and match the result by MAILBOXID via the OBJECTID STATUS
+attribute.
+
 Example (shared mailbox with different ACCOUNTID):
 
 ~~~
@@ -471,8 +481,8 @@ different account.
 ## OBJECTID Response Code for CREATE {#create-objectid}
 
 When OBJECTID+ has been activated ({{activation}}), the server
-MUST use the compound OBJECTID response code instead of MAILBOXID
-in the tagged OK response to successful CREATE commands.
+MUST include the compound OBJECTID response code in the tagged OK
+response to successful CREATE commands.
 
 Example:
 
@@ -570,31 +580,6 @@ support the standalone MAILBOXID STATUS attribute as defined in
 
 When the LIST-STATUS IMAP capability defined in {{RFC5819}} is also
 available, the STATUS command can be combined with the LIST command.
-
-Example:
-
-~~~
-C: 11 list "" "*" return (status (objectid))
-S: * ENABLED OBJECTID+
-S: * LIST (\HasNoChildren) "." INBOX
-S: * STATUS INBOX (OBJECTID (MAILBOXID \
-        Ff8e3ead4-9389-4aff-adb1-d8d89efd8cbf \
-        ACCOUNTID u1a48e8e3))
-S: * LIST (\HasNoChildren) "." bar
-S: * STATUS bar (OBJECTID (MAILBOXID \
-        F6352ae03-b7f5-463c-896f-d8b48ee3 \
-        ACCOUNTID u1a48e8e3))
-S: * LIST (\HasNoChildren) "." "Other Users.other.sub.folder"
-S: * STATUS "Other Users.other.sub.folder" (OBJECTID ( \
-        MAILBOXID F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
-        ACCOUNTID u2b59f9f4))
-S: 11 OK Completed (0.001 secs 3 calls)
-~~~
-
-This example demonstrates how clients can efficiently retrieve
-object identifiers for multiple mailboxes, including mailboxes
-belonging to different accounts, using the extended LIST command
-with STATUS return option.
 
 Example:
 
@@ -734,7 +719,9 @@ accept these strings in a case-insensitive fashion.
 Please note specifically that ObjectID values are case sensitive.
 
 ~~~
-capability =/ "OBJECTID" / "OBJECTID+"
+capability =/ "OBJECTID+"
+        ; the "OBJECTID" capability token's syntax is
+        ; defined in [RFC8474]
 
 enable-data =/ "OBJECTID+"
         ; extends the enable-data production from [RFC5161]
@@ -887,6 +874,18 @@ A server that advertises only OBJECTID+ is not required to support
 the individual MAILBOXID, EMAILID, or THREADID attributes defined
 in {{RFC8474}}.  Such a server uses exclusively the compound
 OBJECTID format defined in this specification.
+
+When a server advertises both capabilities, the OBJECTID compound
+is functionally equivalent to requesting each of its constituent
+identifiers individually.  The server MUST return the same value
+for a given identifier whether it is requested individually (as
+defined in {{RFC8474}}) or as part of an OBJECTID compound.  For
+example, the MAILBOXID returned within an OBJECTID STATUS response
+MUST be identical to the MAILBOXID returned when requested as a
+standalone STATUS attribute.  The compound is provided as a
+convenience for clients that wish to retrieve all available
+identifiers in a single request without enumerating each attribute
+separately.
 
 ## Interaction with IMAP4rev2
 
@@ -1176,6 +1175,36 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-04**
+
+* Unified wording for the empty compound "OBJECTID ()" across the
+  introduction and {{objectid-compound}} ("in the current context")
+* Clarified in {{objectid-compound}} that the compound format is
+  used both by the server (in responses) and by the client (as
+  the argument to the OBJECTID parameter on SELECT/EXAMINE)
+* Moved the "Relationship to Individual Attributes" content from
+  {{objectid-compound}} into the OBJECTID-capability interaction
+  section, scoping the equivalence to servers that advertise both
+  capabilities
+* Added a paragraph to {{accountid}} describing how ACCOUNTID is
+  returned in compound OBJECTID responses, mirroring the
+  corresponding paragraph for MAILBOXID in {{mailboxid}}
+* Clarified the {name, uidvalidity, uid} triple in {{emailid}} as
+  {mailbox name, uidvalidity, uid}
+* Added guidance in {{select-objectid}} on how clients can
+  determine the current name of a mailbox selected by identifier
+  after a rename (the OLDNAME extended data item from
+  Section 6.3.9.7 of {{RFC9051}} for IMAP4rev2; LIST plus OBJECTID
+  STATUS for IMAP4rev1)
+* Aligned the CREATE response-code phrasing in {{create-objectid}}
+  with the RENAME phrasing in {{rename-objectid}}, dropping the
+  "instead of MAILBOXID" comparison
+* Removed a duplicated LIST-STATUS example from
+  {{status-objectid}}
+* Restricted the formal-syntax capability production in
+  {{objectid-syntax}} to "OBJECTID+" only; "OBJECTID" remains
+  defined by {{RFC8474}}
 
 **draft-ietf-mailmaint-imap-objectid-bis-03**
 

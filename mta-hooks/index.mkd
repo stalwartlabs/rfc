@@ -1,7 +1,7 @@
 ---
 title: "MTA Hooks: An HTTP-Based Mail Processing Protocol"
 abbrev: MTA Hooks
-docname: draft-degennaro-mta-hooks-00
+docname: draft-degennaro-mta-hooks-01
 submissionType: IETF
 category: std
 updates: 
@@ -71,7 +71,7 @@ The following terms are used throughout this document:
 
 - Scanner: A service that registers with an MTA to receive hook invocations. Scanners perform functions such as spam filtering, virus scanning, or policy enforcement. The terms "scanner" and "hook endpoint" are used interchangeably when referring to the service receiving hook requests.
 
-- Registration: The process by which a scanner establishes a relationship with an MTA, including capability negotiation and callback URL configuration.
+- Registration: The process by which an MTA establishes a session with a scanner, including capability negotiation and assignment of a registration identifier.
 
 - Inbound Processing: Hook invocation during message reception, when the MTA accepts a message from a remote SMTP client.
 
@@ -115,7 +115,7 @@ The protocol architecture consists of three primary components:
 
 2. Scanner services, which receive requests, perform analysis, and return responses containing actions and modifications.
 
-3. A registration mechanism through which scanners declare their capabilities and subscribe to specific processing stages.
+3. A registration mechanism through which the MTA declares its intent to send specific stages and properties and the scanner returns a registration identifier used on subsequent invocations.
 
 ~~~
 +-------+                              +---------+
@@ -143,11 +143,11 @@ The protocol flow proceeds as follows:
 
 2. The scanner returns a discovery document describing supported stages, actions, and configuration options.
 
-3. The scanner submits a registration request specifying desired stages, properties, and callback configuration.
+3. The MTA submits a registration request to the scanner specifying the stages, properties, and filters it will deliver.
 
-4. The MTA validates the request, optionally verifies the callback endpoint, and returns registration confirmation.
+4. The scanner validates the request, returns a registration identifier, and confirms the negotiated capabilities.
 
-5. During mail processing, the MTA invokes the scanner's callback URL with message properties and context.
+5. During mail processing, the MTA invokes the scanner's hook endpoint with message properties and context.
 
 6. The scanner returns a response containing an action and optional modifications.
 
@@ -213,12 +213,14 @@ The scanner chain terminates early when a scanner returns a terminal action:
 - Inbound terminal actions: "reject", "discard", "disconnect"
 - Outbound terminal actions: "cancel"
 
-Non-terminal actions ("accept", "quarantine" for inbound; "continue" for outbound) allow the chain to proceed, and subsequent scanners may override these actions.
+Non-terminal actions ("accept", "quarantine" for inbound; "continue" for outbound) allow the chain to proceed. Each scanner sees the prior scanner's modifications, including any change to the "/action" path, and MAY further modify it.
+
+Action precedence within a chain proceeds from least to most restrictive: "accept" is the weakest, "quarantine" is stronger, and the terminal actions ("reject", "discard", "disconnect") are the strongest. By default, the MTA SHOULD reject responses that downgrade the action to a weaker value (for example, setting "/action" from "quarantine" to "accept"). Implementations MAY provide configuration to permit such downgrades for specific trusted scanners, but this MUST NOT be the default.
 
 Implementations SHOULD provide configuration options for:
 
 - Scanner invocation order (priority-based or explicit ordering)
-- Whether to allow subsequent scanners to override "quarantine" decisions
+- Per-scanner trust to permit action downgrades
 - Logging of chain termination events for operational visibility
 
 Example chain behavior:
@@ -246,17 +248,7 @@ Scanners may modify per-recipient delivery status, suppress DSN generation, or a
 
 ## Modifications
 
-Scanners communicate changes through modifications to the hook request object. Modifications are expressed as operations on JSON Pointers {{RFC6901}} referencing properties within the request structure.
-
-Three modification operations are supported:
-
-- Set: Replace the value at a specified path.
-- Add: Insert a value at a specified path, including array element insertion.
-- Delete: Remove the value at a specified path.
-
-The MTA applies modifications in a defined order: set operations first, followed by add operations, and finally delete operations. Any modification that fails (for example, referencing a non-existent path for deletion) SHOULD be logged and included in failure statistics, but MUST NOT cause the entire response to be rejected.
-
-If a scanner modifies both the "message" and "rawMessage" properties, the "rawMessage" modification takes precedence and "message" modifications are ignored.
+Scanners communicate changes through modifications to the hook request object, expressed as set, add, and delete operations on JSON Pointers {{RFC6901}}. The complete modification semantics, including operation ordering and error handling, are defined in {{hook-response}}.
 
 # Discovery
 
@@ -392,27 +384,29 @@ Discovery is OPTIONAL. Administrators MAY configure scanner endpoints manually, 
 
 # Registration
 
-Scanners register with MTAs to establish callback configuration and negotiate capabilities. Registration creates a persistent relationship that remains active until explicit deregistration or expiration.
+The MTA registers with each configured scanner to negotiate capabilities and establish a session identifier used on subsequent hook invocations. Registration creates state at the scanner that remains active until explicit deregistration or expiration.
+
+The MTA acts as the HTTP client throughout: it discovers scanner capabilities, submits the registration request, manages the lifecycle of the registration, and invokes hooks. The MTA does not expose any HTTP server for scanner-to-MTA communication. Scanner endpoints, credentials, and per-scanner subscription policy are provisioned at the MTA out of band; this specification does not define the provisioning channel.
 
 ## Registration Request
 
-Scanners submit registration requests via HTTP POST to the registration endpoint. The request body contains a JSON or CBOR object with the following fields:
+The MTA submits a registration request via HTTP POST to the registration endpoint advertised in the scanner's discovery document, or configured manually. The request body contains a JSON or CBOR object with the following fields:
 
 {:vspace}
 **name**: `String`
-: Human-readable name identifying the scanner.
+: Human-readable name identifying the MTA instance, suitable for display in scanner administrative interfaces.
 
 **version**: `String|null`
-: Scanner software version string.
+: MTA software version string.
 
-**callback**: `CallbackConfig`
-: Callback configuration.
+**timeoutMs**: `UnsignedInt|null`
+: Hook invocation timeout the MTA will enforce, in milliseconds. The scanner MAY use this value to size internal queues and processing budgets, but it does not affect MTA behavior.
 
 **expiresAt**: `UTCDate|null`
-: Requested registration expiration timestamp. The MTA MAY assign a different expiration based on policy.
+: Requested registration expiration timestamp. The scanner MAY assign a different expiration based on policy.
 
 **serialization**: `String`
-: Requested serialization format for hook requests. MUST be a value from the MTA's supported serialization list.
+: Requested serialization format for hook requests. MUST be a value from the scanner's advertised serialization list.
 
 **inbound**: `StageSubscription|null`
 : Inbound hook configuration. Omit or set to null if not subscribing to inbound stages.
@@ -421,19 +415,10 @@ Scanners submit registration requests via HTTP POST to the registration endpoint
 : Outbound hook configuration. Omit or set to null if not subscribing to outbound stages.
 
 **filter**: `FilterOperator|FilterCondition|null`
-: Filter configuration to limit which messages trigger hooks. Uses filter syntax from {{Section 5.5 of RFC8620}}.
+: Filter the MTA will apply locally before invoking the scanner. Disclosed for transparency so the scanner can interpret the message stream it receives. Uses filter syntax from {{Section 5.5 of RFC8620}}.
 
 **metadata**: `String[String]|null`
-: Arbitrary key-value pairs for scanner identification and operational metadata.
-
-A **CallbackConfig** object has the following properties:
-
-{:vspace}
-**url**: `String`
-: HTTPS URL where the MTA sends hook requests.
-
-**timeoutMs**: `UnsignedInt|null`
-: Requested timeout in milliseconds. The MTA MAY ignore or cap this value.
+: Arbitrary key-value pairs for operational metadata.
 
 A **StageSubscription** object has the following properties:
 
@@ -450,21 +435,19 @@ At least one of "inbound" or "outbound" MUST be present and non-null in the regi
 
 The filter field uses the FilterOperator and FilterCondition syntax defined in {{Section 5.5 of RFC8620}}. A FilterOperator combines multiple conditions using AND, OR, or NOT logic. A FilterCondition specifies criteria that a message must match.
 
-Filter conditions follow {{Section 4.4.1 of RFC8621}} with the following restrictions on metadata conditions: only the "size" condition from {{Section 4.1.1 of RFC8621}} is permitted. All other metadata conditions are NOT supported as they depend on mailbox state or JMAP-specific concepts not applicable to MTA processing:
+Filter conditions follow {{Section 4.4.1 of RFC8621}} with the following exclusions. The conditions listed below depend on mailbox state, thread state, or message-arrival timing not applicable to MTA processing, and are NOT supported:
 
 - inMailbox
 - inMailboxOtherThan
 - before
 - after
-- minSize
-- maxSize
 - allInThreadHaveKeyword
 - someInThreadHaveKeyword
 - noneInThreadHaveKeyword
 - hasKeyword
 - notKeyword
 
-All other filter conditions defined in {{Section 4.4.1 of RFC8621}} are permitted by this specification, including text-matching conditions such as "from", "to", "cc", "bcc", "subject", "body", "header", and "text". However, support for specific conditions is determined by the MTA implementation. If a scanner specifies a filter condition that the MTA does not support, the registration MUST be rejected with an UNSUPPORTED_FILTER error.
+All other filter conditions defined in {{Section 4.4.1 of RFC8621}} are permitted by this specification, including text-matching conditions such as "from", "to", "cc", "bcc", "subject", "body", "header", and "text", and the size conditions "minSize" and "maxSize". However, support for specific conditions is determined by the scanner implementation. If the registration request specifies a filter condition that the scanner does not support, the registration MUST be rejected with an UNSUPPORTED_FILTER error.
 
 The following additional conditions are defined for envelope filtering:
 
@@ -481,18 +464,15 @@ Filters apply only to the "data" stage for content-based conditions (those exami
 
 ~~~
 POST /v1/hooks/register HTTP/1.1
-Host: mta.example.com
+Host: scanner.example.com
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 {
-  "name": "Acme Spam Filter",
+  "name": "Acme MTA mx1",
   "version": "2.1.0",
 
-  "callback": {
-    "url": "https://scanner.example.com/hooks/scan",
-    "timeoutMs": 25000
-  },
+  "timeoutMs": 25000,
 
   "expiresAt": "2025-12-21T15:30:00Z",
 
@@ -517,56 +497,23 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
   },
 
   "metadata": {
-    "vendor": "acme-security",
+    "operator": "acme-mail",
     "environment": "production",
-    "instance": "scanner-01"
+    "instance": "mx1"
   }
 }
 ~~~
 
-## Callback Verification
-
-Upon receiving a registration request, the MTA SHOULD verify that the callback URL is reachable and operated by the registering party. Verification proceeds as follows:
-
-1. The MTA generates a unique verification token.
-
-2. The MTA sends an HTTP POST request to the callback URL with `Content-Type` set to the serialization format requested in the registration request. The request body contains:
-
-~~~json
-{
-  "action": "verify",
-  "token": "vrf_8f3a2b1c9d4e5f6a7b8c9d0e1f2a3b4c"
-}
-~~~
-
-3. The scanner MUST respond with HTTP status 200 and a body containing the same token:
-
-~~~json
-{
-  "token": "vrf_8f3a2b1c9d4e5f6a7b8c9d0e1f2a3b4c"
-}
-~~~
-
-4. The MTA confirms the response token matches the request token.
-
-If verification fails, the MTA MUST reject the registration request:
-
-- If the callback URL is unreachable or times out: HTTP 422 with error code CALLBACK_UNREACHABLE
-- If the callback responds but the token does not match: HTTP 422 with error code CALLBACK_VERIFICATION_FAILED
-- If the callback URL does not use HTTPS: HTTP 422 with error code TLS_REQUIRED
-- If the callback URL's TLS certificate is invalid: HTTP 422 with error code TLS_CERTIFICATE_INVALID
-
-
 ## Registration Response
 
-Upon successful registration, the MTA returns HTTP status 201 Created with a response body containing:
+Upon successful registration, the scanner returns HTTP status 201 Created with a response body containing:
 
 {:vspace}
 **registrationId**: `String`
 : Unique identifier for this registration. The identifier MUST consist of ASCII alphanumeric characters plus hyphen (-), underscore (_), and colon (:), with a maximum length of 255 characters.
 
 **status**: `String`
-: Registration status. Values are "active", "suspended", or "pending_verification".
+: Registration status. Values are "active" or "suspended".
 
 **createdAt**: `UTCDate`
 : Timestamp of registration creation.
@@ -574,11 +521,11 @@ Upon successful registration, the MTA returns HTTP status 201 Created with a res
 **expiresAt**: `UTCDate|null`
 : Timestamp when registration expires, or null if no expiration is set.
 
-**callback**: `CallbackConfig`
-: Confirmed callback configuration, which may differ from the request if the MTA adjusted values.
+**hookEndpoint**: `String`
+: Absolute or relative URL where the MTA MUST send hook invocations for this registration. A relative URL is resolved against the registration endpoint URL. The scanner MAY return a different path per registration to multiplex tenants.
 
 **negotiated**: `NegotiatedCapabilities`
-: Final negotiated capabilities representing the intersection of scanner request and MTA support.
+: Final negotiated capabilities representing the intersection of the MTA's request and the scanner's support.
 
 **endpoints**: `RegistrationEndpoints`
 : URLs for managing this registration.
@@ -626,10 +573,7 @@ Location: /v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d
   "createdAt": "2024-12-21T15:30:00Z",
   "expiresAt": "2025-12-21T15:30:00Z",
 
-  "callback": {
-    "url": "https://scanner.example.com/hooks/scan",
-    "timeoutMs": 25000
-  },
+  "hookEndpoint": "/v1/hooks/invoke/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d",
 
   "negotiated": {
     "serialization": "json",
@@ -644,31 +588,34 @@ Location: /v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d
   },
 
   "endpoints": {
-    "deregistration": "/v1/hooks/register/reg_7a3b9c2e",
-    "status": "/v1/hooks/register/reg_7a3b9c2e/status"
+    "deregistration":
+      "/v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d",
+    "status":
+      "/v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d/status"
   }
 }
 ~~~
 
-## Authentication
+## Authentication {#registration-authentication}
 
-Authentication for registration requests is REQUIRED but the specific mechanism is out of scope for this specification. Implementations SHOULD support at least one of the following authentication methods:
+The MTA MUST authenticate to the scanner on every registration, status, and deregistration request. The same credentials are used for hook invocations ({{hook-authentication}}). The specific mechanism is out of scope for this specification; implementations SHOULD support at least one of:
 
 - Bearer tokens via the HTTP Authorization header
 - Mutual TLS with client certificate verification
 - HMAC-based pre-shared key authentication
 
-See {{security-considerations}} for deployment guidance on authentication.
+Credentials are issued by the scanner operator to each MTA permitted to register, through an out-of-band provisioning channel. The scanner MUST verify the MTA's identity from the presented credentials and reject unauthenticated or unauthorized requests. See {{security-considerations}} for deployment guidance.
 
 ## Registration Lifecycle
 
 ### Status Queries
 
-Scanners MAY query their registration status via HTTP GET to the status endpoint returned during registration.
+The MTA MAY query a registration's status via HTTP GET to the status endpoint returned during registration.
 
 ~~~
-GET /v1/hooks/register/reg_7a3b9c2e/status HTTP/1.1
-Host: mta.example.com
+GET /v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d/status \
+  HTTP/1.1
+Host: scanner.example.com
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ~~~
 
@@ -774,21 +721,22 @@ Content-Type: application/json
 
 ### Registration Expiration and Renewal
 
-Registrations MAY have an expiration time set by the MTA based on policy. Scanners MUST re-register before expiration to maintain continuous service. Re-registration follows the same process as initial registration and requires full capability renegotiation.
+Registrations MAY have an expiration time set by the scanner based on policy. The MTA MUST re-register before expiration to maintain continuous service. Re-registration follows the same process as initial registration and requires full capability renegotiation; the scanner SHOULD issue a fresh registration identifier on renewal and SHOULD continue to honor hook invocations carrying the prior identifier for a brief grace period to avoid races.
 
-The MTA SHOULD provide advance notice of pending expiration through the status endpoint. Scanners SHOULD monitor their registration status and initiate re-registration before expiration.
+The MTA SHOULD monitor its registration status (either by tracking expiresAt locally or by polling the status endpoint) and initiate re-registration before expiration.
 
 ## Deregistration
 
-Scanners deregister by sending an HTTP DELETE request to the deregistration endpoint.
+The MTA deregisters by sending an HTTP DELETE request to the deregistration endpoint.
 
 ~~~
-DELETE /v1/hooks/register/reg_7a3b9c2e HTTP/1.1
-Host: mta.example.com
+DELETE /v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d \
+  HTTP/1.1
+Host: scanner.example.com
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ~~~
 
-Upon successful deregistration, the MTA returns HTTP status 200 with confirmation:
+Upon successful deregistration, the scanner returns HTTP status 200 with confirmation:
 
 ~~~
 HTTP/1.1 200 OK
@@ -801,29 +749,45 @@ Content-Type: application/json
 }
 ~~~
 
-After deregistration, the MTA MUST NOT send further hook invocations to the scanner's callback URL.
+After deregistration, the MTA MUST NOT send further hook invocations referencing the deregistered registration identifier.
 
 ### In-Flight Requests
 
-Hook invocations that are in-flight at the time of deregistration MAY complete normally. The MTA SHOULD accept and process responses from these in-flight invocations. Scanners SHOULD continue to respond to hook requests that arrive during or shortly after deregistration processing, as network latency may cause requests dispatched before deregistration to arrive afterward.
+Hook invocations that are in-flight at the time of deregistration MAY complete normally. The scanner SHOULD accept and respond to hook requests that arrive during or shortly after deregistration processing, as network latency may cause requests dispatched before deregistration to arrive afterward.
 
-Once deregistration completes, the MTA MUST NOT initiate new hook invocations to the deregistered scanner's callback URL. The MTA SHOULD allow a brief grace period (implementation-defined, but typically a few seconds) for in-flight responses before considering the deregistration fully complete.
+Once deregistration completes, the MTA MUST NOT initiate new hook invocations to the deregistered scanner's hook endpoint. The scanner SHOULD allow a brief grace period (implementation-defined, but typically a few seconds) for in-flight requests before considering the deregistration fully complete.
 
-### Automatic Deregistration
+### Scanner-Initiated Termination
 
-The MTA MAY automatically deregister scanners that become unreachable. Implementation-specific policies govern the threshold for automatic deregistration, such as consecutive failure counts or timeout periods. The MTA SHOULD log automatic deregistrations for operational visibility.
+The scanner MAY terminate a registration by setting its status to "deregistered" and returning an error to subsequent MTA requests against the registration. Implementation-specific policies govern when scanners do this, for example after detecting that the MTA has stopped sending hook requests for an extended period. The scanner SHOULD log such terminations and the MTA SHOULD treat any 404 REGISTRATION_NOT_FOUND response on a previously-active registration as a signal to re-register.
 
 # Hook Request
 
-When processing reaches a stage for which scanners are registered, the MTA constructs a hook request and transmits it to each registered scanner's callback URL.
+When processing reaches a stage for which scanners are registered, the MTA constructs a hook request and transmits it to each registered scanner's hook endpoint.
 
 ## Request Structure
 
-Hook requests are transmitted via HTTP POST to the scanner's callback URL. The `Content-Type` header indicates the serialization format negotiated during registration.
+Hook requests are transmitted via HTTP POST to the hook endpoint URL returned in the registration response. The `Content-Type` header indicates the serialization format negotiated during registration.
 
-The MTA MAY include an `X-MTA-Hooks-Registration` header containing the registration identifier. This header is OPTIONAL but can assist scanners that handle multiple registrations at a single endpoint.
+The following request headers apply to hook invocations:
 
-The request body contains a JSON or CBOR object with properties determined by the scanner's registration. The following sections describe available properties organized by category.
+{:vspace}
+**X-MTA-Hooks-Registration**
+: REQUIRED. The registration identifier returned during registration. The scanner uses this to correlate the request with negotiated capabilities and to multiplex registrations sharing a hook endpoint host.
+
+**X-MTA-Hooks-Request-Id**
+: REQUIRED. A unique identifier for this logical hook invocation. The MTA MUST keep this value stable across retries of the same invocation. Scanners SHOULD deduplicate on this identifier to remain idempotent under retry. The value MUST be a string of at most 128 ASCII characters drawn from the unreserved set defined in {{!RFC3986}}.
+
+**Authorization** (or transport-layer credentials)
+: REQUIRED. See {{hook-authentication}}.
+
+The request body contains a JSON or CBOR object with properties determined by the registration. The following sections describe available properties organized by category.
+
+## Authentication {#hook-authentication}
+
+The MTA MUST authenticate every hook invocation using the credentials provisioned for the registration. Scanners MUST verify the credentials and reject any unauthenticated hook request with HTTP 401. Scanners SHOULD also verify that the credentials are bound to the registration identified by `X-MTA-Hooks-Registration`; a mismatch MUST be rejected with HTTP 403.
+
+The same authentication mechanisms supported for registration ({{registration-authentication}}) apply to hook invocations.
 
 ## Common Properties
 
@@ -978,7 +942,7 @@ An **SmtpResponse** object represents an SMTP response and has the following pro
 : The three-digit SMTP status code.
 
 **enhancedCode**: `String|null`
-: The enhanced status code as defined in {{RFC3461}}, if available.
+: The enhanced mail system status code as defined in {{!RFC3463}}, if available.
 
 **message**: `String`
 : The human-readable response text.
@@ -1094,7 +1058,13 @@ A **DeliveryRecipient** object extends EnvelopeAddress with delivery status info
 : SMTP parameters associated with the address as key-value pairs.
 
 **status**: `String`
-: The delivery status for this recipient. Values are "pending", "delivered", "deferred", "failed", or "failed-silent".
+: The delivery status for this recipient. Values are:
+
+  - "pending": The MTA has not yet attempted delivery for this recipient.
+  - "delivered": Delivery succeeded.
+  - "deferred": Delivery failed transiently and will be retried per the schedule in `nextAttemptAt`.
+  - "failed": Delivery failed permanently and the MTA will generate a failure DSN.
+  - "failed-silent": Delivery is suppressed and the MTA MUST NOT generate any DSN for this recipient. Typically set by a scanner via modification to drop a recipient without notifying the sender.
 
 **attempt**: `UnsignedInt`
 : The current delivery attempt number for this recipient.
@@ -1116,10 +1086,13 @@ For the "dsn" stage, the `message` and `rawMessage` properties contain the DSN m
 ## Example Inbound Hook Request
 
 ~~~
-POST /hooks/scan HTTP/1.1
+POST /v1/hooks/invoke/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d \
+  HTTP/1.1
 Host: scanner.example.com
 Content-Type: application/json
-X-MTA-Hooks-Registration: reg_7a3b9c2e
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+X-MTA-Hooks-Registration: reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d
+X-MTA-Hooks-Request-Id: 01HZ8K3X7F4Y5N6Q9R2S3T4U5V
 
 {
   "stage": "data",
@@ -1221,10 +1194,13 @@ X-MTA-Hooks-Registration: reg_7a3b9c2e
 ## Example Outbound Hook Request
 
 ~~~
-POST /hooks/delivery HTTP/1.1
+POST /v1/hooks/invoke/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d \
+  HTTP/1.1
 Host: scanner.example.com
 Content-Type: application/json
-X-MTA-Hooks-Registration: reg_7a3b9c2e
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+X-MTA-Hooks-Registration: reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d
+X-MTA-Hooks-Request-Id: 01HZ8K9P2QABCDEFGH7J8K9L0M
 
 {
   "stage": "delivery",
@@ -1292,13 +1268,13 @@ X-MTA-Hooks-Registration: reg_7a3b9c2e
 }
 ~~~
 
-# Hook Response
+# Hook Response {#hook-response}
 
 Scanners respond to hook requests with modifications to the request object. These modifications instruct the MTA how to proceed with message processing.
 
 ## Response Structure
 
-Scanners respond with an HTTP 200 status code. The response body contains a JSON or CBOR object specifying modifications to apply to the hook request. The object has the following fields:
+On success, scanners respond with HTTP 200 OK and a body conforming to this section, or with HTTP 204 No Content and an empty body to indicate "no modifications". The response body contains a JSON or CBOR object specifying modifications to apply to the hook request. The object has the following fields:
 
 {:vspace}
 **set**: `SetOperation[]|null`
@@ -1507,6 +1483,21 @@ If a modification cannot be applied (for example, the path references a non-exis
 
 The MTA MUST NOT reject the entire response due to a single failed modification unless the failed modification is critical to interpreting the response (such as an invalid action value).
 
+## Error Responses {#hook-error-responses}
+
+A scanner that cannot process a hook request returns an HTTP 4xx or 5xx status with a body that follows the error structure defined in {{error-codes}}. Status code semantics:
+
+- 401 Unauthorized: The MTA's credentials are missing or invalid. The MTA MUST NOT retry without acquiring fresh credentials.
+- 403 Forbidden: The credentials are valid but not authorized for this registration or operation. The MTA MUST NOT retry without operator intervention.
+- 404 Not Found: The registration referenced by `X-MTA-Hooks-Registration` is unknown to the scanner. The MTA SHOULD treat the registration as terminated and re-register before sending further hooks.
+- 410 Gone: The registration has been deregistered. The MTA MUST stop sending hooks under this registration; the MTA MAY re-register.
+- 413 Content Too Large: The request body exceeds the scanner's `maxMessageSize`. The MTA MUST NOT retry the same payload.
+- 422 Unprocessable Content: The request was syntactically valid but referenced unsupported properties or values. Treated as a 4xx; do not retry.
+- 429 Too Many Requests: The scanner is rate-limiting. The MTA SHOULD honor the `Retry-After` header if present.
+- 5xx: A transient scanner error. The MTA MAY retry per its retry policy ({{retry-policy}}).
+
+If the response body is not parseable as the negotiated serialization, or if it conforms to the response schema but contains modifications targeting paths outside the registration's negotiated `updateProperties`, the MTA MUST treat the response as malformed: it MUST NOT apply any modifications from the response, MUST proceed with the default action carried in the request, MUST log the failure with the request identifier, and MAY count the response toward the scanner's failure statistics for circuit-breaking purposes.
+
 ## Example Hook Responses
 
 ### Accept with Header Addition
@@ -1657,7 +1648,7 @@ MTAs SHOULD interpret HTTP status codes as follows:
 
 If a scanner does not respond within the configured timeout, the MTA SHOULD proceed with the default action. Timeout handling policy (fail-open vs. fail-closed) is implementation-defined and SHOULD be configurable.
 
-### Retry Policy
+### Retry Policy {#retry-policy}
 
 For transient errors (5xx status codes, network failures, timeouts), implementations SHOULD implement retry with exponential backoff. A recommended policy is:
 
@@ -1667,7 +1658,7 @@ For transient errors (5xx status codes, network failures, timeouts), implementat
 - Maximum delay: 5 seconds
 - Add random jitter of 0-100 milliseconds
 
-Implementations MAY provide configuration options to adjust retry parameters.
+The MTA MUST keep the `X-MTA-Hooks-Request-Id` header value stable across retries of the same logical invocation, so scanners can deduplicate. Implementations MAY provide configuration options to adjust retry parameters.
 
 ## Connection Management
 
@@ -1678,16 +1669,6 @@ Implementations SHOULD respect HTTP keep-alive semantics and connection limits a
 # Implementation Considerations
 
 ## MTA Considerations
-
-### Multiple Scanner Handling
-
-When multiple scanners are registered for the same stage, the MTA invokes them sequentially in an implementation-defined order. Each scanner's response affects the request seen by subsequent scanners.
-
-Implementations SHOULD provide configuration options for:
-
-- Scanner invocation order (priority-based or explicit ordering)
-- Conflict resolution when scanners return conflicting actions
-- Short-circuit behavior (whether to skip remaining scanners after certain actions)
 
 ### Unavailable Scanners
 
@@ -1745,25 +1726,40 @@ For production deployments, scanners SHOULD be deployed with redundancy. Approac
 - Health checking with automatic failover
 - Geographic distribution for disaster recovery
 
-The MTA registers a single callback URL; load balancing occurs at the network layer.
+Hook endpoints typically resolve to a load-balanced address; the MTA holds a single endpoint URL per registration.
 
 ### Registration State
 
-Registration state resides at the MTA. Scanner instances SHOULD NOT assume persistent local state. If scanner instances share a registration, they MUST coordinate to avoid conflicting operations (such as simultaneous deregistration).
+Registration state resides at the scanner. Scanner instances behind a load balancer MUST share registration state (or partition deterministically by registration identifier) so that hook requests can be served regardless of which instance receives them. The MTA SHOULD treat 404 REGISTRATION_NOT_FOUND on a previously-active registration as a signal to re-register rather than as a permanent failure.
 
 # Security Considerations {#security-considerations}
 
+## Trust Model
+
+MTA Hooks places the MTA exclusively in the role of HTTP client. The MTA does not expose any HTTP server to scanners and does not accept inbound registration requests. This containment is deliberate: it eliminates a category of attacks (registration flood, server-side request forgery via callback verification, exposure of MTA management endpoints) that would otherwise threaten the most security-critical component on the mail path.
+
+The trust boundary runs in one direction. The scanner operator decides which MTAs may register and provisions credentials accordingly. The MTA admin decides which scanners to call out to and configures them out of band. Mutual trust is established before any protocol traffic flows.
+
 ## Authentication and Authorization
 
-Authentication of registration requests is critical to prevent unauthorized scanners from receiving email content. Implementations MUST require authentication for registration operations.
+Authentication of every MTA-to-scanner request (registration, status, deregistration, hook invocation) is REQUIRED. Scanners MUST reject unauthenticated requests with HTTP 401. The specific authentication mechanism is out of scope; recommended approaches:
 
-Recommended authentication approaches:
+- Bearer tokens: Simple to implement; tokens MUST be generated with sufficient entropy (at least 128 bits) and rotated periodically. Tokens SHOULD be scoped to a single MTA identity.
+- Mutual TLS: Provides strong authentication and binds identity to transport security. RECOMMENDED for high-trust deployments.
+- HMAC signatures: Allows authentication without transmitting bearer secrets; requires secure key distribution.
 
-- Bearer tokens: Simple to implement; tokens should be generated with sufficient entropy and rotated periodically.
-- Mutual TLS: Provides strong authentication and binds identity to transport security.
-- HMAC signatures: Allows authentication without transmitting secrets; requires secure key distribution.
+Authorization policies at the scanner SHOULD restrict, per-MTA-identity, which stages may be subscribed to, which properties may be requested, and which actions may be performed. Policies SHOULD be enforced both at registration time (rejecting impermissible registrations) and at hook-response time (ignoring out-of-policy modifications).
 
-Authorization policies SHOULD restrict which scanners may register and what capabilities they may request. Policies may be based on scanner identity, requested stages, or other criteria.
+## Credential Provisioning
+
+Scanner operators issue credentials to MTA operators through an out-of-band channel that this specification does not define. Credential provisioning practices SHOULD include:
+
+- Per-MTA-instance credentials (avoid shared secrets across multiple MTAs).
+- Credential rotation on a defined cadence.
+- Immediate revocation when an MTA instance is decommissioned or compromised.
+- Storage of credentials at the MTA in protected configuration that is not logged or exported with diagnostics.
+
+Scanner-issued credentials SHOULD encode the MTA identity in a way that survives renewal of the underlying secret (for example, a stable client-certificate Subject CN, or a tenant identifier conveyed alongside a rotated bearer token).
 
 ## Transport Security
 
@@ -1782,38 +1778,43 @@ Email messages frequently contain sensitive personal or business information. Sc
 
 ## Denial of Service
 
-### Registration Attacks
+### Registration Flood
 
-Attackers may attempt to exhaust MTA resources through excessive registration requests. Implementations SHOULD:
+Although the registration endpoint is on the scanner, an attacker that obtains valid MTA credentials could flood the scanner with registration churn. Scanners SHOULD:
 
-- Rate limit registration attempts per source
-- Limit maximum concurrent registrations
-- Require authentication before processing registrations
-- Validate callback URLs before completing registration
+- Authenticate before parsing any registration body.
+- Rate limit registration and deregistration per MTA identity.
+- Limit maximum concurrent registrations per MTA identity.
+- Apply the same protections to the discovery endpoint, which is unauthenticated by design.
 
 ### Scanner Resource Exhaustion
 
-Malicious or misconfigured MTAs could overwhelm scanners with requests. Scanners SHOULD:
+A compromised or misconfigured MTA could overwhelm a scanner with hook requests. Scanners SHOULD:
 
-- Implement rate limiting
-- Set appropriate resource limits
-- Monitor for unusual request patterns
+- Implement per-registration rate limiting and concurrency caps.
+- Set appropriate request body size limits, advertised in the discovery document.
+- Monitor for unusual invocation patterns and suspend offending registrations.
 
 ### Slow Scanner Attacks
 
-Slow responses from scanners can exhaust MTA resources (connection limits, memory). MTAs SHOULD:
+Slow scanner responses can exhaust MTA resources (connection slots, memory, queued mail). MTAs SHOULD:
 
-- Enforce strict timeouts
-- Limit concurrent requests to any single scanner
-- Implement circuit breaker patterns for repeatedly slow scanners
+- Enforce strict timeouts; never wait indefinitely for a hook response.
+- Limit concurrent requests to any single scanner.
+- Implement circuit breaker patterns for repeatedly slow or failing scanners.
 
-## Injection Attacks
+### Compromised Scanner
+
+A compromised scanner can attempt to coerce the MTA into mishandling mail by returning malicious modifications. The MTA's defense in depth is to enforce its declared `updateProperties` strictly, validate every modification ({{injection-attacks}}), and reject responses that violate the negotiated capabilities. The MTA SHOULD NOT depend on the scanner to behave honestly.
+
+## Injection Attacks {#injection-attacks}
 
 Scanner responses contain modifications applied to message processing. Implementations MUST validate all scanner-provided data:
 
-- Header values MUST be validated to prevent header injection
-- Recipient addresses MUST be validated against policy
-- Body modifications MUST not introduce malformed content
+- Header names and values MUST be validated to prevent header injection (CR/LF smuggling, malformed encoded-words, header folding abuse).
+- Recipient addresses MUST be syntactically validated and re-checked against MTA policy before being added to the envelope.
+- Body modifications MUST not introduce malformed MIME structure or content that violates declared character sets.
+- Modifications targeting paths outside the registration's negotiated `updateProperties` MUST be discarded.
 
 ## Privacy Considerations
 
@@ -1965,14 +1966,14 @@ Error responses use the following structure:
 
 ## HTTP 400 Bad Request
 
-- INVALID_REQUEST: Malformed JSON/CBOR or missing required fields.
-- INVALID_CALLBACK_URL: Callback URL is malformed or uses disallowed scheme.
-- CAPABILITY_MISMATCH: Requested capability not supported by MTA.
+- INVALID_REQUEST: Malformed JSON or CBOR, or missing required fields.
+- CAPABILITY_MISMATCH: Requested capability not supported by the scanner.
 - INVALID_STAGE: One or more requested stages are not valid.
 - INVALID_ACTION: One or more requested actions are not valid.
 - INVALID_MODIFICATION: One or more requested modifications are not valid.
 - NO_STAGES_REQUESTED: Neither inbound nor outbound stages were specified.
 - FILTER_INVALID: Filter configuration is syntactically invalid.
+- MISSING_REQUEST_ID: The X-MTA-Hooks-Request-Id header is missing on a hook invocation.
 
 ## HTTP 401 Unauthorized
 
@@ -1981,30 +1982,34 @@ Error responses use the following structure:
 
 ## HTTP 403 Forbidden
 
-- REGISTRATION_DENIED: Valid credentials but not authorized to register.
-- DOMAIN_NOT_ALLOWED: Scanner not authorized for requested domains.
-- CALLBACK_NOT_ALLOWED: Callback URL not in allowlist.
+- REGISTRATION_DENIED: Valid credentials but the MTA identity is not authorized to register.
+- DOMAIN_NOT_ALLOWED: MTA not authorized for the requested domains.
+- REGISTRATION_MISMATCH: The credentials are not bound to the registration identified by X-MTA-Hooks-Registration.
 
 ## HTTP 404 Not Found
 
-- REGISTRATION_NOT_FOUND: No registration exists with the specified ID.
+- REGISTRATION_NOT_FOUND: No registration exists with the specified identifier.
 
 ## HTTP 409 Conflict
 
-- ALREADY_REGISTERED: Scanner with same callback URL already registered.
-- REGISTRATION_LIMIT_REACHED: Maximum number of registrations exceeded.
+- REGISTRATION_LIMIT_REACHED: Maximum number of registrations for this MTA identity exceeded.
 
-## HTTP 422 Unprocessable Entity
+## HTTP 410 Gone
 
-- UNSUPPORTED_FILTER: The filter contains conditions that are not supported by this MTA.
-- CALLBACK_UNREACHABLE: MTA could not reach callback URL for verification.
-- CALLBACK_VERIFICATION_FAILED: Callback URL responded but verification failed.
-- TLS_REQUIRED: Callback URL must use HTTPS.
-- TLS_CERTIFICATE_INVALID: Callback URL TLS certificate is invalid or untrusted.
+- REGISTRATION_DEREGISTERED: The registration has been deregistered and will not be re-activated.
+
+## HTTP 413 Content Too Large
+
+- REQUEST_TOO_LARGE: The request body exceeds the scanner's advertised maxMessageSize.
+
+## HTTP 422 Unprocessable Content
+
+- UNSUPPORTED_FILTER: The filter contains conditions that are not supported by this scanner.
+- UNSUPPORTED_PROPERTY: One or more requested properties are not in the scanner's advertised fetchProperties.
 
 ## HTTP 429 Too Many Requests
 
-- RATE_LIMITED: Too many registration attempts; retry after specified time.
+- RATE_LIMITED: Too many requests; retry after the time specified in the Retry-After header.
 
 ## HTTP 500 Internal Server Error
 
@@ -2013,6 +2018,7 @@ Error responses use the following structure:
 ## HTTP 503 Service Unavailable
 
 - REGISTRATION_DISABLED: Registration temporarily disabled by administrator.
+- SCANNER_UNAVAILABLE: The scanner is temporarily unable to process hook invocations.
 
 # Complete Example Flows
 
@@ -2066,42 +2072,17 @@ Content-Type: application/json
 Authorization: Bearer sk_live_abc123
 
 {
-  "name": "SpamFilter Pro",
+  "name": "Acme MTA mx1",
   "version": "3.0.1",
-  "callback": {
-    "url": "https://filter.example.net/hooks/spam",
-    "timeoutMs": 20000
-  },
+  "timeoutMs": 20000,
   "serialization": "json",
   "inbound": {
     "stages": ["data"],
     "properties": ["/message", "/envelope", "/senderAuth", "/client"]
   },
   "metadata": {
-    "customer": "acme-corp"
+    "operator": "acme-corp"
   }
-}
-~~~
-
-### Verification Callback
-
-~~~
-POST /hooks/spam HTTP/1.1
-Host: filter.example.net
-Content-Type: application/json
-
-{
-  "action": "verify",
-  "token": "vrf_xyz789"
-}
-~~~
-
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "token": "vrf_xyz789"
 }
 ~~~
 
@@ -2117,10 +2098,7 @@ Location: /v1/hooks/register/reg_spam_001
   "status": "active",
   "createdAt": "2024-12-21T10:00:00Z",
   "expiresAt": "2025-01-21T10:00:00Z",
-  "callback": {
-    "url": "https://filter.example.net/hooks/spam",
-    "timeoutMs": 20000
-  },
+  "hookEndpoint": "/v1/hooks/invoke/reg_spam_001",
   "negotiated": {
     "serialization": "json",
     "inbound": {
@@ -2138,10 +2116,12 @@ Location: /v1/hooks/register/reg_spam_001
 ### Hook Invocation - Clean Message
 
 ~~~
-POST /hooks/spam HTTP/1.1
-Host: filter.example.net
+POST /v1/hooks/invoke/reg_spam_001 HTTP/1.1
+Host: scanner.example.com
 Content-Type: application/json
+Authorization: Bearer sk_live_abc123
 X-MTA-Hooks-Registration: reg_spam_001
+X-MTA-Hooks-Request-Id: 01HZ8K3X7F4Y5N6Q9R2S3T4U5V
 
 {
   "stage": "data",
@@ -2199,10 +2179,12 @@ Content-Type: application/json
 ### Hook Invocation - Spam Detected
 
 ~~~
-POST /hooks/spam HTTP/1.1
-Host: filter.example.net
+POST /v1/hooks/invoke/reg_spam_001 HTTP/1.1
+Host: scanner.example.com
 Content-Type: application/json
+Authorization: Bearer sk_live_abc123
 X-MTA-Hooks-Registration: reg_spam_001
+X-MTA-Hooks-Request-Id: 01HZ8KAW6D2E3F4G5H6J7K8L9M
 
 {
   "stage": "data",
@@ -2265,21 +2247,17 @@ This example shows outbound hook usage for delivery status logging and complianc
 
 ~~~
 POST /v1/hooks/register HTTP/1.1
-Host: mta.example.com
+Host: logger.example.net
 Content-Type: application/json
 Authorization: Bearer sk_live_def456
 
 {
-  "name": "Delivery Logger",
+  "name": "Acme MTA mx1",
   "version": "1.0.0",
-  "callback": {
-    "url": "https://logger.example.net/hooks/delivery",
-    "timeoutMs": 5000
-  },
+  "timeoutMs": 5000,
   "serialization": "json",
   "outbound": {
     "stages": ["delivery", "dsn"],
-    "actions": ["continue"],
     "properties": null
   }
 }
@@ -2293,12 +2271,12 @@ Content-Type: application/json
   "registrationId": "reg_logger_001",
   "status": "active",
   "createdAt": "2024-12-21T11:00:00Z",
+  "hookEndpoint": "/v1/hooks/invoke/reg_logger_001",
   "negotiated": {
     "serialization": "json",
     "outbound": {
       "stages": ["delivery", "dsn"],
-      "actions": ["continue"],
-      "properties": ["/envelope", "/message", "/queue", "/context"]
+      "properties": ["/envelope", "/message", "/queue", "/server"]
     }
   },
   "endpoints": {
@@ -2311,10 +2289,12 @@ Content-Type: application/json
 ### Hook Invocation - Partial Delivery
 
 ~~~
-POST /hooks/delivery HTTP/1.1
+POST /v1/hooks/invoke/reg_logger_001 HTTP/1.1
 Host: logger.example.net
 Content-Type: application/json
+Authorization: Bearer sk_live_def456
 X-MTA-Hooks-Registration: reg_logger_001
+X-MTA-Hooks-Request-Id: 01HZ8MBN5Q4R3S2T1U0V9W8X7Y
 
 {
   "stage": "delivery",
@@ -2373,12 +2353,7 @@ X-MTA-Hooks-Registration: reg_logger_001
 ~~~
 
 ~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "action": "continue"
-}
+HTTP/1.1 204 No Content
 ~~~
 
 ## Deregistration
@@ -2407,6 +2382,21 @@ The authors thank the developers and operators of existing mail filtering system
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-degennaro-mta-hooks-01**
+
+* Inverted the registration model: the MTA is now exclusively the HTTP client. The registration, status, and deregistration endpoints reside at the scanner; the MTA no longer exposes any HTTP server to scanners.
+* Removed the callback URL concept and callback verification handshake. The scanner's hook endpoint is returned in the registration response.
+* Required X-MTA-Hooks-Registration on every hook invocation. Added X-MTA-Hooks-Request-Id for safe deduplication on retry.
+* Specified authentication requirements for hook invocations and credential provisioning practices.
+* Specified the error response contract for hook invocations and the status code semantics.
+* Clarified action precedence in multi-scanner chains and removed the duplicate Multiple Scanner Handling section.
+* Replaced "Modification Order" duplication with a forward reference.
+* Documented the failed-silent recipient status.
+* Corrected the enhanced status code reference from RFC 3461 to RFC 3463.
+* Clarified filter conditions: minSize and maxSize are permitted; the confused reference to Section 4.1.1 of RFC 8621 has been removed.
+* Replaced callback-related error codes (CALLBACK_UNREACHABLE, CALLBACK_VERIFICATION_FAILED, TLS_REQUIRED, TLS_CERTIFICATE_INVALID, INVALID_CALLBACK_URL, CALLBACK_NOT_ALLOWED, ALREADY_REGISTERED) with codes appropriate to the new model (REGISTRATION_MISMATCH, REGISTRATION_DEREGISTERED, REQUEST_TOO_LARGE, UNSUPPORTED_PROPERTY, MISSING_REQUEST_ID, SCANNER_UNAVAILABLE).
+* Rewrote Security Considerations around the new trust model and credential provisioning.
 
 **draft-degennaro-mta-hooks-00**
 
