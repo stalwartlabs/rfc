@@ -1,7 +1,7 @@
 ---
 title: JMAP Mail Sharing
 abbrev: JMAP Mail Sharing
-docname: draft-ietf-jmap-mail-sharing-00
+docname: draft-ietf-jmap-mail-sharing-01
 submissionType: IETF
 category: std
 updates: RFC8621
