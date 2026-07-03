@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-04
+docname: draft-ietf-mailmaint-imap-objectid-bis-05
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051, RFC9698
@@ -46,6 +46,7 @@ normative:
     RFC6851: RFC6851
     RFC8474: RFC8474
     RFC8620: RFC8620
+    RFC8621: RFC8621
     RFC9051: RFC9051
     RFC9698: RFC9698
     RFC5161: RFC5161
@@ -324,7 +325,9 @@ identical content to that of an existing message).
 NOTE: EMAILID only identifies the immutable content of the message.
 In particular, it is possible for different messages with the same
 EMAILID to have different keywords.  This document does not specify a
-way to STORE by EMAILID.
+way to STORE by EMAILID.  When JMAPACCESS is also advertised, see
+{{jmapaccess}} for how the per-message IMAP flags of messages sharing
+an EMAILID relate to the JMAP keywords of the corresponding Email.
 
 ## THREADID Identifier for Related Messages {#threadid}
 
@@ -702,6 +705,50 @@ sufficient to satisfy the capability prerequisite for JMAPACCESS.
 
 Clients that encounter JMAPACCESS without OBJECTID+ should interpret
 it as defined in {{RFC9698}}.
+
+## Message Keywords and JMAP Keywords
+
+When a server advertises both JMAPACCESS and OBJECTID+, all IMAP
+messages that share the same EMAILID denote the same JMAP Email
+object ({{Section 4.1.1 of RFC8621}}).  Such messages MAY appear in
+more than one mailbox, and IMAP permits each message instance to
+carry its own set of flags.  JMAP, by contrast, represents the
+state of an Email's flags as a single "keywords" set on the Email
+object.  The system flags map between the protocols as defined in
+{{Section 4.1.1 of RFC8621}} (for example, "\Flagged" corresponds
+to "$flagged" and "\Seen" to "$seen").
+
+For each keyword and its corresponding IMAP flag, a server MUST
+present a JMAP keyword set consistent with the IMAP flags of the
+messages sharing that EMAILID, as follows:
+
+* If every IMAP message with that EMAILID has the flag set, the
+  corresponding keyword MUST be present in the Email's "keywords"
+  set.
+
+* If no IMAP message with that EMAILID has the flag set, the
+  corresponding keyword MUST NOT be present.
+
+* If some but not all such messages have the flag set, whether the
+  keyword is present is server dependent.
+
+Setting a keyword on an Email via JMAP (Email/set), including
+setting it to a value the server already reports for that Email,
+MUST result in the corresponding IMAP flag being set on every
+message that shares the EMAILID.  Likewise, removing a keyword via
+JMAP MUST clear the corresponding flag on every such message.
+Clients can therefore force a "server dependent" mixed state into a
+defined state by issuing an explicit JMAP set or remove for the
+keyword.
+
+By contrast, an IMAP STORE command is not required to affect other
+messages sharing the same EMAILID.  A server MAY propagate such a
+change to every message with that EMAILID, but it MAY instead apply
+the change only to the addressed message.
+
+Note that {{Section 2 of RFC8621}} requires the user to hold the
+"maySetSeen" right on all mailboxes containing an Email before
+"$seen" may be modified via JMAP.
 
 # Formal Syntax {#objectid-syntax}
 
@@ -1175,6 +1222,14 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-05**
+
+* Added {{jmapaccess}} subsection specifying how the per-message
+  IMAP flags of messages sharing an EMAILID relate to the single
+  JMAP keywords set of the corresponding Email when JMAPACCESS and
+  OBJECTID+ are both advertised; added RFC 8621 as a normative
+  reference and a cross-reference from the EMAILID note
 
 **draft-ietf-mailmaint-imap-objectid-bis-04**
 
