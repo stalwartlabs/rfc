@@ -1,7 +1,7 @@
 ---
 title: JMAP Enhanced Result References
 abbrev: JMAP Enhanced Result References
-docname: draft-ietf-jmap-refplus-01
+docname: draft-ietf-jmap-refplus-02
 submissionType: IETF
 category: std
 updates: 
