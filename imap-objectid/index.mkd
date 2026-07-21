@@ -315,11 +315,18 @@ duplication.
 
 All flags on a message, except \Recent and \Deleted, MUST be the
 same on all messages that have the same EMAILID.  These are the
-flags that a client can see through JMAP as keywords.  \Recent and
-\Deleted have no JMAP keyword and thus do not have this constraint.
-Therefore, if the server changes one of these flags on one message
+flags that a client can see through JMAP as keywords.  Therefore,
+if the server changes one of these keyword flags on one message
 (for example, with a STORE command), the server MUST make the same
 change on all other messages that have the same EMAILID.
+
+\Recent and \Deleted have no JMAP keyword and thus are not subject
+to this constraint.  \Recent is maintained per message and may
+differ between copies that share an EMAILID.  A change to \Deleted
+on one message MUST NOT be propagated to other messages that share
+the same EMAILID; each such message keeps its own independent
+\Deleted state.  See {{deleted-flag}} for the reasoning behind this
+rule.
 
 A COPY or MOVE command {{RFC6851}} is allowed to create a new
 EMAILID for the destination message.  The server SHOULD preserve
@@ -953,6 +960,23 @@ The MOVE command does not receive an OBJECTID response code. The
 COPYUID response code {{RFC4315}} already provides the UID mapping
 between source and destination.
 
+## Interaction with the \Deleted Flag {#deleted-flag}
+
+As specified in {{emailid}}, the \Deleted flag is exempt from the
+rule that requires flags to be identical across all messages that
+share an EMAILID.  A server MUST NOT propagate a change to the
+\Deleted flag to other messages that share the same EMAILID.
+
+Clients frequently move a message between mailboxes at the IMAP
+level by copying it to the destination and then setting \Deleted on
+the source copy followed by an EXPUNGE; this is the traditional
+alternative to the MOVE command {{RFC6851}}.  A client performing
+such a move has no way to know that the source and destination
+copies share an EMAILID.  If the server were to apply \Deleted to
+every copy sharing that EMAILID, the destination copy would also be
+marked \Deleted and could be expunged, destroying the very message
+the client intended to preserve.
+
 ## Interaction with NAMESPACE
 
 The NAMESPACE extension {{RFC2342}} exposes that a single IMAP
@@ -1229,6 +1253,10 @@ working group for their contributions to this specification.
   this common flag set maps to the JMAP keywords of the
   corresponding Email when JMAPACCESS and OBJECTID+ are both
   advertised; added RFC 8621 as a normative reference
+* Added implementation guidance that a server MUST NOT propagate a
+  \Deleted flag change to other messages sharing an EMAILID, to
+  avoid destroying the destination copy when a client moves a
+  message via COPY plus \Deleted plus EXPUNGE
 * Editorial: reworded the MAILBOXID reuse requirement in
   {{mailboxid}}, the ObjectID byte-value and length restrictions,
   and the proxy ACCOUNTID guidance for aggregating backend servers

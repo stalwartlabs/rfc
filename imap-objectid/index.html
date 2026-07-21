@@ -1426,16 +1426,19 @@ correspond to JMAP accountIds.<a href="#section-abstract-1" class="pilcrow">¶</
                 <p id="section-toc.1-1.11.2.6.1"><a href="#section-11.6" class="auto internal xref">11.6</a>.  <a href="#name-interaction-with-move" class="internal xref">Interaction with MOVE</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.7">
-                <p id="section-toc.1-1.11.2.7.1"><a href="#section-11.7" class="auto internal xref">11.7</a>.  <a href="#name-interaction-with-namespace" class="internal xref">Interaction with NAMESPACE</a></p>
+                <p id="section-toc.1-1.11.2.7.1"><a href="#section-11.7" class="auto internal xref">11.7</a>.  <a href="#name-interaction-with-the-delete" class="internal xref">Interaction with the \Deleted Flag</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.8">
-                <p id="section-toc.1-1.11.2.8.1"><a href="#section-11.8" class="auto internal xref">11.8</a>.  <a href="#name-interaction-with-uidonly" class="internal xref">Interaction with UIDONLY</a></p>
+                <p id="section-toc.1-1.11.2.8.1"><a href="#section-11.8" class="auto internal xref">11.8</a>.  <a href="#name-interaction-with-namespace" class="internal xref">Interaction with NAMESPACE</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.9">
-                <p id="section-toc.1-1.11.2.9.1"><a href="#section-11.9" class="auto internal xref">11.9</a>.  <a href="#name-interaction-with-sort-and-t" class="internal xref">Interaction with SORT and THREAD</a></p>
+                <p id="section-toc.1-1.11.2.9.1"><a href="#section-11.9" class="auto internal xref">11.9</a>.  <a href="#name-interaction-with-uidonly" class="internal xref">Interaction with UIDONLY</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.10">
-                <p id="section-toc.1-1.11.2.10.1"><a href="#section-11.10" class="auto internal xref">11.10</a>. <a href="#name-advice-to-client-implemente" class="internal xref">Advice to Client Implementers</a></p>
+                <p id="section-toc.1-1.11.2.10.1"><a href="#section-11.10" class="auto internal xref">11.10</a>. <a href="#name-interaction-with-sort-and-t" class="internal xref">Interaction with SORT and THREAD</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.11">
+                <p id="section-toc.1-1.11.2.11.1"><a href="#section-11.11" class="auto internal xref">11.11</a>. <a href="#name-advice-to-client-implemente" class="internal xref">Advice to Client Implementers</a></p>
 </li>
             </ul>
 </li>
@@ -1766,19 +1769,25 @@ EMAILID, but the server is not required to detect content
 duplication.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
 <p id="section-6.1-5">All flags on a message, except \Recent and \Deleted, <span class="bcp14">MUST</span> be the
 same on all messages that have the same EMAILID.  These are the
-flags that a client can see through JMAP as keywords.  \Recent and
-\Deleted have no JMAP keyword and thus do not have this constraint.
-Therefore, if the server changes one of these flags on one message
+flags that a client can see through JMAP as keywords.  Therefore,
+if the server changes one of these keyword flags on one message
 (for example, with a STORE command), the server <span class="bcp14">MUST</span> make the same
 change on all other messages that have the same EMAILID.<a href="#section-6.1-5" class="pilcrow">¶</a></p>
-<p id="section-6.1-6">A COPY or MOVE command <span>[<a href="#RFC6851" class="cite xref">RFC6851</a>]</span> is allowed to create a new
+<p id="section-6.1-6">\Recent and \Deleted have no JMAP keyword and thus are not subject
+to this constraint.  \Recent is maintained per message and may
+differ between copies that share an EMAILID.  A change to \Deleted
+on one message <span class="bcp14">MUST NOT</span> be propagated to other messages that share
+the same EMAILID; each such message keeps its own independent
+\Deleted state.  See <a href="#deleted-flag" class="auto internal xref">Section 11.7</a> for the reasoning behind this
+rule.<a href="#section-6.1-6" class="pilcrow">¶</a></p>
+<p id="section-6.1-7">A COPY or MOVE command <span>[<a href="#RFC6851" class="cite xref">RFC6851</a>]</span> is allowed to create a new
 EMAILID for the destination message.  The server <span class="bcp14">SHOULD</span> preserve
 the EMAILID when the source and destination mailboxes have the
-same ACCOUNTID, but is not required to do so.<a href="#section-6.1-6" class="pilcrow">¶</a></p>
-<p id="section-6.1-7">The server <span class="bcp14">MAY</span> assign the same EMAILID as an existing message upon
+same ACCOUNTID, but is not required to do so.<a href="#section-6.1-7" class="pilcrow">¶</a></p>
+<p id="section-6.1-8">The server <span class="bcp14">MAY</span> assign the same EMAILID as an existing message upon
 APPEND (e.g., if it detects that the new message has exactly
-identical content to that of an existing message).<a href="#section-6.1-7" class="pilcrow">¶</a></p>
-<p id="section-6.1-8">NOTE: A server can give each message a different EMAILID, so that no
+identical content to that of an existing message).<a href="#section-6.1-8" class="pilcrow">¶</a></p>
+<p id="section-6.1-9">NOTE: A server can give each message a different EMAILID, so that no
 two messages have the same EMAILID.  For example, the server
 calculates the EMAILID from the {MAILBOXID, UID} pair.  Then the
 server does not have to keep the flags the same across copies of
@@ -1789,7 +1798,7 @@ different content <span class="bcp14">MUST NOT</span> have the same EMAILID.  Th
 not specify a way to STORE by EMAILID.  When the server also
 advertises JMAPACCESS, see <a href="#jmapaccess" class="auto internal xref">Section 9</a> for how the flags of
 messages with the same EMAILID map to the JMAP keywords of the
-Email.<a href="#section-6.1-8" class="pilcrow">¶</a></p>
+Email.<a href="#section-6.1-9" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="threadid">
@@ -2434,82 +2443,102 @@ COPYUID response code <span>[<a href="#RFC4315" class="cite xref">RFC4315</a>]</
 between source and destination.<a href="#section-11.6-2" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="interaction-with-namespace">
+<div id="deleted-flag">
 <section id="section-11.7">
-        <h3 id="name-interaction-with-namespace">
-<a href="#section-11.7" class="section-number selfRef">11.7. </a><a href="#name-interaction-with-namespace" class="section-name selfRef">Interaction with NAMESPACE</a>
+        <h3 id="name-interaction-with-the-delete">
+<a href="#section-11.7" class="section-number selfRef">11.7. </a><a href="#name-interaction-with-the-delete" class="section-name selfRef">Interaction with the \Deleted Flag</a>
         </h3>
-<p id="section-11.7-1">The NAMESPACE extension <span>[<a href="#RFC2342" class="cite xref">RFC2342</a>]</span> exposes that a single IMAP
+<p id="section-11.7-1">As specified in <a href="#emailid" class="auto internal xref">Section 6</a>, the \Deleted flag is exempt from the
+rule that requires flags to be identical across all messages that
+share an EMAILID.  A server <span class="bcp14">MUST NOT</span> propagate a change to the
+\Deleted flag to other messages that share the same EMAILID.<a href="#section-11.7-1" class="pilcrow">¶</a></p>
+<p id="section-11.7-2">Clients frequently move a message between mailboxes at the IMAP
+level by copying it to the destination and then setting \Deleted on
+the source copy followed by an EXPUNGE; this is the traditional
+alternative to the MOVE command <span>[<a href="#RFC6851" class="cite xref">RFC6851</a>]</span>.  A client performing
+such a move has no way to know that the source and destination
+copies share an EMAILID.  If the server were to apply \Deleted to
+every copy sharing that EMAILID, the destination copy would also be
+marked \Deleted and could be expunged, destroying the very message
+the client intended to preserve.<a href="#section-11.7-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="interaction-with-namespace">
+<section id="section-11.8">
+        <h3 id="name-interaction-with-namespace">
+<a href="#section-11.8" class="section-number selfRef">11.8. </a><a href="#name-interaction-with-namespace" class="section-name selfRef">Interaction with NAMESPACE</a>
+        </h3>
+<p id="section-11.8-1">The NAMESPACE extension <span>[<a href="#RFC2342" class="cite xref">RFC2342</a>]</span> exposes that a single IMAP
 connection may provide access to mailboxes from different
-namespaces, including personal, other users', and shared namespaces.<a href="#section-11.7-1" class="pilcrow">¶</a></p>
-<p id="section-11.7-2">The ACCOUNTID returned for a mailbox <span class="bcp14">SHOULD</span> reflect the account
+namespaces, including personal, other users', and shared namespaces.<a href="#section-11.8-1" class="pilcrow">¶</a></p>
+<p id="section-11.8-2">The ACCOUNTID returned for a mailbox <span class="bcp14">SHOULD</span> reflect the account
 that owns the mailbox data, not the account of the authenticated
-user accessing it. For example:<a href="#section-11.7-2" class="pilcrow">¶</a></p>
+user accessing it. For example:<a href="#section-11.8-2" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-11.7-3.1">
-            <p id="section-11.7-3.1.1">Mailboxes in the personal namespace have the authenticated
-user's ACCOUNTID.<a href="#section-11.7-3.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-11.8-3.1">
+            <p id="section-11.8-3.1.1">Mailboxes in the personal namespace have the authenticated
+user's ACCOUNTID.<a href="#section-11.8-3.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-11.7-3.2">
-            <p id="section-11.7-3.2.1">Mailboxes in the "Other Users" namespace that belong to a
-different user <span class="bcp14">SHOULD</span> have that other user's ACCOUNTID.<a href="#section-11.7-3.2.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-11.8-3.2">
+            <p id="section-11.8-3.2.1">Mailboxes in the "Other Users" namespace that belong to a
+different user <span class="bcp14">SHOULD</span> have that other user's ACCOUNTID.<a href="#section-11.8-3.2.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-11.7-3.3">
-            <p id="section-11.7-3.3.1">Mailboxes in a shared namespace <span class="bcp14">SHOULD</span> have the ACCOUNTID of
-the account that owns the shared data.<a href="#section-11.7-3.3.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-11.8-3.3">
+            <p id="section-11.8-3.3.1">Mailboxes in a shared namespace <span class="bcp14">SHOULD</span> have the ACCOUNTID of
+the account that owns the shared data.<a href="#section-11.8-3.3.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-11.7-4">This ensures that ACCOUNTID provides meaningful account-level
+<p id="section-11.8-4">This ensures that ACCOUNTID provides meaningful account-level
 disambiguation and, when JMAPACCESS is advertised, correctly
 correlates with the JMAP accountId that owns the corresponding
-Mailbox objects.<a href="#section-11.7-4" class="pilcrow">¶</a></p>
+Mailbox objects.<a href="#section-11.8-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="interaction-with-uidonly">
-<section id="section-11.8">
+<section id="section-11.9">
         <h3 id="name-interaction-with-uidonly">
-<a href="#section-11.8" class="section-number selfRef">11.8. </a><a href="#name-interaction-with-uidonly" class="section-name selfRef">Interaction with UIDONLY</a>
+<a href="#section-11.9" class="section-number selfRef">11.9. </a><a href="#name-interaction-with-uidonly" class="section-name selfRef">Interaction with UIDONLY</a>
         </h3>
-<p id="section-11.8-1">When the UIDONLY extension <span>[<a href="#RFC9586" class="cite xref">RFC9586</a>]</span> is active, FETCH responses
+<p id="section-11.9-1">When the UIDONLY extension <span>[<a href="#RFC9586" class="cite xref">RFC9586</a>]</span> is active, FETCH responses
 are replaced with UIDFETCH responses. The OBJECTID FETCH data
 item works identically in UIDFETCH responses. A server that
 supports both OBJECTID+ and UIDONLY <span class="bcp14">MUST</span> include the OBJECTID
-data item in UIDFETCH responses when requested.<a href="#section-11.8-1" class="pilcrow">¶</a></p>
+data item in UIDFETCH responses when requested.<a href="#section-11.9-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="interaction-with-sort-and-thread">
-<section id="section-11.9">
+<section id="section-11.10">
         <h3 id="name-interaction-with-sort-and-t">
-<a href="#section-11.9" class="section-number selfRef">11.9. </a><a href="#name-interaction-with-sort-and-t" class="section-name selfRef">Interaction with SORT and THREAD</a>
+<a href="#section-11.10" class="section-number selfRef">11.10. </a><a href="#name-interaction-with-sort-and-t" class="section-name selfRef">Interaction with SORT and THREAD</a>
         </h3>
-<p id="section-11.9-1">The THREAD command defined in <span>[<a href="#RFC5256" class="cite xref">RFC5256</a>]</span> computes thread
+<p id="section-11.10-1">The THREAD command defined in <span>[<a href="#RFC5256" class="cite xref">RFC5256</a>]</span> computes thread
 relationships algorithmically based on message headers and returns
 a thread structure for display purposes. The THREADID defined in
 this document is a persistent identifier assigned by the server
-to group related messages.<a href="#section-11.9-1" class="pilcrow">¶</a></p>
-<p id="section-11.9-2">THREADID and the THREAD command are independent. A server <span class="bcp14">MAY</span> use
+to group related messages.<a href="#section-11.10-1" class="pilcrow">¶</a></p>
+<p id="section-11.10-2">THREADID and the THREAD command are independent. A server <span class="bcp14">MAY</span> use
 different algorithms for THREAD responses and THREADID assignment,
 and the thread groupings need not correlate. Clients <span class="bcp14">MUST NOT</span>
 assume that messages sharing a THREADID will appear in the same
-thread structure returned by the THREAD command, or vice versa.<a href="#section-11.9-2" class="pilcrow">¶</a></p>
+thread structure returned by the THREAD command, or vice versa.<a href="#section-11.10-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="advice-to-client-implementers">
-<section id="section-11.10">
+<section id="section-11.11">
         <h3 id="name-advice-to-client-implemente">
-<a href="#section-11.10" class="section-number selfRef">11.10. </a><a href="#name-advice-to-client-implemente" class="section-name selfRef">Advice to Client Implementers</a>
+<a href="#section-11.11" class="section-number selfRef">11.11. </a><a href="#name-advice-to-client-implemente" class="section-name selfRef">Advice to Client Implementers</a>
         </h3>
-<p id="section-11.10-1">In cases of server failure and disaster recovery, or misbehaving
+<p id="section-11.11-1">In cases of server failure and disaster recovery, or misbehaving
 servers, it is possible that a client will be sent invalid
 information, e.g., identical ObjectIDs or ObjectIDs that have changed
-where they <span class="bcp14">MUST NOT</span> change according to this document.<a href="#section-11.10-1" class="pilcrow">¶</a></p>
-<p id="section-11.10-2">In a case where a client detects inconsistent ObjectID responses from
+where they <span class="bcp14">MUST NOT</span> change according to this document.<a href="#section-11.11-1" class="pilcrow">¶</a></p>
+<p id="section-11.11-2">In a case where a client detects inconsistent ObjectID responses from
 a server, it <span class="bcp14">SHOULD</span> fall back to relying on the guarantees of
 <span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span>.  For simplicity, a client <span class="bcp14">MAY</span> instead choose to discard its
-entire cache and resync all state from the server.<a href="#section-11.10-2" class="pilcrow">¶</a></p>
-<p id="section-11.10-3">Client authors protecting against server misbehavior <span class="bcp14">MUST</span> ensure that
+entire cache and resync all state from the server.<a href="#section-11.11-2" class="pilcrow">¶</a></p>
+<p id="section-11.11-3">Client authors protecting against server misbehavior <span class="bcp14">MUST</span> ensure that
 their design cannot get into an infinite loop of discarding cache and
-fetching the same data repeatedly without user interaction.<a href="#section-11.10-3" class="pilcrow">¶</a></p>
+fetching the same data repeatedly without user interaction.<a href="#section-11.11-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -2923,10 +2952,16 @@ corresponding Email when JMAPACCESS and OBJECTID+ are both
 advertised; added RFC 8621 as a normative reference<a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.2">
-          <p id="appendix-D-3.2.1">Editorial: reworded the MAILBOXID reuse requirement in
+          <p id="appendix-D-3.2.1">Added implementation guidance that a server <span class="bcp14">MUST NOT</span> propagate a
+\Deleted flag change to other messages sharing an EMAILID, to
+avoid destroying the destination copy when a client moves a
+message via COPY plus \Deleted plus EXPUNGE<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.3">
+          <p id="appendix-D-3.3.1">Editorial: reworded the MAILBOXID reuse requirement in
 <a href="#mailboxid" class="auto internal xref">Section 5</a>, the ObjectID byte-value and length restrictions,
 and the proxy ACCOUNTID guidance for aggregating backend servers
-for readability<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
+for readability<a href="#appendix-D-3.3.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-04</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
