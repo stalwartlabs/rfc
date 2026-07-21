@@ -313,6 +313,14 @@ content.  Messages with identical content SHOULD have the same
 EMAILID, but the server is not required to detect content
 duplication.
 
+All flags on a message, except \Recent and \Deleted, MUST be the
+same on all messages that have the same EMAILID.  These are the
+flags that a client can see through JMAP as keywords.  \Recent and
+\Deleted have no JMAP keyword and thus do not have this constraint.
+Therefore, if the server changes one of these flags on one message
+(for example, with a STORE command), the server MUST make the same
+change on all other messages that have the same EMAILID.
+
 A COPY or MOVE command {{RFC6851}} is allowed to create a new
 EMAILID for the destination message.  The server SHOULD preserve
 the EMAILID when the source and destination mailboxes have the
@@ -322,12 +330,18 @@ The server MAY assign the same EMAILID as an existing message upon
 APPEND (e.g., if it detects that the new message has exactly
 identical content to that of an existing message).
 
-NOTE: EMAILID only identifies the immutable content of the message.
-In particular, it is possible for different messages with the same
-EMAILID to have different keywords.  This document does not specify a
-way to STORE by EMAILID.  When JMAPACCESS is also advertised, see
-{{jmapaccess}} for how the per-message IMAP flags of messages sharing
-an EMAILID relate to the JMAP keywords of the corresponding Email.
+NOTE: A server can give each message a different EMAILID, so that no
+two messages have the same EMAILID.  For example, the server
+calculates the EMAILID from the {MAILBOXID, UID} pair.  Then the
+server does not have to keep the flags the same across copies of
+identical content.  This is allowed because two messages with
+identical content are not required to have the same EMAILID.  The
+opposite constraint stays: within one ACCOUNTID, two messages with
+different content MUST NOT have the same EMAILID.  This document does
+not specify a way to STORE by EMAILID.  When the server also
+advertises JMAPACCESS, see {{jmapaccess}} for how the flags of
+messages with the same EMAILID map to the JMAP keywords of the
+Email.
 
 ## THREADID Identifier for Related Messages {#threadid}
 
@@ -709,46 +723,28 @@ it as defined in {{RFC9698}}.
 ## Message Keywords and JMAP Keywords
 
 When a server advertises both JMAPACCESS and OBJECTID+, all IMAP
-messages that share the same EMAILID denote the same JMAP Email
-object ({{Section 4.1.1 of RFC8621}}).  Such messages MAY appear in
-more than one mailbox, and IMAP permits each message instance to
-carry its own set of flags.  JMAP, by contrast, represents the
-state of an Email's flags as a single "keywords" set on the Email
-object.  The system flags map between the protocols as defined in
-{{Section 4.1.1 of RFC8621}} (for example, "\Flagged" corresponds
-to "$flagged" and "\Seen" to "$seen").
+messages that have the same EMAILID are the same JMAP Email object
+({{Section 4.1.1 of RFC8621}}).  These messages can appear in more
+than one mailbox.
 
-For each keyword and its corresponding IMAP flag, a server MUST
-present a JMAP keyword set consistent with the IMAP flags of the
-messages sharing that EMAILID, as follows:
+As specified in {{emailid}}, all messages that have the same EMAILID
+have the same flags, except \Recent and \Deleted.  Therefore the
+Email object has one clear "keywords" set.  This set is the common
+set of flags, mapped to JMAP keywords as defined in {{Section 4.1.1
+of RFC8621}} (for example, "\Flagged" maps to "$flagged" and "\Seen"
+maps to "$seen").  \Recent and \Deleted have no JMAP keyword and do
+not appear in "keywords".
 
-* If every IMAP message with that EMAILID has the flag set, the
-  corresponding keyword MUST be present in the Email's "keywords"
-  set.
-
-* If no IMAP message with that EMAILID has the flag set, the
-  corresponding keyword MUST NOT be present.
-
-* If some but not all such messages have the flag set, whether the
-  keyword is present is server dependent.
-
-Setting a keyword on an Email via JMAP (Email/set), including
-setting it to a value the server already reports for that Email,
-MUST result in the corresponding IMAP flag being set on every
-message that shares the EMAILID.  Likewise, removing a keyword via
-JMAP MUST clear the corresponding flag on every such message.
-Clients can therefore force a "server dependent" mixed state into a
-defined state by issuing an explicit JMAP set or remove for the
-keyword.
-
-By contrast, an IMAP STORE command is not required to affect other
-messages sharing the same EMAILID.  A server MAY propagate such a
-change to every message with that EMAILID, but it MAY instead apply
-the change only to the addressed message.
+When a client sets a keyword on an Email through JMAP (Email/set),
+the server MUST set the related IMAP flag on all messages that have
+the same EMAILID.  When a client removes a keyword, the server MUST
+clear that flag on all these messages.  An IMAP STORE command that
+changes one of these flags also applies to all messages that have
+the same EMAILID, as specified in {{emailid}}.
 
 Note that {{Section 2 of RFC8621}} requires the user to hold the
-"maySetSeen" right on all mailboxes containing an Email before
-"$seen" may be modified via JMAP.
+"maySetSeen" right on all mailboxes that contain an Email before the
+user can change "$seen" through JMAP.
 
 # Formal Syntax {#objectid-syntax}
 
@@ -1225,11 +1221,14 @@ working group for their contributions to this specification.
 
 **draft-ietf-mailmaint-imap-objectid-bis-05**
 
-* Added {{jmapaccess}} subsection specifying how the per-message
-  IMAP flags of messages sharing an EMAILID relate to the single
-  JMAP keywords set of the corresponding Email when JMAPACCESS and
-  OBJECTID+ are both advertised; added RFC 8621 as a normative
-  reference and a cross-reference from the EMAILID note
+* Required in {{emailid}} that all flags except \Recent and
+  \Deleted be identical across messages that share an EMAILID, with
+  a note that a server MAY assign a distinct EMAILID per message
+  (for example, from the {MAILBOXID, UID} pair) to avoid keeping
+  flags synchronized; added the {{jmapaccess}} subsection on how
+  this common flag set maps to the JMAP keywords of the
+  corresponding Email when JMAPACCESS and OBJECTID+ are both
+  advertised; added RFC 8621 as a normative reference
 
 **draft-ietf-mailmaint-imap-objectid-bis-04**
 
