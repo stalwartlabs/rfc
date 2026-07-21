@@ -1698,7 +1698,7 @@ have a corresponding representation in JMAP, the server <span class="bcp14">MAY<
 assign an ACCOUNTID to maintain consistency in the IMAP representation.
 However, such ACCOUNTIDs need not correspond to any JMAP account
 identifier.<a href="#section-4-5" class="pilcrow">¶</a></p>
-<p id="section-4-6">The ACCOUNTID is conceptually immutable for a given account within an
+<p id="section-4-6">The ACCOUNTID is immutable for a given account within an
 IMAP session. However, if the underlying account is deleted or the
 user's access to that account is revoked, the associated mailboxes will
 no longer be accessible via IMAP, and their ACCOUNTIDs become
@@ -1726,9 +1726,9 @@ a single ACCOUNTID.<a href="#section-5-2" class="pilcrow">¶</a></p>
 name and UIDVALIDITY.<a href="#section-5-3" class="pilcrow">¶</a></p>
 <p id="section-5-4">The server <span class="bcp14">MUST NOT</span> report the same (ACCOUNTID, MAILBOXID) pair for
 two different mailboxes at the same time.<a href="#section-5-4" class="pilcrow">¶</a></p>
-<p id="section-5-5">The server <span class="bcp14">MUST NOT</span> reuse the same MAILBOXID for a mailbox that does
-not obey all the invariants that <span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span> defines for a mailbox
-that does not change name or UIDVALIDITY.<a href="#section-5-5" class="pilcrow">¶</a></p>
+<p id="section-5-5"><span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span> defines the invariants that a mailbox keeps while its
+name and UIDVALIDITY do not change.  If a mailbox does not keep all
+of those invariants, the server <span class="bcp14">MUST NOT</span> reuse its MAILBOXID.<a href="#section-5-5" class="pilcrow">¶</a></p>
 <p id="section-5-6">The server <span class="bcp14">SHOULD</span> keep the same MAILBOXID for the source and
 destination when renaming a mailbox in a way that keeps the same
 messages (but see <span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span> for the special case regarding the
@@ -2294,10 +2294,9 @@ search-key =/ "THREADID" SP objectid
 <a href="#section-11.1" class="section-number selfRef">11.1. </a><a href="#name-assigning-object-identifier" class="section-name selfRef">Assigning Object Identifiers</a>
         </h3>
 <p id="section-11.1-1">All ObjectID values are allocated by the server.<a href="#section-11.1-1" class="pilcrow">¶</a></p>
-<p id="section-11.1-2">In the interest of reducing the possibilities of encoding mistakes,
-ObjectIDs are restricted to a safe subset of possible byte values; in
-order to allow clients to allocate storage, they are restricted in
-length.<a href="#section-11.1-2" class="pilcrow">¶</a></p>
+<p id="section-11.1-2">ObjectIDs use a safe subset of byte values to reduce encoding
+mistakes.  They also have a limited length, so that clients can
+allocate storage.<a href="#section-11.1-2" class="pilcrow">¶</a></p>
 <p id="section-11.1-3">An ObjectID is a string of 1 to 255 characters from the following set
 of 64 codepoints: a-z, A-Z, 0-9, _, -.  These characters are safe to
 use in almost any context (e.g., filesystems, URIs, IMAP atoms).
@@ -2336,15 +2335,16 @@ alphabetical character.<a href="#section-11.1-6" class="pilcrow">¶</a></p>
         </h3>
 <p id="section-11.2-1">The case of RENAME INBOX may need special handling because it has
 special behavior, as defined in <span><a href="https://rfc-editor.org/rfc/rfc3501#section-6.3.5" class="relref">Section 6.3.5</a> of [<a href="#RFC3501" class="cite xref">RFC3501</a>]</span>.<a href="#section-11.2-1" class="pilcrow">¶</a></p>
-<p id="section-11.2-2">It is advisable (though not required) to have object identifier
-values be globally unique as an implementation convenience.  A proxy
-that aggregates multiple independent backend servers <span class="bcp14">MUST</span> return
-a different ACCOUNTID for each set of mailboxes served by different
-backends, unless it can guarantee that all object identifiers are
-unique across those backends. This ensures that clients can rely
-on the combination of ACCOUNTID and any other object identifier
-being unique within the IMAP session, even when the backend servers
-independently assign identifiers that might otherwise collide.<a href="#section-11.2-2" class="pilcrow">¶</a></p>
+<p id="section-11.2-2">As an implementation convenience, object identifier values can be
+globally unique, but this is not required.  A proxy may aggregate
+several independent backend servers.  Such a proxy <span class="bcp14">MUST</span> return a
+different ACCOUNTID for each set of mailboxes from a different
+backend, unless it can guarantee that all object identifiers are
+unique across those backends.  This lets clients rely on the
+combination of ACCOUNTID and any other object identifier being
+unique within the IMAP session, even when the backends assign
+identifiers independently and those identifiers might otherwise
+collide.<a href="#section-11.2-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="client-usage">
@@ -2921,6 +2921,12 @@ flags synchronized; added the <a href="#jmapaccess" class="auto internal xref">S
 this common flag set maps to the JMAP keywords of the
 corresponding Email when JMAPACCESS and OBJECTID+ are both
 advertised; added RFC 8621 as a normative reference<a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.2">
+          <p id="appendix-D-3.2.1">Editorial: reworded the MAILBOXID reuse requirement in
+<a href="#mailboxid" class="auto internal xref">Section 5</a>, the ObjectID byte-value and length restrictions,
+and the proxy ACCOUNTID guidance for aggregating backend servers
+for readability<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-04</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
