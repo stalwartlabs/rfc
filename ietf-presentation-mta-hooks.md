@@ -90,7 +90,7 @@ style: |
 # MTA Hooks
 ## An HTTP-Based Mail Processing Protocol
 
-**draft-degennaro-mta-hooks-00**: IETF 125 DISPATCH
+**draft-degennaro-mta-hooks-01**: IETF 126
 Mauro De Gennaro: Stalwart Labs LLC
 
 ---
@@ -187,18 +187,6 @@ Feedback from IETF 123 and FOSDEM has already shaped the current draft: includin
 ---
 
 <!-- _class: outcome -->
-
-# Hoped Dispatching Outcome
-
-We believe there is sufficient interest and a clear gap to fill.
-
-We ask DISPATCH to consider:
-
-### ➊ Propose a new focused Working Group
-or
-### ➋ Hold a full BOF at a future IETF meeting
-
-to advance standardization of an HTTP-based MTA filtering protocol.
 
 **Questions? Feedback?**
 Mauro De Gennaro: mauro@stalw.art: https://stalw.art

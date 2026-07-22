@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-05
+docname: draft-ietf-mailmaint-imap-objectid-bis-06
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051, RFC9698
@@ -1243,7 +1243,7 @@ working group for their contributions to this specification.
 
 \[\[This section to be removed by RFC Editor\]\]
 
-**draft-ietf-mailmaint-imap-objectid-bis-05**
+**draft-ietf-mailmaint-imap-objectid-bis-06**
 
 * Required in {{emailid}} that all flags except \Recent and
   \Deleted be identical across messages that share an EMAILID, with
@@ -1261,6 +1261,14 @@ working group for their contributions to this specification.
   {{mailboxid}}, the ObjectID byte-value and length restrictions,
   and the proxy ACCOUNTID guidance for aggregating backend servers
   for readability
+
+**draft-ietf-mailmaint-imap-objectid-bis-05**
+
+* Added {{jmapaccess}} subsection specifying how the per-message IMAP 
+  flags of messages sharing an EMAILID relate to the single JMAP 
+  keywords set of the corresponding Email when JMAPACCESS and 
+  OBJECTID+ are both advertised; added RFC 8621 as a normative 
+  reference and a cross-reference from the EMAILID note
 
 **draft-ietf-mailmaint-imap-objectid-bis-04**
 
