@@ -1,7 +1,7 @@
 ---
 title: JMAP Mail Sharing
 abbrev: JMAP Mail Sharing
-docname: draft-ietf-jmap-mail-sharing-01
+docname: draft-ietf-jmap-mail-sharing-02
 submissionType: IETF
 category: std
 updates: RFC8621
@@ -83,11 +83,11 @@ This specification extends the JMAP Mailbox object defined in {{RFC8621}} to inc
 **shareWith**: `Id[MailboxRights]|null` (default: null)
 : This is a map configuring who the mailbox is shared with, or null if it is not shared with anyone. Each key in the map is the id of a Principal with whom the mailbox is shared. The value for each key is the set of access rights that Principal has for the mailbox. The account id for the Principals may be found in the `urn:ietf:params:jmap:principals:owner` capability of the Account to which the mailbox belongs. The Principal to which this mailbox belongs MUST NOT be in the map. The property may only be modified if the user has the mayShare right.
 
-This specification also extends the JMAP MailboxRights object defined in {{Section 2 of RFC8621}} to include the `mayShare` property as defined below. For servers that also support IMAP {{RFC3501}}, this property corresponds to the IMAP ACL "a" right as defined in {{RFC4314}}:
+This specification also extends the JMAP MailboxRights object defined in {{Section 2 of RFC8621}} to include the `mayShare` property as defined below:
 
 {:vspace}
 **mayShare**: `Boolean`
-: The user may modify the `shareWith` property for this mailbox. For servers supporting IMAP access to the same data, this corresponds to the IMAP ACL "a" right defined in {{RFC4314}}, which grants the ability to administer access control lists.
+: The user may modify the `shareWith` property for this mailbox. For servers that also provide IMAP {{RFC3501}} access to the same mail store, this corresponds to the IMAP ACL "a" right defined in {{RFC4314}}, which grants the ability to administer access control lists.
 
 # Security Considerations
 
@@ -144,6 +144,14 @@ IANA will register the "mail:share" JMAP Capability as follows:
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-jmap-mail-sharing-02**
+
+* Removed the duplicated description of the IMAP ACL "a" right mapping from the paragraph introducing the `mayShare` property, keeping a single description in the property definition itself and moving the IMAP {{RFC3501}} reference there.
+
+**draft-ietf-jmap-mail-sharing-01**
+
+* Republished with no substantive changes.
 
 **draft-ietf-jmap-mail-sharing-00**
 
