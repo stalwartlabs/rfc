@@ -1,0 +1,196 @@
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "./styles/tokens.css";
+
+.slidev-layout {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  padding: 2.25rem 3rem !important;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.slidev-layout h1 {
+  font-weight: 700;
+  font-size: clamp(1.9rem, 3.9vw, 2.9rem);
+  line-height: 1.06;
+  letter-spacing: -0.015em;
+  margin: 0 0 1rem 0;
+  color: var(--text);
+}
+.slidev-layout h2 {
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.1;
+  margin: 0 0 0.7rem 0;
+}
+.slidev-layout h3 {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0 0 0.4rem 0;
+  color: var(--text);
+}
+
+.slidev-layout p,
+.slidev-layout li { font-size: 1.02rem; line-height: 1.5; margin: 0.4rem 0; }
+.slidev-layout p.lead {
+  font-size: 1.22rem; color: var(--text-muted); max-width: 62ch; line-height: 1.45;
+}
+.slidev-layout strong { color: var(--text); font-weight: 600; }
+.slidev-layout em { color: var(--text-muted); font-style: normal; }
+
+.slidev-layout ul { list-style: none; padding: 0; margin: 0.6rem 0; }
+.slidev-layout ul > li { position: relative; padding-left: 1.3rem; margin: 0.38rem 0; }
+.slidev-layout ul > li::before {
+  content: ""; position: absolute; left: 0; top: 0.6rem;
+  width: 0.42rem; height: 0.42rem; background: var(--brand); border-radius: 1px;
+}
+.slidev-layout ol { list-style: decimal; padding-left: 1.5rem; }
+.slidev-layout ol > li::marker { color: var(--brand); font-weight: 600; }
+
+.slidev-layout :not(pre) > code {
+  font-family: var(--font-mono); font-size: 0.9em;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0.05em 0.35em; color: var(--text);
+}
+.slidev-layout pre, .slidev-layout pre.shiki {
+  background: var(--code-bg) !important; border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.85rem 1.1rem !important;
+  font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.5;
+  box-shadow: var(--shadow-1); margin: 0.45rem 0;
+}
+.slidev-layout pre code { background: transparent; border: none; padding: 0; font-size: inherit; }
+
+.slidev-layout table { border-collapse: collapse; margin: 0.5rem 0; font-size: 0.88rem; width: 100%; }
+.slidev-layout th, .slidev-layout td {
+  border-bottom: 1px solid var(--border); padding: 0.38rem 0.6rem; text-align: left;
+  vertical-align: top;
+}
+.slidev-layout th {
+  color: var(--text-muted); font-weight: 600; font-size: 0.72rem;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.slidev-layout td:first-child { color: var(--text); font-weight: 500; }
+
+.brand { color: var(--brand) !important; }
+/* Slidev's default theme dims an `h1 + p` to 50% opacity; the title slide
+   tagline is exactly that, so both properties have to be reclaimed. */
+.tagline { color: var(--text) !important; opacity: 1 !important; }
+.muted { color: var(--text-muted) !important; }
+.dim   { color: var(--text-dim) !important; }
+
+.eyebrow {
+  font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--brand); margin-bottom: 0.55rem;
+}
+.title-meta {
+  font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-muted);
+  letter-spacing: 0.03em; line-height: 1.7;
+}
+.callout {
+  color: var(--brand) !important; font-weight: 600; font-size: 1.06rem; margin-top: 0.9rem;
+}
+.footnote {
+  position: absolute; bottom: 1.4rem; left: 3rem; right: 3rem;
+  font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim);
+  letter-spacing: 0.03em;
+}
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+.cols.col-3-2 { grid-template-columns: 3fr 2fr; }
+.cols.col-2-3 { grid-template-columns: 2fr 3fr; }
+.cols.dense ul li, .cols.dense p { font-size: 0.9rem; line-height: 1.42; margin: 0.28rem 0; }
+
+/* Section dividers */
+.divider { display: grid; grid-template-columns: auto 1fr; gap: 2.5rem; align-items: center; }
+.divider .num {
+  font-family: var(--font-mono); font-size: clamp(4.5rem, 10vw, 8rem);
+  color: var(--brand); line-height: 1; letter-spacing: -0.04em; font-weight: 700;
+}
+.divider .title { font-size: clamp(1.7rem, 3.6vw, 2.7rem); font-weight: 700; line-height: 1.05; margin: 0; }
+.divider .sub { margin-top: 0.5rem; color: var(--text-muted); font-size: 1.02rem; max-width: 48ch; }
+
+/* Horizontal stage rail */
+.rail { display: flex; align-items: stretch; gap: 0; margin: 1.1rem 0; }
+.rail .seg {
+  flex: 1; border: 1px solid var(--border); border-right: none;
+  padding: 0.6rem 0.5rem; text-align: center; background: var(--surface);
+}
+.rail .seg:last-child { border-right: 1px solid var(--border); }
+.rail .seg:first-child { border-radius: 8px 0 0 8px; }
+.rail .seg:last-child { border-radius: 0 8px 8px 0; }
+.rail .seg .k {
+  font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.05em; color: var(--text);
+}
+.rail .seg .v { font-size: 0.66rem; color: var(--text-dim); margin-top: 0.2rem; }
+.rail .seg.on { background: var(--brand-soft); border-color: var(--brand); }
+.rail .seg.on .k { color: var(--brand); }
+.rail .seg.off { background: transparent; }
+.rail .seg.off .k { color: var(--text-dim); }
+
+/* Labelled band above/below a rail */
+.band {
+  display: grid; gap: 0; font-family: var(--font-mono); font-size: 0.68rem;
+  letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.4rem;
+}
+.band span { padding: 0.25rem 0; }
+.band .yes { color: var(--brand); }
+.band .no  { color: var(--text-dim); }
+
+/* Card grid */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; margin: 1rem 0; }
+.cards.two { grid-template-columns: repeat(2, 1fr); }
+.cards .card {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  padding: 0.8rem 0.9rem;
+}
+.cards .card h4 {
+  font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--brand); margin: 0 0 0.4rem 0; font-weight: 600;
+}
+.cards .card p { font-size: 0.86rem; line-height: 1.42; margin: 0; color: var(--text-muted); }
+
+/* Two-lane comparison */
+.lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0.9rem 0; }
+.lane { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.lane .hd {
+  font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.45rem 0.8rem; border-bottom: 1px solid var(--border); color: var(--text-muted);
+  background: var(--surface-2);
+}
+.lane.bad .hd { color: var(--text-dim); }
+.lane.good .hd { color: var(--brand); background: var(--brand-soft); border-color: var(--brand); }
+.lane .bd { padding: 0.7rem 0.9rem; font-size: 0.88rem; line-height: 1.45; color: var(--text-muted); }
+.lane .bd ul { margin: 0; }
+.lane .bd ul > li { font-size: 0.88rem; margin: 0.3rem 0; }
+
+/* Vertical flow steps */
+.flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.9rem; align-items: stretch; margin: 0.7rem 0; }
+.flow .step {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  padding: 0.85rem 0.95rem; position: relative;
+}
+.flow .arrow { display: flex; align-items: center; justify-content: center; color: var(--brand); font-size: 1.2rem; }
+.flow .step .n {
+  font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--brand); margin-bottom: 0.35rem;
+}
+.flow .step .t { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; }
+.flow .step .d { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+
+/* Key/value stat strip */
+.strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin: 1.2rem 0; }
+.strip .n { font-size: clamp(1.5rem, 2.9vw, 2.1rem); font-weight: 700; color: var(--brand); line-height: 1; }
+.strip .l {
+  font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted); margin-top: 0.3rem;
+}
+
+.tight li { margin: 0.24rem 0; }
+.small, .small li, .small p, .small td, .small th { font-size: 0.84rem; }

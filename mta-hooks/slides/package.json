@@ -1,0 +1,22 @@
+{
+  "name": "mta-hooks-slides",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MTA Hooks BoF deck (Slidev). IETF 127.",
+  "type": "module",
+  "scripts": {
+    "dev": "slidev slides.md --open",
+    "build": "slidev build slides.md --base ./ --out dist",
+    "export": "slidev export slides.md --output mta-hooks-bof.pdf"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@slidev/cli": "^0.50.0",
+    "@slidev/theme-default": "^0.25.0",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "playwright-chromium": "^1.48.0"
+  }
+}
