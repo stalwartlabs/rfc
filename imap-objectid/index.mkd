@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-06
+docname: draft-ietf-mailmaint-imap-objectid-bis-07
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051, RFC9698
@@ -42,6 +42,7 @@ normative:
     RFC4466: RFC4466
     RFC5234: RFC5234
     RFC5256: RFC5256
+    RFC5258: RFC5258
     RFC5819: RFC5819
     RFC6851: RFC6851
     RFC8474: RFC8474
@@ -56,6 +57,7 @@ informative:
     RFC4122: RFC4122
     RFC4315: RFC4315
     RFC4648: RFC4648
+    RFC5465: RFC5465
     RFC6154: RFC6154
     RFC7377: RFC7377
     RFC9042: RFC9042
@@ -92,8 +94,8 @@ It defines a compound OBJECTID response format that bundles multiple
 identifiers into a parenthesized list of key-value pairs; identifiers
 that the server does not support are simply omitted from the response.
 This compound format is used uniformly across SELECT, EXAMINE,
-CREATE, RENAME, STATUS, and FETCH responses once the extension has
-been activated.
+CREATE, RENAME, STATUS, LIST, and FETCH responses once the extension
+has been activated.
 
 Four types of object identifiers may appear within the compound
 OBJECTID response.  MAILBOXID is a server-allocated identifier for
@@ -160,6 +162,7 @@ The extension is activated by any of the following:
 * The client issues ENABLE OBJECTID+ ({{RFC5161}})
 * The client uses the OBJECTID parameter on SELECT or EXAMINE ({{select-objectid}})
 * The client requests the OBJECTID status attribute ({{status-objectid}})
+* The client requests the OBJECTID LIST return option ({{list-objectid}})
 * The client requests the OBJECTID FETCH data item ({{fetch-objectid}})
 
 When the extension is activated by any mechanism other than
@@ -288,8 +291,9 @@ moving the messages).
 
 When OBJECTID+ has been activated ({{activation}}), the server
 returns MAILBOXID within the compound OBJECTID response code for
-SELECT, EXAMINE, CREATE, and RENAME commands, and within the
-compound OBJECTID STATUS attribute.  Servers that also advertise
+SELECT, EXAMINE, CREATE, and RENAME commands, within the compound
+OBJECTID STATUS attribute, and within the OBJECTID extended data
+item of the LIST response.  Servers that also advertise
 the OBJECTID capability continue to support the standalone
 MAILBOXID attribute as defined in {{RFC8474}}.
 
@@ -483,8 +487,8 @@ of {{RFC9051}}) reports the former name alongside the current
 one, allowing the client to correlate its cached name with the
 renamed mailbox.  Clients implementing only IMAP4rev1
 ({{RFC3501}}) can reissue LIST with an appropriate reference and
-pattern and match the result by MAILBOXID via the OBJECTID STATUS
-attribute.
+pattern and match the result by MAILBOXID via the OBJECTID return
+option ({{list-objectid}}) or the OBJECTID STATUS attribute.
 
 Example (shared mailbox with different ACCOUNTID):
 
@@ -629,6 +633,69 @@ This example demonstrates how clients can efficiently retrieve
 object identifiers for multiple mailboxes, including mailboxes
 belonging to different accounts, using the extended LIST command
 with STATUS return option.
+
+## OBJECTID Return Option for LIST {#list-objectid}
+
+The OBJECTID return option for the extended LIST command
+({{RFC5258}}; Section 6.3.9 of {{RFC9051}}) requests that each
+LIST response carry an OBJECTID extended data item.  The item
+holds the MAILBOXID and ACCOUNTID of the listed mailbox (when
+supported by the server), in the same key-value format as the
+compound OBJECTID response ({{objectid-compound}}).
+
+Syntax: "OBJECTID"
+
+Requesting the OBJECTID return option activates the OBJECTID+
+extension ({{activation}}).
+
+Example:
+
+~~~
+C: 12 list "" "*" return (objectid)
+S: * ENABLED OBJECTID+
+S: * LIST (\HasChildren) "." INBOX ("OBJECTID" \
+        (MAILBOXID Ff8e3ead4-9389-4aff-adb1-d8d89efd8cbf \
+        ACCOUNTID u1a48e8e3))
+S: * LIST (\Noselect \HasChildren) "." INBOX.projects \
+        ("OBJECTID" (MAILBOXID F0b3c5e71-2d4a-4f8e-9c1b-7a6d5e4f \
+        ACCOUNTID u1a48e8e3))
+S: * LIST (\HasNoChildren) "." INBOX.projects.alpha \
+        ("OBJECTID" (MAILBOXID F6352ae03-b7f5-463c-896f-d8b48ee3 \
+        ACCOUNTID u1a48e8e3))
+S: * LIST (\HasNoChildren) "." "Other Users.other.sub.folder" \
+        ("OBJECTID" (MAILBOXID F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
+        ACCOUNTID u2b59f9f4))
+S: 12 OK Completed
+~~~
+
+The OBJECTID extended data item is returned for every mailbox
+name in the LIST response for which the server has identifiers.
+Unlike the OBJECTID STATUS attribute, it is not restricted to
+mailboxes the client could STATUS, and it is returned for
+\Noselect mailboxes: a mailbox that cannot be selected can still
+have a MAILBOXID, as in the "INBOX.projects" example above, where
+the server also represents that name as a JMAP Mailbox object.
+
+If the server has no identifiers for a listed name, it returns the
+empty item "OBJECTID ()".  This is the case for a \NonExistent
+name reported only because it has matching children.
+
+A client MAY request both the OBJECTID return option and the
+OBJECTID STATUS attribute via the STATUS return option in the same
+LIST command.  The identifiers in the LIST extended data item and
+in the STATUS response for the same mailbox MUST be identical.
+
+Once OBJECTID+ is active, a server MAY include the OBJECTID
+extended data item in unsolicited LIST responses, such as those
+sent for MailboxName events by the NOTIFY extension ({{RFC5465}}).
+This is the only way to convey the identifiers of a mailbox that
+no longer exists, since no STATUS response can be returned for it:
+
+~~~
+S: * LIST (\NonExistent) "." INBOX.old ("OBJECTID" \
+        (MAILBOXID F2212ea87-6097-4256-9d51-71338625 \
+        ACCOUNTID u1a48e8e3))
+~~~
 
 ## OBJECTID Data Item for FETCH {#fetch-objectid}
 
@@ -814,6 +881,19 @@ status-att =/ "OBJECTID"
 status-att-val =/ "OBJECTID" SP "(" [objectid-kvpair
         *(SP objectid-kvpair)] ")"
         ; follows tagged-ext production from [RFC4466]
+
+; --- OBJECTID+ extensions to LIST ---
+
+return-option =/ "OBJECTID"
+        ; extends the return-option production from [RFC5258]
+
+objectid-extended-item = "OBJECTID" SP "(" [objectid-kvpair
+        *(SP objectid-kvpair)] ")"
+        ; Extended data item (mbox-list-extended-item)
+        ; returned when the OBJECTID return option is
+        ; specified.  The OBJECTID tag can be returned
+        ; with or without surrounding quotes, as per the
+        ; mbox-list-extended-item-tag production in [RFC5258]
 
 ; --- OBJECTID+ response code ---
 
@@ -1082,6 +1162,55 @@ Codes" registry located at
 The existing "MAILBOXID" entry in the "IMAP Response Codes" registry,
 registered by {{RFC8474}}, remains unchanged.
 
+## LIST-EXTENDED Options Registry
+
+IANA is requested to add the following entry to the "LIST-EXTENDED
+options" registry defined in {{RFC5258}} and located at
+<https://www.iana.org/assignments/imap-list-extended>:
+
+LIST-EXTENDED option name: OBJECTID
+
+LIST-EXTENDED option type: RETURN
+
+LIST-EXTENDED option description: Causes the LIST command to return
+the OBJECTID extended data item for each listed mailbox.
+
+Published specification: This document, {{list-objectid}}
+
+Security considerations: This document, Security Considerations
+
+Intended usage: COMMON
+
+Person and email address to contact for further information:
+Authors of this document
+
+Owner/Change controller: IESG <iesg@ietf.org>
+
+## LIST-EXTENDED Extended Data Items Registry
+
+IANA is requested to add the following entry to the "LIST-EXTENDED
+extended data items" registry defined in {{RFC5258}} and located at
+<https://www.iana.org/assignments/imap-list-extended>:
+
+LIST-EXTENDED extended data item tag: OBJECTID
+
+LIST-EXTENDED extended data item description: Carries the MAILBOXID
+and ACCOUNTID of the listed mailbox as a compound OBJECTID.
+
+Which LIST-EXTENDED option(s) (and their types) causes this extended
+data item to be returned (if any): OBJECTID return option
+
+Published specification: This document, {{list-objectid}}
+
+Security considerations: This document, Security Considerations
+
+Intended usage: COMMON
+
+Person and email address to contact for further information:
+Authors of this document
+
+Owner/Change controller: IESG <iesg@ietf.org>
+
 # Security Considerations
 
 ## Object Identifier Generation
@@ -1117,6 +1246,16 @@ disclosure MAY choose to generate account identifiers using
 unpredictable values (such as UUIDs) rather than sequential numbers
 or other patterns that might reveal information about account creation
 order or the total number of accounts on the server.
+
+## Identifiers of Unselectable Mailboxes
+
+The OBJECTID extended data item on the LIST response
+({{list-objectid}}) reveals the MAILBOXID and ACCOUNTID of every
+mailbox the client is permitted to list, including mailboxes it
+cannot select or STATUS.  An identifier conveys nothing about the
+contents of a mailbox, and the client already learns the name
+from the same response, so this does not widen what a LIST
+discloses beyond the identifiers themselves.
 
 ## Cross-Account Information Leakage
 
@@ -1215,12 +1354,14 @@ mailbox selection with fallback to the mailbox name.
 
 An implicit activation model replaces mandatory ENABLE: OBJECTID+
 is activated when the client uses any OBJECTID+-specific feature
-(OBJECTID in SELECT, EXAMINE, FETCH, or STATUS, or ENABLE
-OBJECTID+), with an untagged ENABLED response to signal activation.
+(OBJECTID in SELECT, EXAMINE, FETCH, STATUS, or LIST RETURN, or
+ENABLE OBJECTID+), with an untagged ENABLED response to signal
+activation.
 
 The OBJECTID FETCH data item provides EMAILID and THREADID in
-compound form.  The OBJECTID STATUS attribute provides MAILBOXID
-and ACCOUNTID in compound form.
+compound form.  The OBJECTID STATUS attribute and the OBJECTID
+LIST return option provide MAILBOXID and ACCOUNTID in compound
+form.
 
 The JMAPACCESS capability and GETJMAPACCESS command defined in
 {{RFC9698}} are updated: when a server advertises both JMAPACCESS
@@ -1232,7 +1373,8 @@ cross-account information leakage, JMAP authentication consistency,
 and privacy in multi-tenant environments.
 
 IANA registrations are updated to include the OBJECTID+ capability,
-JMAPACCESS capability, and OBJECTID response code.
+JMAPACCESS capability, OBJECTID response code, and the OBJECTID
+LIST-EXTENDED return option and extended data item.
 
 # Acknowledgements
 
@@ -1242,6 +1384,17 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-07**
+
+* Added the OBJECTID LIST return option and extended data item
+  ({{list-objectid}}), returning MAILBOXID and ACCOUNTID inline
+  in LIST responses, including \Noselect mailboxes and unsolicited
+  LIST responses such as NOTIFY MailboxName events; requesting it
+  activates OBJECTID+; added the corresponding ABNF, IANA
+  LIST-EXTENDED registrations, and a security consideration;
+  added RFC 5258 as a normative reference and RFC 5465 as an
+  informative reference
 
 **draft-ietf-mailmaint-imap-objectid-bis-06**
 
