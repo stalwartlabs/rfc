@@ -2150,11 +2150,13 @@ name reported only because it has matching children.<a href="#section-7.5-7" cla
 OBJECTID STATUS attribute via the STATUS return option in the same
 LIST command.  The identifiers in the LIST extended data item and
 in the STATUS response for the same mailbox <span class="bcp14">MUST</span> be identical.<a href="#section-7.5-8" class="pilcrow">¶</a></p>
-<p id="section-7.5-9">Once OBJECTID+ is active, a server <span class="bcp14">MAY</span> include the OBJECTID
-extended data item in unsolicited LIST responses, such as those
-sent for MailboxName events by the NOTIFY extension (<span>[<a href="#RFC5465" class="cite xref">RFC5465</a>]</span>).
-This is the only way to convey the identifiers of a mailbox that
-no longer exists, since no STATUS response can be returned for it:<a href="#section-7.5-9" class="pilcrow">¶</a></p>
+<p id="section-7.5-9">Once OBJECTID+ is active, the server <span class="bcp14">MUST</span> include the OBJECTID
+extended data item in every unsolicited LIST response, such as
+those sent for MailboxName events by the NOTIFY extension
+(<span>[<a href="#RFC5465" class="cite xref">RFC5465</a>]</span>) or on a denormalized mailbox name (Section 6.3.9.7
+of <span>[<a href="#RFC9051" class="cite xref">RFC9051</a>]</span>).  This is the only way to convey the identifiers
+of a mailbox that no longer exists, since no STATUS response can
+be returned for it:<a href="#section-7.5-9" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-7.5-10">
 <pre>
 S: * LIST (\NonExistent) "." INBOX.old ("OBJECTID" \
@@ -3101,9 +3103,9 @@ working group for their contributions to this specification.<a href="#appendix-C
 <li class="normal" id="appendix-D-3.1">
           <p id="appendix-D-3.1.1">Added the OBJECTID LIST return option and extended data item
 (<a href="#list-objectid" class="auto internal xref">Section 7.5</a>), returning MAILBOXID and ACCOUNTID inline
-in LIST responses, including \Noselect mailboxes and unsolicited
-LIST responses such as NOTIFY MailboxName events; requesting it
-activates OBJECTID+; added the corresponding ABNF, IANA
+in LIST responses, including \Noselect mailboxes, and required
+in every unsolicited LIST response once OBJECTID+ is active;
+requesting it activates OBJECTID+; added the corresponding ABNF, IANA
 LIST-EXTENDED registrations, and a security consideration;
 added RFC 5258 as a normative reference and RFC 5465 as an
 informative reference<a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
