@@ -146,9 +146,10 @@ The OBJECTID+ extension adds the ACCOUNTID identifier
 ({{objectid-compound}}), the OBJECTID SELECT/EXAMINE parameter
 ({{select-objectid}}), the OBJECTID FETCH data item
 ({{fetch-objectid}}), the OBJECTID STATUS attribute
-({{status-objectid}}), the OBJECTID response code on CREATE
-({{create-objectid}}) and RENAME ({{rename-objectid}}), and the
-JMAPACCESS capability and GETJMAPACCESS command ({{jmapaccess}}).
+({{status-objectid}}), the OBJECTID LIST return option and
+extended data item ({{list-objectid}}), the OBJECTID response code
+on CREATE ({{create-objectid}}) and RENAME ({{rename-objectid}}),
+and the JMAPACCESS capability and GETJMAPACCESS command ({{jmapaccess}}).
 
 ## Activation of OBJECTID+ {#activation}
 
@@ -202,12 +203,18 @@ identifiers to return in the current context.
 Once OBJECTID+ has been activated, the compound OBJECTID format is
 used as a response code in SELECT and EXAMINE untagged OK responses,
 as a response code in tagged OK responses to CREATE and RENAME, as
-a STATUS attribute, and as a FETCH data item.
+a STATUS attribute, as a LIST extended data item, and as a FETCH
+data item.
 
 The contents of the compound OBJECTID vary by context:
 
-* For mailbox context (SELECT, EXAMINE, CREATE, RENAME, STATUS):
-  the server SHOULD include MAILBOXID and ACCOUNTID.
+* For mailbox context (SELECT, EXAMINE, CREATE, RENAME, STATUS,
+  LIST): a server that supports MAILBOXID MUST include it for
+  every selectable mailbox.  Whenever the server includes
+  MAILBOXID, it MUST also include ACCOUNTID.  A mailbox name that cannot be selected
+  (\Noselect or \NonExistent) need not have any identifiers; for
+  such a name the server MAY return the empty compound
+  "OBJECTID ()".
 
 * For message context (FETCH): the server SHOULD include EMAILID
   and THREADID. ACCOUNTID is not included in FETCH OBJECTID
@@ -245,10 +252,10 @@ ACCOUNTID for each mailbox MUST correspond to the JMAP accountId
 for that account (see {{jmapaccess}}).
 
 When a mailbox is accessed exclusively through IMAP and does not
-have a corresponding representation in JMAP, the server MAY still
-assign an ACCOUNTID to maintain consistency in the IMAP representation.
-However, such ACCOUNTIDs need not correspond to any JMAP account
-identifier.
+have a corresponding representation in JMAP, the server still
+assigns it an ACCOUNTID, since ACCOUNTID is returned wherever
+MAILBOXID is ({{objectid-compound}}).  However, such ACCOUNTIDs need
+not correspond to any JMAP account identifier.
 
 The ACCOUNTID is immutable for a given account within an
 IMAP session. However, if the underlying account is deleted or the
@@ -529,6 +536,16 @@ S: 5 OK [OBJECTID (MAILBOXID \
         ACCOUNTID u2b59f9f4)] Completed
 ~~~
 
+If the CREATE command does not result in a selectable mailbox, for
+example when the mailbox name ends with the hierarchy separator and
+the server creates only a \Noselect name, the server MAY return the
+empty compound "OBJECTID ()" ({{objectid-compound}}):
+
+~~~
+C: 6 create noselect/
+S: 6 OK [OBJECTID ()] Completed
+~~~
+
 ## OBJECTID Response Code for RENAME {#rename-objectid}
 
 When OBJECTID+ has been activated ({{activation}}), the server
@@ -669,16 +686,19 @@ S: 12 OK Completed
 ~~~
 
 The OBJECTID extended data item is returned for every mailbox
-name in the LIST response for which the server has identifiers.
-Unlike the OBJECTID STATUS attribute, it is not restricted to
-mailboxes the client could STATUS, and it is returned for
-\Noselect mailboxes: a mailbox that cannot be selected can still
-have a MAILBOXID, as in the "INBOX.projects" example above, where
-the server also represents that name as a JMAP Mailbox object.
+name in the LIST response.  Unlike the OBJECTID STATUS attribute,
+it is not restricted to mailboxes the client could STATUS, and it
+is returned for \Noselect and \NonExistent names.
 
-If the server has no identifiers for a listed name, it returns the
-empty item "OBJECTID ()".  This is the case for a \NonExistent
-name reported only because it has matching children.
+As specified in {{objectid-compound}}, a server that supports
+MAILBOXID MUST include it for every selectable mailbox.  A name
+that cannot be selected need not have identifiers, and the server
+MAY return the empty item "OBJECTID ()" for it, for example for a
+\NonExistent name reported only because it has matching children,
+or for a \Noselect name for which the server stores no metadata.
+A server MAY nevertheless return identifiers for such a name, as in
+the "INBOX.projects" example above, where the server also
+represents that name as a JMAP Mailbox object.
 
 A client MAY request both the OBJECTID return option and the
 OBJECTID STATUS attribute via the STATUS return option in the same
@@ -1340,7 +1360,7 @@ EMAILID, or THREADID attributes defined in {{RFC8474}}.
 The compound OBJECTID response format is introduced, using
 key-value pairs where unsupported identifiers are omitted rather
 than returned as NIL.  This compound format is used uniformly for
-SELECT, EXAMINE, CREATE, RENAME, STATUS, and FETCH responses.
+SELECT, EXAMINE, CREATE, RENAME, STATUS, LIST, and FETCH responses.
 
 The ACCOUNTID identifier is defined for account-level context,
 enabling disambiguation of mailboxes in environments where
@@ -1397,6 +1417,14 @@ working group for their contributions to this specification.
   LIST-EXTENDED registrations, and a security consideration;
   added RFC 5258 as a normative reference and RFC 5465 as an
   informative reference
+* Required in {{objectid-compound}} that a server supporting
+  MAILBOXID include it for every selectable mailbox, and that
+  ACCOUNTID be included wherever MAILBOXID is; allowed
+  the empty compound "OBJECTID ()" for \Noselect and \NonExistent
+  names in LIST and CREATE responses (for example
+  "CREATE noselect/")
+* Added LIST to the mailbox-context lists in {{objectid-compound}},
+  the extension overview, and the summary of changes from RFC 8474
 
 **draft-ietf-mailmaint-imap-objectid-bis-06**
 
