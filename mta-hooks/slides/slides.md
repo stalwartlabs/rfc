@@ -234,8 +234,8 @@ return path.
 ### The nearest approximation
 Postfix can pass self-generated bounces through a filter after the fact. It acts
 globally on every bounce, runs after generation and never before, and the
-documentation flags it as an expert setting because a filter that rejects will
-destroy bounces outright.
+documentation warns that enabling content inspection of Postfix-generated mail
+is generally not safe.
 
 </div>
 </div>

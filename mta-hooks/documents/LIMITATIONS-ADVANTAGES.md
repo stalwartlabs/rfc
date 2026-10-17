@@ -350,8 +350,8 @@ no longer the original return path).
 Postfix `bounce(8)` offers no such point. The nearest approximation,
 `internal_mail_filter_classes = bounce` plus `non_smtpd_milters`, sees the DSN
 only *after* generation, on the cleanup path, acts globally on all bounces, and
-is documented as a risky expert setting because a rejecting Milter loses bounces
-outright. Sendmail has no equivalent at all.
+carries a documented warning that it is generally not safe to enable content
+inspection of Postfix-generated mail. Sendmail has no equivalent at all.
 
 ### 9.3 Inbound DSN forwarding cannot be expressed
 

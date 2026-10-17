@@ -15,33 +15,29 @@ Description of Working Group
   processing decisions to one or more external services across the
   whole lifetime of a message: from the SMTP conversation that
   receives it, through routing and delivery, to the generation of
-  delivery status notifications. No IETF specification covers this
-  interface at any stage today, and the operations that follow
-  acceptance of a message are covered per MTA by unrelated,
-  non-portable mechanisms. The Working Group will produce a Standards
-  Track protocol specification using request/response semantics,
-  capability negotiation and JSON or CBOR serialisation, together
-  with a document on operational and deployment considerations.
+  delivery status notifications. The Working Group will produce a
+  Standards Track protocol specification using request/response
+  semantics, capability negotiation and JSON or CBOR serialisation,
+  together with operational and deployment considerations.
 
-  MTAs delegate processing decisions to external services for spam
-  and virus filtering, policy enforcement, compliance capture,
-  cryptographic signing and content transformation. The mechanisms
-  that exist for this today cover the reception of a message, from
-  connection through the end of DATA.
+  Some contemporary MTAs are able to delegate processing decisions to
+  external services for spam and virus filtering, policy enforcement,
+  compliance capture, cryptographic signing and content
+  transformation. The mechanisms that exist for this today cover the
+  reception of a message, from connection through the end of DATA.
+  However, the de facto standard for this delegation does not
+  facilitate common modern capabilities not directly related to the
+  SMTP state machine.
 
-  The operations that occur after a message is accepted are covered
-  by a different mechanism in every MTA, and usually by several at
-  once: lookup tables for transport selection, re-injection loops
-  through a content filter, BCC maps for archiving, VERP addressing
-  and log parsing for delivery feedback, purpose-built side channels
-  for TLS reporting. None of these is an IETF specification, none is
-  portable between MTAs, and none is correlated with the others or
-  with the decisions taken during reception. A filter author cannot
-  write one component that follows a message through its lifetime.
+  A diverse ecosystem of capabilities and implementations has evolved
+  around this. This work introduces a standard protocol by which
+  filters and MTAs can negotiate and interoperate, with support for
+  extensions and capabilities beyond the de facto standard.
 
-  Building on HTTP gives the work a large existing implementation
-  base and lets deployments reuse the authentication, load balancing
-  and observability infrastructure they already operate.
+  Building on HTTP allows this protocol to take advantage of the
+  broadly developed frameworks supporting HTTP and RESTful
+  interfaces, including authentication, load balancing, and
+  observability.
 
 
 Scope
@@ -62,12 +58,18 @@ Scope
      implies, and per-destination TLS policy selection;
    - the modification model by which scanners influence MTA
      behaviour;
+   - failure semantics, including the time a hook call is allowed to
+     take, what happens when it exceeds that, and whether an MTA
+     proceeds or defers when a service is unavailable;
+   - the composition of multiple services in a chain, including
+     ordering and which actions terminate it;
    - the security model, including authentication, transport,
      authorisation, and the limits an operator can place on what a
      scanner is permitted to change.
 
   The Working Group will also document the operational
-  considerations of deploying the protocol.
+  considerations of deploying the protocol, either as part of the
+  protocol document or separately.
 
 
 Out of Scope
@@ -94,10 +96,9 @@ Deliverables
   1. MTA Hooks Protocol Specification.
      Standards Track. Based on draft-degennaro-mta-hooks.
 
-  2. MTA Hooks Operational and Deployment Considerations.
-     Informational. Retry behaviour, fail-open versus fail-closed
-     policy, multi-scanner chaining, latency budgets and
-     observability. Developed concurrently with deliverable 1.
+  2. Operational and deployment considerations, either as a section
+     of deliverable 1 or as a separate Informational document:
+     deployment guidance, monitoring, and rollout.
 
 
 Considerations
@@ -114,8 +115,9 @@ Considerations
   leaving that to deployment convention.
 
   Operations and scaling: hooks are invoked in the SMTP path, so the
-  work must address latency budgets, timeouts, failure semantics, and
-  the behaviour of a scanner chain when one member is unavailable.
+  work must address the time a hook call is allowed to take, what
+  happens when it exceeds that, and the behaviour of a scanner chain
+  when one member is unavailable.
 
   Manageability: hook invocations and delivery events are the point
   at which a deployment becomes observable. The work must define
@@ -131,11 +133,14 @@ Considerations
 Milestones
 
   M+0   WG formed; adopt draft-degennaro-mta-hooks as a WG draft.
-  M+6   Adopt operational considerations as a WG draft.
+  M+3   Decide whether operational considerations form part of the
+        protocol document or a separate draft, and adopt any
+        separate draft.
   M+12  WGLC on the protocol specification.
   M+15  Submit the protocol specification to the IESG.
-        WGLC on operational considerations.
-  M+18  Submit operational considerations to the IESG.
+        WGLC on operational considerations, if a separate document.
+  M+18  Submit operational considerations to the IESG, if a separate
+        document.
 
 
 Relationship to Other Work
