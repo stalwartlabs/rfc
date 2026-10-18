@@ -438,6 +438,19 @@ the mailbox name in the command still refers to it.  If no
 match is found, the server falls back to selecting the mailbox
 by name, following the normal SELECT semantics.
 
+A mailbox matches when, for every key in the list that the server
+supports, the value is that mailbox's identifier of that type.
+Keys the server does not support are ignored.  A list without
+MAILBOXID matches no mailbox.  A list with MAILBOXID but without
+ACCOUNTID refers to the account of the authenticated user's
+personal namespace.
+
+A mailbox that the client could not select by name MUST NOT match,
+for example because the client lacks the rights to see it.  The
+server falls back to the name exactly as when no mailbox has the
+identifiers, so that the response does not reveal whether the
+identifiers belong to a mailbox.
+
 This mechanism allows clients to reliably reselect a mailbox
 after it has been renamed by another client, following the same
 pattern as the Sieve `:mailboxid` extension in {{RFC9042}}.
@@ -1283,6 +1296,16 @@ contents of a mailbox, and the client already learns the name
 from the same response, so this does not widen what a LIST
 discloses beyond the identifiers themselves.
 
+## Selecting by Identifier
+
+The OBJECTID parameter on SELECT and EXAMINE ({{select-objectid}})
+lets a client name a mailbox by identifier instead of by name.
+A server that matched a mailbox the client could not otherwise
+select, or that answered differently for such a mailbox, would let
+the client probe for identifiers it was never given.  The rules in
+{{select-objectid}} make the response for such a mailbox the same
+as for identifiers that match nothing.
+
 ## Cross-Account Information Leakage
 
 Servers MUST ensure that the ACCOUNTID mechanism does not inadvertently
@@ -1417,6 +1440,11 @@ working group for their contributions to this specification.
   SELECT and EXAMINE ({{select-objectid}}), equivalent to the
   parameter without arguments, so a client can send back an empty
   compound OBJECTID response as received
+* Defined how the OBJECTID parameter on SELECT and EXAMINE matches
+  a mailbox: unsupported keys are ignored, MAILBOXID is required,
+  a missing ACCOUNTID means the personal namespace, and a mailbox
+  the client could not select by name never matches; added a
+  security consideration for this
 
 **draft-ietf-mailmaint-imap-objectid-bis-07**
 

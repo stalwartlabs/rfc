@@ -1478,13 +1478,16 @@ correspond to JMAP accountIds.<a href="#section-abstract-1" class="pilcrow">¶</
                 <p id="section-toc.1-1.14.2.3.1"><a href="#section-14.3" class="auto internal xref">14.3</a>.  <a href="#name-identifiers-of-unselectable" class="internal xref">Identifiers of Unselectable Mailboxes</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.4">
-                <p id="section-toc.1-1.14.2.4.1"><a href="#section-14.4" class="auto internal xref">14.4</a>.  <a href="#name-cross-account-information-l" class="internal xref">Cross-Account Information Leakage</a></p>
+                <p id="section-toc.1-1.14.2.4.1"><a href="#section-14.4" class="auto internal xref">14.4</a>.  <a href="#name-selecting-by-identifier" class="internal xref">Selecting by Identifier</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.5">
-                <p id="section-toc.1-1.14.2.5.1"><a href="#section-14.5" class="auto internal xref">14.5</a>.  <a href="#name-consistency-with-jmap-authe" class="internal xref">Consistency with JMAP Authentication</a></p>
+                <p id="section-toc.1-1.14.2.5.1"><a href="#section-14.5" class="auto internal xref">14.5</a>.  <a href="#name-cross-account-information-l" class="internal xref">Cross-Account Information Leakage</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.6">
-                <p id="section-toc.1-1.14.2.6.1"><a href="#section-14.6" class="auto internal xref">14.6</a>.  <a href="#name-privacy-in-multi-tenant-env" class="internal xref">Privacy in Multi-Tenant Environments</a></p>
+                <p id="section-toc.1-1.14.2.6.1"><a href="#section-14.6" class="auto internal xref">14.6</a>.  <a href="#name-consistency-with-jmap-authe" class="internal xref">Consistency with JMAP Authentication</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.7">
+                <p id="section-toc.1-1.14.2.7.1"><a href="#section-14.7" class="auto internal xref">14.7</a>.  <a href="#name-privacy-in-multi-tenant-env" class="internal xref">Privacy in Multi-Tenant Environments</a></p>
 </li>
             </ul>
 </li>
@@ -1905,11 +1908,22 @@ is found, the server selects that mailbox regardless of whether
 the mailbox name in the command still refers to it.  If no
 match is found, the server falls back to selecting the mailbox
 by name, following the normal SELECT semantics.<a href="#section-7.1-5" class="pilcrow">¶</a></p>
-<p id="section-7.1-6">This mechanism allows clients to reliably reselect a mailbox
+<p id="section-7.1-6">A mailbox matches when, for every key in the list that the server
+supports, the value is that mailbox's identifier of that type.
+Keys the server does not support are ignored.  A list without
+MAILBOXID matches no mailbox.  A list with MAILBOXID but without
+ACCOUNTID refers to the account of the authenticated user's
+personal namespace.<a href="#section-7.1-6" class="pilcrow">¶</a></p>
+<p id="section-7.1-7">A mailbox that the client could not select by name <span class="bcp14">MUST NOT</span> match,
+for example because the client lacks the rights to see it.  The
+server falls back to the name exactly as when no mailbox has the
+identifiers, so that the response does not reveal whether the
+identifiers belong to a mailbox.<a href="#section-7.1-7" class="pilcrow">¶</a></p>
+<p id="section-7.1-8">This mechanism allows clients to reliably reselect a mailbox
 after it has been renamed by another client, following the same
-pattern as the Sieve <code>:mailboxid</code> extension in <span>[<a href="#RFC9042" class="cite xref">RFC9042</a>]</span>.<a href="#section-7.1-6" class="pilcrow">¶</a></p>
-<p id="section-7.1-7">Example (activation only, no ID-based selection):<a href="#section-7.1-7" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-8">
+pattern as the Sieve <code>:mailboxid</code> extension in <span>[<a href="#RFC9042" class="cite xref">RFC9042</a>]</span>.<a href="#section-7.1-8" class="pilcrow">¶</a></p>
+<p id="section-7.1-9">Example (activation only, no ID-based selection):<a href="#section-7.1-9" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-10">
 <pre>
 C: 27 select "foo" (OBJECTID)
 S: * ENABLED OBJECTID+
@@ -1918,10 +1932,10 @@ S: * OK [OBJECTID (MAILBOXID F2212ea87-6097-4256-9d51-71338625 \
         ACCOUNTID u1a48e8e3)] Ok
 [...]
 S: 27 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-8" class="pilcrow">¶</a>
+</pre><a href="#section-7.1-10" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-9">Example (ID-based selection after a rename):<a href="#section-7.1-9" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-10">
+<p id="section-7.1-11">Example (ID-based selection after a rename):<a href="#section-7.1-11" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-12">
 <pre>
 C: 28 select "foo" (OBJECTID (MAILBOXID \
         F2212ea87-6097-4256-9d51-71338625 \
@@ -1931,13 +1945,13 @@ S: * OK [OBJECTID (MAILBOXID F2212ea87-6097-4256-9d51-71338625 \
         ACCOUNTID u1a48e8e3)] Ok
 [...]
 S: 28 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-10" class="pilcrow">¶</a>
+</pre><a href="#section-7.1-12" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-11">Here the mailbox was previously named "foo" but may have been
+<p id="section-7.1-13">Here the mailbox was previously named "foo" but may have been
 renamed.  The server locates it by MAILBOXID and ACCOUNTID
-regardless of its current name.<a href="#section-7.1-11" class="pilcrow">¶</a></p>
-<p id="section-7.1-12">Example (ID-based selection, fallback to name):<a href="#section-7.1-12" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-13">
+regardless of its current name.<a href="#section-7.1-13" class="pilcrow">¶</a></p>
+<p id="section-7.1-14">Example (ID-based selection, fallback to name):<a href="#section-7.1-14" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-15">
 <pre>
 C: 29 select "foo" (OBJECTID (MAILBOXID \
         Fno-longer-exists ACCOUNTID u1a48e8e3))
@@ -1946,12 +1960,12 @@ S: * OK [OBJECTID (MAILBOXID F9999new-id-for-foo \
         ACCOUNTID u1a48e8e3)] Ok
 [...]
 S: 29 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-13" class="pilcrow">¶</a>
+</pre><a href="#section-7.1-15" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-14">The MAILBOXID did not match any mailbox, so the server fell
+<p id="section-7.1-16">The MAILBOXID did not match any mailbox, so the server fell
 back to selecting "foo" by name.  The response contains the
-actual OBJECTID of the selected mailbox.<a href="#section-7.1-14" class="pilcrow">¶</a></p>
-<p id="section-7.1-15">When the server selects a mailbox via the provided identifiers
+actual OBJECTID of the selected mailbox.<a href="#section-7.1-16" class="pilcrow">¶</a></p>
+<p id="section-7.1-17">When the server selects a mailbox via the provided identifiers
 and the mailbox name in the command no longer refers to that
 mailbox, the response identifies the mailbox by its OBJECTID but
 does not directly convey its current name.  Clients can determine
@@ -1962,9 +1976,9 @@ one, allowing the client to correlate its cached name with the
 renamed mailbox.  Clients implementing only IMAP4rev1
 (<span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span>) can reissue LIST with an appropriate reference and
 pattern and match the result by MAILBOXID via the OBJECTID return
-option (<a href="#list-objectid" class="auto internal xref">Section 7.5</a>) or the OBJECTID STATUS attribute.<a href="#section-7.1-15" class="pilcrow">¶</a></p>
-<p id="section-7.1-16">Example (shared mailbox with different ACCOUNTID):<a href="#section-7.1-16" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-17">
+option (<a href="#list-objectid" class="auto internal xref">Section 7.5</a>) or the OBJECTID STATUS attribute.<a href="#section-7.1-17" class="pilcrow">¶</a></p>
+<p id="section-7.1-18">Example (shared mailbox with different ACCOUNTID):<a href="#section-7.1-18" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-19">
 <pre>
 C: 30 select "shared/team"
 [...]
@@ -1972,12 +1986,12 @@ S: * OK [OBJECTID (MAILBOXID F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
         ACCOUNTID u2b59f9f4)] Ok
 [...]
 S: 30 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-17" class="pilcrow">¶</a>
+</pre><a href="#section-7.1-19" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-18">Note that in this example, the server does not send ENABLED
+<p id="section-7.1-20">Note that in this example, the server does not send ENABLED
 again because the extension was already activated.  The shared
 mailbox has a different ACCOUNTID, indicating it belongs to a
-different account.<a href="#section-7.1-18" class="pilcrow">¶</a></p>
+different account.<a href="#section-7.1-20" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="create-objectid">
@@ -2836,49 +2850,63 @@ from the same response, so this does not widen what a LIST
 discloses beyond the identifiers themselves.<a href="#section-14.3-1" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="cross-account-information-leakage">
+<div id="selecting-by-identifier">
 <section id="section-14.4">
-        <h3 id="name-cross-account-information-l">
-<a href="#section-14.4" class="section-number selfRef">14.4. </a><a href="#name-cross-account-information-l" class="section-name selfRef">Cross-Account Information Leakage</a>
+        <h3 id="name-selecting-by-identifier">
+<a href="#section-14.4" class="section-number selfRef">14.4. </a><a href="#name-selecting-by-identifier" class="section-name selfRef">Selecting by Identifier</a>
         </h3>
-<p id="section-14.4-1">Servers <span class="bcp14">MUST</span> ensure that the ACCOUNTID mechanism does not inadvertently
+<p id="section-14.4-1">The OBJECTID parameter on SELECT and EXAMINE (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>)
+lets a client name a mailbox by identifier instead of by name.
+A server that matched a mailbox the client could not otherwise
+select, or that answered differently for such a mailbox, would let
+the client probe for identifiers it was never given.  The rules in
+<a href="#select-objectid" class="auto internal xref">Section 7.1</a> make the response for such a mailbox the same
+as for identifiers that match nothing.<a href="#section-14.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="cross-account-information-leakage">
+<section id="section-14.5">
+        <h3 id="name-cross-account-information-l">
+<a href="#section-14.5" class="section-number selfRef">14.5. </a><a href="#name-cross-account-information-l" class="section-name selfRef">Cross-Account Information Leakage</a>
+        </h3>
+<p id="section-14.5-1">Servers <span class="bcp14">MUST</span> ensure that the ACCOUNTID mechanism does not inadvertently
 grant users access to information about accounts they are not authorized
 to access. In particular, servers <span class="bcp14">MUST NOT</span> return account identifiers
 for accounts that the authenticated user does not have permission to
-access, even if such accounts exist on the server.<a href="#section-14.4-1" class="pilcrow">¶</a></p>
+access, even if such accounts exist on the server.<a href="#section-14.5-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="consistency-with-jmap-authentication">
-<section id="section-14.5">
+<section id="section-14.6">
         <h3 id="name-consistency-with-jmap-authe">
-<a href="#section-14.5" class="section-number selfRef">14.5. </a><a href="#name-consistency-with-jmap-authe" class="section-name selfRef">Consistency with JMAP Authentication</a>
+<a href="#section-14.6" class="section-number selfRef">14.6. </a><a href="#name-consistency-with-jmap-authe" class="section-name selfRef">Consistency with JMAP Authentication</a>
         </h3>
-<p id="section-14.5-1">A server <span class="bcp14">MUST NOT</span> advertise JMAPACCESS unless the authentication
+<p id="section-14.6-1">A server <span class="bcp14">MUST NOT</span> advertise JMAPACCESS unless the authentication
 credentials used for the IMAP session are sufficient to also
 authenticate via JMAP.  Inconsistencies in authentication or
 authorization between IMAP and JMAP could lead to situations where
 a client receives account identifiers that it cannot subsequently use
 to access the corresponding JMAP resources, potentially revealing the
-existence of accounts the user cannot access.<a href="#section-14.5-1" class="pilcrow">¶</a></p>
-<p id="section-14.5-2">The JMAP session URL returned by GETJMAPACCESS is available to any
+existence of accounts the user cannot access.<a href="#section-14.6-1" class="pilcrow">¶</a></p>
+<p id="section-14.6-2">The JMAP session URL returned by GETJMAPACCESS is available to any
 authenticated IMAP client.  This reveals that a JMAP server exists
 for the user, but since an authenticated client with valid credentials
 could discover this independently via <span>[<a href="#RFC8620" class="cite xref">RFC8620</a>]</span> Section 2.2, this
-does not represent a meaningful increase in exposure.<a href="#section-14.5-2" class="pilcrow">¶</a></p>
+does not represent a meaningful increase in exposure.<a href="#section-14.6-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="privacy-in-multi-tenant-environments">
-<section id="section-14.6">
+<section id="section-14.7">
         <h3 id="name-privacy-in-multi-tenant-env">
-<a href="#section-14.6" class="section-number selfRef">14.6. </a><a href="#name-privacy-in-multi-tenant-env" class="section-name selfRef">Privacy in Multi-Tenant Environments</a>
+<a href="#section-14.7" class="section-number selfRef">14.7. </a><a href="#name-privacy-in-multi-tenant-env" class="section-name selfRef">Privacy in Multi-Tenant Environments</a>
         </h3>
-<p id="section-14.6-1">In multi-tenant or hosted environments, servers <span class="bcp14">SHOULD</span> generate account
+<p id="section-14.7-1">In multi-tenant or hosted environments, servers <span class="bcp14">SHOULD</span> generate account
 identifiers in a manner that does not reveal relationships between
 accounts or organizational structures that users should not be aware of.
 For example, if multiple accounts belong to the same organization, the
 account identifier generation mechanism should not use patterns that
 would allow users to infer these relationships unless such information
-is explicitly intended to be visible.<a href="#section-14.6-1" class="pilcrow">¶</a></p>
+is explicitly intended to be visible.<a href="#section-14.7-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -3129,6 +3157,13 @@ working group for their contributions to this specification.<a href="#appendix-C
 SELECT and EXAMINE (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>), equivalent to the
 parameter without arguments, so a client can send back an empty
 compound OBJECTID response as received<a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.2">
+          <p id="appendix-D-3.2.1">Defined how the OBJECTID parameter on SELECT and EXAMINE matches
+a mailbox: unsupported keys are ignored, MAILBOXID is required,
+a missing ACCOUNTID means the personal namespace, and a mailbox
+the client could not select by name never matches; added a
+security consideration for this<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-07</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
