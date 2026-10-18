@@ -175,6 +175,11 @@ the activation:
 * ENABLED OBJECTID+
 ~~~
 
+Activation takes effect as soon as the server recognises the
+feature in a command, whether or not that command then succeeds.
+A client that receives the ENABLED response knows the extension is
+active even if the tagged response to the command is NO or BAD.
+
 Once activated, the OBJECTID+ extension remains active for the
 duration of the IMAP session. Activation MUST NOT be reversed.
 
@@ -1445,6 +1450,8 @@ working group for their contributions to this specification.
   a missing ACCOUNTID means the personal namespace, and a mailbox
   the client could not select by name never matches; added a
   security consideration for this
+* Stated that activation takes effect even when the activating
+  command fails ({{activation}})
 
 **draft-ietf-mailmaint-imap-objectid-bis-07**
 

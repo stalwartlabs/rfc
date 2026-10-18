@@ -1641,12 +1641,16 @@ the activation:<a href="#section-2.2-4" class="pilcrow">¶</a></p>
 * ENABLED OBJECTID+
 </pre><a href="#section-2.2-5" class="pilcrow">¶</a>
 </div>
-<p id="section-2.2-6">Once activated, the OBJECTID+ extension remains active for the
-duration of the IMAP session. Activation <span class="bcp14">MUST NOT</span> be reversed.<a href="#section-2.2-6" class="pilcrow">¶</a></p>
-<p id="section-2.2-7">Once OBJECTID+ is activated, the server <span class="bcp14">MUST</span> use the compound
+<p id="section-2.2-6">Activation takes effect as soon as the server recognises the
+feature in a command, whether or not that command then succeeds.
+A client that receives the ENABLED response knows the extension is
+active even if the tagged response to the command is NO or BAD.<a href="#section-2.2-6" class="pilcrow">¶</a></p>
+<p id="section-2.2-7">Once activated, the OBJECTID+ extension remains active for the
+duration of the IMAP session. Activation <span class="bcp14">MUST NOT</span> be reversed.<a href="#section-2.2-7" class="pilcrow">¶</a></p>
+<p id="section-2.2-8">Once OBJECTID+ is activated, the server <span class="bcp14">MUST</span> use the compound
 OBJECTID response code (<a href="#objectid-compound" class="auto internal xref">Section 3</a>) in place of the
 MAILBOXID response code in all subsequent SELECT, EXAMINE,
-CREATE, and RENAME responses.<a href="#section-2.2-7" class="pilcrow">¶</a></p>
+CREATE, and RENAME responses.<a href="#section-2.2-8" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -3164,6 +3168,10 @@ a mailbox: unsupported keys are ignored, MAILBOXID is required,
 a missing ACCOUNTID means the personal namespace, and a mailbox
 the client could not select by name never matches; added a
 security consideration for this<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.3">
+          <p id="appendix-D-3.3.1">Stated that activation takes effect even when the activating
+command fails (<a href="#activation" class="auto internal xref">Section 2.2</a>)<a href="#appendix-D-3.3.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-07</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
