@@ -815,6 +815,10 @@ Syntax: "THREADID" SP objectid
 
 Messages whose THREADID is exactly the specified ObjectID.
 
+An ObjectID that is not the EMAILID or THREADID of any message,
+including one the server would never assign, matches no messages;
+it is not an error.
+
 When using the MULTISEARCH extension defined in {{RFC7377}} to search
 across multiple mailboxes, clients SHOULD only search for EMAILID or
 THREADID across mailboxes that share the same ACCOUNTID. Since object
@@ -1477,6 +1481,8 @@ working group for their contributions to this specification.
   through JMAP; a mailbox that is not may have no identifiers at
   all, and if it has a MAILBOXID, it also has an ACCOUNTID
   ({{objectid-compound}}, {{accountid}})
+* Stated that SEARCH EMAILID and THREADID with an ObjectID no
+  message has match nothing rather than being an error
 
 **draft-ietf-mailmaint-imap-objectid-bis-07**
 

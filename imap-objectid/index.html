@@ -2281,15 +2281,18 @@ command.<a href="#section-8-1" class="pilcrow">¶</a></p>
 <p id="section-8-3">Messages whose EMAILID is exactly the specified ObjectID.<a href="#section-8-3" class="pilcrow">¶</a></p>
 <p id="section-8-4">Syntax: "THREADID" SP objectid<a href="#section-8-4" class="pilcrow">¶</a></p>
 <p id="section-8-5">Messages whose THREADID is exactly the specified ObjectID.<a href="#section-8-5" class="pilcrow">¶</a></p>
-<p id="section-8-6">When using the MULTISEARCH extension defined in <span>[<a href="#RFC7377" class="cite xref">RFC7377</a>]</span> to search
+<p id="section-8-6">An ObjectID that is not the EMAILID or THREADID of any message,
+including one the server would never assign, matches no messages;
+it is not an error.<a href="#section-8-6" class="pilcrow">¶</a></p>
+<p id="section-8-7">When using the MULTISEARCH extension defined in <span>[<a href="#RFC7377" class="cite xref">RFC7377</a>]</span> to search
 across multiple mailboxes, clients <span class="bcp14">SHOULD</span> only search for EMAILID or
 THREADID across mailboxes that share the same ACCOUNTID. Since object
 identifiers are only guaranteed to be unique within the scope of a
 single ACCOUNTID, searching across mailboxes with different ACCOUNTIDs
 may produce incorrect results if identifiers from different accounts
-happen to collide.<a href="#section-8-6" class="pilcrow">¶</a></p>
-<p id="section-8-7">Example:<a href="#section-8-7" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-8-8">
+happen to collide.<a href="#section-8-7" class="pilcrow">¶</a></p>
+<p id="section-8-8">Example:<a href="#section-8-8" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-8-9">
 <pre>
 C: 27 search emailid M6d99ac3275bb4e
 S: * SEARCH 1
@@ -2297,7 +2300,7 @@ S: 27 OK Completed (1 msgs in 0.000 secs)
 C: 28 search threadid T64b478a75b7ea9
 S: * SEARCH 1 2
 S: 28 OK Completed (2 msgs in 0.000 secs)
-</pre><a href="#section-8-8" class="pilcrow">¶</a>
+</pre><a href="#section-8-9" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -3202,6 +3205,10 @@ mailbox to a <span class="bcp14">SHOULD</span>, keeping the <span class="bcp14">
 through JMAP; a mailbox that is not may have no identifiers at
 all, and if it has a MAILBOXID, it also has an ACCOUNTID
 (<a href="#objectid-compound" class="auto internal xref">Section 3</a>, <a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#appendix-D-3.6.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.7">
+          <p id="appendix-D-3.7.1">Stated that SEARCH EMAILID and THREADID with an ObjectID no
+message has match nothing rather than being an error<a href="#appendix-D-3.7.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-07</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
