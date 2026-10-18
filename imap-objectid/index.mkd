@@ -263,6 +263,13 @@ assigns it an ACCOUNTID, since ACCOUNTID is returned wherever
 MAILBOXID is ({{objectid-compound}}).  However, such ACCOUNTIDs need
 not correspond to any JMAP account identifier.
 
+Some mailboxes belong to no user's account, for example those in
+a shared namespace that no user owns.  The server allocates an
+ACCOUNTID for such mailboxes that differs from every user's
+ACCOUNTID, and returns the same one for all mailboxes it treats as
+belonging to one account, for example one ACCOUNTID per shared
+namespace.
+
 The ACCOUNTID is immutable for a given account within an
 IMAP session. However, if the underlying account is deleted or the
 user's access to that account is revoked, the associated mailboxes will
@@ -1119,7 +1126,9 @@ user accessing it. For example:
   different user SHOULD have that other user's ACCOUNTID.
 
 * Mailboxes in a shared namespace SHOULD have the ACCOUNTID of
-  the account that owns the shared data.
+  the account that owns the shared data, or, when no account owns
+  it, the ACCOUNTID the server allocates for that data
+  ({{accountid}}).
 
 This ensures that ACCOUNTID provides meaningful account-level
 disambiguation and, when JMAPACCESS is advertised, correctly
@@ -1455,6 +1464,8 @@ working group for their contributions to this specification.
   command fails ({{activation}})
 * Allowed the empty compound for \NoAccess names, alongside
   \Noselect and \NonExistent
+* Required an ACCOUNTID of its own for mailboxes that belong to no
+  user's account, such as an unowned shared namespace ({{accountid}})
 
 **draft-ietf-mailmaint-imap-objectid-bis-07**
 
