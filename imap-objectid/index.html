@@ -1641,10 +1641,11 @@ the activation:<a href="#section-2.2-4" class="pilcrow">¶</a></p>
 * ENABLED OBJECTID+
 </pre><a href="#section-2.2-5" class="pilcrow">¶</a>
 </div>
-<p id="section-2.2-6">Activation takes effect as soon as the server recognises the
-feature in a command, whether or not that command then succeeds.
-A client that receives the ENABLED response knows the extension is
-active even if the tagged response to the command is NO or BAD.<a href="#section-2.2-6" class="pilcrow">¶</a></p>
+<p id="section-2.2-6">The extension is activated when the server recognizes an
+OBJECTID+-specific feature in a command, even if the command
+subsequently fails.  A client that receives the untagged ENABLED
+response <span class="bcp14">MUST</span> treat the extension as active, regardless of the
+tagged response to the command.<a href="#section-2.2-6" class="pilcrow">¶</a></p>
 <p id="section-2.2-7">Once activated, the OBJECTID+ extension remains active for the
 duration of the IMAP session. Activation <span class="bcp14">MUST NOT</span> be reversed.<a href="#section-2.2-7" class="pilcrow">¶</a></p>
 <p id="section-2.2-8">Once OBJECTID+ is activated, the server <span class="bcp14">MUST</span> use the compound
@@ -1684,11 +1685,11 @@ data item.<a href="#section-3-3" class="pilcrow">¶</a></p>
           <p id="section-3-5.1.1">For mailbox context (SELECT, EXAMINE, CREATE, RENAME, STATUS,
 LIST): a server that supports MAILBOXID <span class="bcp14">SHOULD</span> include it for
 every selectable mailbox, and <span class="bcp14">MUST</span> include it for every
-selectable mailbox that is visible as a JMAP Mailbox object.  A
-selectable mailbox that is not visible through JMAP either has
-no identifiers, and gets the empty compound "OBJECTID ()", or
-has a MAILBOXID.  Whenever the
-server includes MAILBOXID, it <span class="bcp14">MUST</span> also include ACCOUNTID.  A
+selectable mailbox that is visible as a JMAP Mailbox object.
+For a selectable mailbox that is not visible through JMAP, the
+server <span class="bcp14">MAY</span> return the empty compound "OBJECTID ()" instead.
+Whenever the server includes MAILBOXID, it <span class="bcp14">MUST</span> also include
+ACCOUNTID.  A
 mailbox name that cannot be selected (\Noselect, \NonExistent,
 or the \NoAccess attribute of <span>[<a href="#RFC5465" class="cite xref">RFC5465</a>]</span>) need not have any
 identifiers; for such a name the server <span class="bcp14">MAY</span> return the empty
@@ -1730,17 +1731,14 @@ even if accessed within the same IMAP session.<a href="#section-4-3" class="pilc
 <p id="section-4-4">When a server advertises both JMAPACCESS and OBJECTID+, the
 ACCOUNTID for each mailbox <span class="bcp14">MUST</span> correspond to the JMAP accountId
 for that account (see <a href="#jmapaccess" class="auto internal xref">Section 9</a>).<a href="#section-4-4" class="pilcrow">¶</a></p>
-<p id="section-4-5">A mailbox that is not visible through JMAP, for example one
-accessed exclusively through IMAP, either has no identifiers at
-all or has both a MAILBOXID and an ACCOUNTID
-(<a href="#objectid-compound" class="auto internal xref">Section 3</a>).  Such an ACCOUNTID need not
-correspond to any JMAP account identifier.<a href="#section-4-5" class="pilcrow">¶</a></p>
-<p id="section-4-6">Some mailboxes belong to no user's account, for example those in
-a shared namespace that no user owns.  If the server gives such
-mailboxes identifiers, it allocates an ACCOUNTID for them that
-differs from every user's ACCOUNTID, and returns the same one for
-all mailboxes it treats as belonging to one account, for example
-one ACCOUNTID per shared namespace.<a href="#section-4-6" class="pilcrow">¶</a></p>
+<p id="section-4-5">For a mailbox that is not visible through JMAP (for example, one
+accessible only through IMAP), the server <span class="bcp14">MAY</span> omit all identifiers
+(<a href="#objectid-compound" class="auto internal xref">Section 3</a>).  If the server returns a MAILBOXID for
+such a mailbox, it <span class="bcp14">MUST</span> also return an ACCOUNTID, which need not
+correspond to any JMAP accountId.<a href="#section-4-5" class="pilcrow">¶</a></p>
+<p id="section-4-6">A mailbox in a shared namespace might not be owned by any user.
+If the server returns identifiers for such a mailbox, its
+ACCOUNTID <span class="bcp14">MUST</span> differ from the ACCOUNTID of every user.<a href="#section-4-6" class="pilcrow">¶</a></p>
 <p id="section-4-7">The ACCOUNTID is immutable for a given account within an
 IMAP session. However, if the underlying account is deleted or the
 user's access to that account is revoked, the associated mailboxes will
@@ -1914,8 +1912,8 @@ contains the same key-value pairs that the server returns in
 its compound OBJECTID response (<a href="#objectid-compound" class="auto internal xref">Section 3</a>).  The
 client <span class="bcp14">SHOULD</span> include all identifiers that the server provided
 in the most recent compound OBJECTID response for the mailbox.
-That response can be empty, so the list can be too: an empty
-list, <code>SELECT "mailbox" (OBJECTID ())</code>, is equivalent to the
+If that response was empty, the client sends an empty list; the
+server <span class="bcp14">MUST</span> treat <code>SELECT "mailbox" (OBJECTID ())</code> the same as the
 first form.<a href="#section-7.1-4" class="pilcrow">¶</a></p>
 <p id="section-7.1-5">When the server receives the second form, it <span class="bcp14">MUST</span> attempt to
 locate a mailbox matching the provided identifiers.  If a match
@@ -1923,17 +1921,19 @@ is found, the server selects that mailbox regardless of whether
 the mailbox name in the command still refers to it.  If no
 match is found, the server falls back to selecting the mailbox
 by name, following the normal SELECT semantics.<a href="#section-7.1-5" class="pilcrow">¶</a></p>
-<p id="section-7.1-6">A mailbox matches when, for every key in the list that the server
-supports, the value is that mailbox's identifier of that type.
-Keys the server does not support are ignored.  A list without
-MAILBOXID matches no mailbox.  A list with MAILBOXID but without
-ACCOUNTID refers to the account of the authenticated user's
-personal namespace.<a href="#section-7.1-6" class="pilcrow">¶</a></p>
-<p id="section-7.1-7">A mailbox that the client could not select by name <span class="bcp14">MUST NOT</span> match,
-for example because the client lacks the rights to see it.  The
-server falls back to the name exactly as when no mailbox has the
-identifiers, so that the response does not reveal whether the
-identifiers belong to a mailbox.<a href="#section-7.1-7" class="pilcrow">¶</a></p>
+<p id="section-7.1-6">A mailbox matches if each identifier in the list that the server
+supports is equal to the corresponding identifier of that mailbox.
+The server <span class="bcp14">MUST</span> ignore keys that it does not support.  If the list
+does not contain MAILBOXID, the server selects the mailbox by
+name.  If the list
+contains MAILBOXID but not ACCOUNTID, the server <span class="bcp14">MUST</span> interpret
+the MAILBOXID as belonging to the account of the authenticated
+user's personal namespace.<a href="#section-7.1-6" class="pilcrow">¶</a></p>
+<p id="section-7.1-7">The server <span class="bcp14">MUST NOT</span> match a mailbox that the client is not
+permitted to select by name, for example because the client lacks
+the necessary access rights.  In that case, the server selects the
+mailbox by name, so that the response does not reveal whether a
+mailbox with those identifiers exists.<a href="#section-7.1-7" class="pilcrow">¶</a></p>
 <p id="section-7.1-8">This mechanism allows clients to reliably reselect a mailbox
 after it has been renamed by another client, following the same
 pattern as the Sieve <code>:mailboxid</code> extension in <span>[<a href="#RFC9042" class="cite xref">RFC9042</a>]</span>.<a href="#section-7.1-8" class="pilcrow">¶</a></p>
@@ -2190,10 +2190,11 @@ name in the LIST response.  Unlike the OBJECTID STATUS attribute,
 it is not restricted to mailboxes the client could STATUS, and it
 is returned for \Noselect, \NonExistent, and \NoAccess names.<a href="#section-7.5-6" class="pilcrow">¶</a></p>
 <p id="section-7.5-7">As specified in <a href="#objectid-compound" class="auto internal xref">Section 3</a>, a server that supports
-MAILBOXID <span class="bcp14">SHOULD</span> include it for every selectable mailbox and <span class="bcp14">MUST</span>
-include it for every one that is visible through JMAP; it <span class="bcp14">MAY</span>
-return the empty item for one that is not.  A name that cannot be selected need not have identifiers, and
-the server <span class="bcp14">MAY</span> return the empty item "OBJECTID ()" for it, for example for a
+MAILBOXID <span class="bcp14">SHOULD</span> include it for every selectable mailbox, and <span class="bcp14">MUST</span>
+include it for every selectable mailbox that is visible through
+JMAP.  A name that cannot be selected need not have identifiers,
+and the server <span class="bcp14">MAY</span> return the empty item "OBJECTID ()" for it, for
+example for a
 \NonExistent name reported only because it has matching children,
 or for a \Noselect name for which the server stores no metadata.
 A server <span class="bcp14">MAY</span> nevertheless return identifiers for such a name, as in
@@ -2281,9 +2282,10 @@ command.<a href="#section-8-1" class="pilcrow">¶</a></p>
 <p id="section-8-3">Messages whose EMAILID is exactly the specified ObjectID.<a href="#section-8-3" class="pilcrow">¶</a></p>
 <p id="section-8-4">Syntax: "THREADID" SP objectid<a href="#section-8-4" class="pilcrow">¶</a></p>
 <p id="section-8-5">Messages whose THREADID is exactly the specified ObjectID.<a href="#section-8-5" class="pilcrow">¶</a></p>
-<p id="section-8-6">An ObjectID that is not the EMAILID or THREADID of any message,
-including one the server would never assign, matches no messages;
-it is not an error.<a href="#section-8-6" class="pilcrow">¶</a></p>
+<p id="section-8-6">A SEARCH for an EMAILID or THREADID that the server has not
+assigned to any message, including a value that the server would
+never assign, <span class="bcp14">MUST NOT</span> match any messages.  The server <span class="bcp14">MUST NOT</span>
+return a NO or BAD response for a syntactically valid ObjectID.<a href="#section-8-6" class="pilcrow">¶</a></p>
 <p id="section-8-7">When using the MULTISEARCH extension defined in <span>[<a href="#RFC7377" class="cite xref">RFC7377</a>]</span> to search
 across multiple mailboxes, clients <span class="bcp14">SHOULD</span> only search for EMAILID or
 THREADID across mailboxes that share the same ACCOUNTID. Since object
@@ -2635,10 +2637,8 @@ different user <span class="bcp14">SHOULD</span> have that other user's ACCOUNTI
 </li>
           <li class="normal" id="section-11.8-3.3">
             <p id="section-11.8-3.3.1">Mailboxes in a shared namespace <span class="bcp14">SHOULD</span> have the ACCOUNTID of
-the account that owns the shared data.  When no account owns
-it, they have the ACCOUNTID the server allocates for that data
-(<a href="#accountid" class="auto internal xref">Section 4</a>), or, if they are not visible through JMAP, no
-identifiers at all.<a href="#section-11.8-3.3.1" class="pilcrow">¶</a></p>
+the account that owns the shared data.  See <a href="#accountid" class="auto internal xref">Section 4</a> for
+shared data that is not owned by any user.<a href="#section-11.8-3.3.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <p id="section-11.8-4">This ensures that ACCOUNTID provides meaningful account-level
@@ -2878,12 +2878,13 @@ discloses beyond the identifiers themselves.<a href="#section-14.3-1" class="pil
 <a href="#section-14.4" class="section-number selfRef">14.4. </a><a href="#name-selecting-by-identifier" class="section-name selfRef">Selecting by Identifier</a>
         </h3>
 <p id="section-14.4-1">The OBJECTID parameter on SELECT and EXAMINE (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>)
-lets a client name a mailbox by identifier instead of by name.
-A server that matched a mailbox the client could not otherwise
-select, or that answered differently for such a mailbox, would let
-the client probe for identifiers it was never given.  The rules in
-<a href="#select-objectid" class="auto internal xref">Section 7.1</a> make the response for such a mailbox the same
-as for identifiers that match nothing.<a href="#section-14.4-1" class="pilcrow">¶</a></p>
+allows a client to identify a mailbox by its identifiers rather
+than by name.  If a server selected a mailbox that the client is
+not permitted to select by name, or responded differently for such
+a mailbox, a client could use this parameter to discover the
+identifiers of mailboxes it has no access to.  For this reason,
+<a href="#select-objectid" class="auto internal xref">Section 7.1</a> requires the server to select such a mailbox
+only by name.<a href="#section-14.4-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="cross-account-information-leakage">
@@ -3177,38 +3178,40 @@ working group for their contributions to this specification.<a href="#appendix-C
 <li class="normal" id="appendix-D-3.1">
           <p id="appendix-D-3.1.1">Allowed an empty identifier list in the OBJECTID parameter on
 SELECT and EXAMINE (<a href="#select-objectid" class="auto internal xref">Section 7.1</a>), equivalent to the
-parameter without arguments, so a client can send back an empty
-compound OBJECTID response as received<a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
+parameter without arguments, so that a client can return an
+empty compound OBJECTID response unchanged<a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.2">
-          <p id="appendix-D-3.2.1">Defined how the OBJECTID parameter on SELECT and EXAMINE matches
-a mailbox: unsupported keys are ignored, MAILBOXID is required,
-a missing ACCOUNTID means the personal namespace, and a mailbox
-the client could not select by name never matches; added a
-security consideration for this<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.2.1">Specified how the OBJECTID parameter on SELECT and EXAMINE
+matches a mailbox: unsupported keys are ignored, MAILBOXID is
+required, a missing ACCOUNTID refers to the personal namespace,
+and a mailbox that the client is not permitted to select by name
+is never selected by identifier; added a corresponding security
+consideration<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.3">
-          <p id="appendix-D-3.3.1">Stated that activation takes effect even when the activating
+          <p id="appendix-D-3.3.1">Specified that activation takes effect even if the activating
 command fails (<a href="#activation" class="auto internal xref">Section 2.2</a>)<a href="#appendix-D-3.3.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.4">
-          <p id="appendix-D-3.4.1">Allowed the empty compound for \NoAccess names, alongside
+          <p id="appendix-D-3.4.1">Allowed the empty compound for \NoAccess names, in addition to
 \Noselect and \NonExistent<a href="#appendix-D-3.4.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.5">
-          <p id="appendix-D-3.5.1">Required an ACCOUNTID of its own for mailboxes that belong to no
-user's account, such as an unowned shared namespace (<a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#appendix-D-3.5.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.5.1">Required a distinct ACCOUNTID for mailboxes in a shared namespace
+that is not owned by any user (<a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#appendix-D-3.5.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.6">
           <p id="appendix-D-3.6.1">Relaxed the requirement to include MAILBOXID for every selectable
-mailbox to a <span class="bcp14">SHOULD</span>, keeping the <span class="bcp14">MUST</span> for mailboxes visible
-through JMAP; a mailbox that is not may have no identifiers at
-all, and if it has a MAILBOXID, it also has an ACCOUNTID
-(<a href="#objectid-compound" class="auto internal xref">Section 3</a>, <a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#appendix-D-3.6.1" class="pilcrow">¶</a></p>
+mailbox to a <span class="bcp14">SHOULD</span>, keeping the <span class="bcp14">MUST</span> for mailboxes that are
+visible through JMAP; for a mailbox that is not visible through
+JMAP the server <span class="bcp14">MAY</span> omit all identifiers, but if it returns a
+MAILBOXID it <span class="bcp14">MUST</span> also return an ACCOUNTID (<a href="#objectid-compound" class="auto internal xref">Section 3</a>, <a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#appendix-D-3.6.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-D-3.7">
-          <p id="appendix-D-3.7.1">Stated that SEARCH EMAILID and THREADID with an ObjectID no
-message has match nothing rather than being an error<a href="#appendix-D-3.7.1" class="pilcrow">¶</a></p>
+          <p id="appendix-D-3.7.1">Specified that SEARCH EMAILID and THREADID with an ObjectID that
+the server has not assigned to any message do not match any
+messages, rather than returning an error<a href="#appendix-D-3.7.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-07</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
