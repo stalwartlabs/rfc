@@ -214,13 +214,17 @@ data item.
 The contents of the compound OBJECTID vary by context:
 
 * For mailbox context (SELECT, EXAMINE, CREATE, RENAME, STATUS,
-  LIST): a server that supports MAILBOXID MUST include it for
-  every selectable mailbox.  Whenever the server includes
-  MAILBOXID, it MUST also include ACCOUNTID.  A mailbox name that
-  cannot be selected (\Noselect, \NonExistent, or the \NoAccess
-  attribute of {{RFC5465}}) need not have any identifiers; for
-  such a name the server MAY return the empty compound
-  "OBJECTID ()".
+  LIST): a server that supports MAILBOXID SHOULD include it for
+  every selectable mailbox, and MUST include it for every
+  selectable mailbox that is visible as a JMAP Mailbox object.  A
+  selectable mailbox that is not visible through JMAP either has
+  no identifiers, and gets the empty compound "OBJECTID ()", or
+  has a MAILBOXID.  Whenever the
+  server includes MAILBOXID, it MUST also include ACCOUNTID.  A
+  mailbox name that cannot be selected (\Noselect, \NonExistent,
+  or the \NoAccess attribute of {{RFC5465}}) need not have any
+  identifiers; for such a name the server MAY return the empty
+  compound "OBJECTID ()".
 
 * For message context (FETCH): the server SHOULD include EMAILID
   and THREADID. ACCOUNTID is not included in FETCH OBJECTID
@@ -257,18 +261,18 @@ When a server advertises both JMAPACCESS and OBJECTID+, the
 ACCOUNTID for each mailbox MUST correspond to the JMAP accountId
 for that account (see {{jmapaccess}}).
 
-When a mailbox is accessed exclusively through IMAP and does not
-have a corresponding representation in JMAP, the server still
-assigns it an ACCOUNTID, since ACCOUNTID is returned wherever
-MAILBOXID is ({{objectid-compound}}).  However, such ACCOUNTIDs need
-not correspond to any JMAP account identifier.
+A mailbox that is not visible through JMAP, for example one
+accessed exclusively through IMAP, either has no identifiers at
+all or has both a MAILBOXID and an ACCOUNTID
+({{objectid-compound}}).  Such an ACCOUNTID need not
+correspond to any JMAP account identifier.
 
 Some mailboxes belong to no user's account, for example those in
-a shared namespace that no user owns.  The server allocates an
-ACCOUNTID for such mailboxes that differs from every user's
-ACCOUNTID, and returns the same one for all mailboxes it treats as
-belonging to one account, for example one ACCOUNTID per shared
-namespace.
+a shared namespace that no user owns.  If the server gives such
+mailboxes identifiers, it allocates an ACCOUNTID for them that
+differs from every user's ACCOUNTID, and returns the same one for
+all mailboxes it treats as belonging to one account, for example
+one ACCOUNTID per shared namespace.
 
 The ACCOUNTID is immutable for a given account within an
 IMAP session. However, if the underlying account is deleted or the
@@ -720,9 +724,10 @@ it is not restricted to mailboxes the client could STATUS, and it
 is returned for \Noselect, \NonExistent, and \NoAccess names.
 
 As specified in {{objectid-compound}}, a server that supports
-MAILBOXID MUST include it for every selectable mailbox.  A name
-that cannot be selected need not have identifiers, and the server
-MAY return the empty item "OBJECTID ()" for it, for example for a
+MAILBOXID SHOULD include it for every selectable mailbox and MUST
+include it for every one that is visible through JMAP; it MAY
+return the empty item for one that is not.  A name that cannot be selected need not have identifiers, and
+the server MAY return the empty item "OBJECTID ()" for it, for example for a
 \NonExistent name reported only because it has matching children,
 or for a \Noselect name for which the server stores no metadata.
 A server MAY nevertheless return identifiers for such a name, as in
@@ -1126,9 +1131,10 @@ user accessing it. For example:
   different user SHOULD have that other user's ACCOUNTID.
 
 * Mailboxes in a shared namespace SHOULD have the ACCOUNTID of
-  the account that owns the shared data, or, when no account owns
-  it, the ACCOUNTID the server allocates for that data
-  ({{accountid}}).
+  the account that owns the shared data.  When no account owns
+  it, they have the ACCOUNTID the server allocates for that data
+  ({{accountid}}), or, if they are not visible through JMAP, no
+  identifiers at all.
 
 This ensures that ACCOUNTID provides meaningful account-level
 disambiguation and, when JMAPACCESS is advertised, correctly
@@ -1466,6 +1472,11 @@ working group for their contributions to this specification.
   \Noselect and \NonExistent
 * Required an ACCOUNTID of its own for mailboxes that belong to no
   user's account, such as an unowned shared namespace ({{accountid}})
+* Relaxed the requirement to include MAILBOXID for every selectable
+  mailbox to a SHOULD, keeping the MUST for mailboxes visible
+  through JMAP; a mailbox that is not may have no identifiers at
+  all, and if it has a MAILBOXID, it also has an ACCOUNTID
+  ({{objectid-compound}}, {{accountid}})
 
 **draft-ietf-mailmaint-imap-objectid-bis-07**
 

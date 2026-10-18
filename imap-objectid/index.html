@@ -1682,12 +1682,17 @@ data item.<a href="#section-3-3" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-3-5.1">
           <p id="section-3-5.1.1">For mailbox context (SELECT, EXAMINE, CREATE, RENAME, STATUS,
-LIST): a server that supports MAILBOXID <span class="bcp14">MUST</span> include it for
-every selectable mailbox.  Whenever the server includes
-MAILBOXID, it <span class="bcp14">MUST</span> also include ACCOUNTID.  A mailbox name that cannot be selected
-(\Noselect or \NonExistent) need not have any identifiers; for
-such a name the server <span class="bcp14">MAY</span> return the empty compound
-"OBJECTID ()".<a href="#section-3-5.1.1" class="pilcrow">¶</a></p>
+LIST): a server that supports MAILBOXID <span class="bcp14">SHOULD</span> include it for
+every selectable mailbox, and <span class="bcp14">MUST</span> include it for every
+selectable mailbox that is visible as a JMAP Mailbox object.  A
+selectable mailbox that is not visible through JMAP either has
+no identifiers, and gets the empty compound "OBJECTID ()", or
+has a MAILBOXID.  Whenever the
+server includes MAILBOXID, it <span class="bcp14">MUST</span> also include ACCOUNTID.  A
+mailbox name that cannot be selected (\Noselect, \NonExistent,
+or the \NoAccess attribute of <span>[<a href="#RFC5465" class="cite xref">RFC5465</a>]</span>) need not have any
+identifiers; for such a name the server <span class="bcp14">MAY</span> return the empty
+compound "OBJECTID ()".<a href="#section-3-5.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="section-3-5.2">
           <p id="section-3-5.2.1">For message context (FETCH): the server <span class="bcp14">SHOULD</span> include EMAILID
@@ -1725,22 +1730,28 @@ even if accessed within the same IMAP session.<a href="#section-4-3" class="pilc
 <p id="section-4-4">When a server advertises both JMAPACCESS and OBJECTID+, the
 ACCOUNTID for each mailbox <span class="bcp14">MUST</span> correspond to the JMAP accountId
 for that account (see <a href="#jmapaccess" class="auto internal xref">Section 9</a>).<a href="#section-4-4" class="pilcrow">¶</a></p>
-<p id="section-4-5">When a mailbox is accessed exclusively through IMAP and does not
-have a corresponding representation in JMAP, the server still
-assigns it an ACCOUNTID, since ACCOUNTID is returned wherever
-MAILBOXID is (<a href="#objectid-compound" class="auto internal xref">Section 3</a>).  However, such ACCOUNTIDs need
-not correspond to any JMAP account identifier.<a href="#section-4-5" class="pilcrow">¶</a></p>
-<p id="section-4-6">The ACCOUNTID is immutable for a given account within an
+<p id="section-4-5">A mailbox that is not visible through JMAP, for example one
+accessed exclusively through IMAP, either has no identifiers at
+all or has both a MAILBOXID and an ACCOUNTID
+(<a href="#objectid-compound" class="auto internal xref">Section 3</a>).  Such an ACCOUNTID need not
+correspond to any JMAP account identifier.<a href="#section-4-5" class="pilcrow">¶</a></p>
+<p id="section-4-6">Some mailboxes belong to no user's account, for example those in
+a shared namespace that no user owns.  If the server gives such
+mailboxes identifiers, it allocates an ACCOUNTID for them that
+differs from every user's ACCOUNTID, and returns the same one for
+all mailboxes it treats as belonging to one account, for example
+one ACCOUNTID per shared namespace.<a href="#section-4-6" class="pilcrow">¶</a></p>
+<p id="section-4-7">The ACCOUNTID is immutable for a given account within an
 IMAP session. However, if the underlying account is deleted or the
 user's access to that account is revoked, the associated mailboxes will
 no longer be accessible via IMAP, and their ACCOUNTIDs become
-irrelevant.<a href="#section-4-6" class="pilcrow">¶</a></p>
-<p id="section-4-7">When OBJECTID+ has been activated (<a href="#activation" class="auto internal xref">Section 2.2</a>), the server
+irrelevant.<a href="#section-4-7" class="pilcrow">¶</a></p>
+<p id="section-4-8">When OBJECTID+ has been activated (<a href="#activation" class="auto internal xref">Section 2.2</a>), the server
 returns ACCOUNTID within the compound OBJECTID response code for
 SELECT, EXAMINE, CREATE, and RENAME commands, and within the
 compound OBJECTID STATUS attribute.  ACCOUNTID is not exposed as a
 standalone attribute; it is only available through the compound
-OBJECTID format.<a href="#section-4-7" class="pilcrow">¶</a></p>
+OBJECTID format.<a href="#section-4-8" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="mailboxid">
@@ -2177,11 +2188,12 @@ S: 12 OK Completed
 <p id="section-7.5-6">The OBJECTID extended data item is returned for every mailbox
 name in the LIST response.  Unlike the OBJECTID STATUS attribute,
 it is not restricted to mailboxes the client could STATUS, and it
-is returned for \Noselect and \NonExistent names.<a href="#section-7.5-6" class="pilcrow">¶</a></p>
+is returned for \Noselect, \NonExistent, and \NoAccess names.<a href="#section-7.5-6" class="pilcrow">¶</a></p>
 <p id="section-7.5-7">As specified in <a href="#objectid-compound" class="auto internal xref">Section 3</a>, a server that supports
-MAILBOXID <span class="bcp14">MUST</span> include it for every selectable mailbox.  A name
-that cannot be selected need not have identifiers, and the server
-<span class="bcp14">MAY</span> return the empty item "OBJECTID ()" for it, for example for a
+MAILBOXID <span class="bcp14">SHOULD</span> include it for every selectable mailbox and <span class="bcp14">MUST</span>
+include it for every one that is visible through JMAP; it <span class="bcp14">MAY</span>
+return the empty item for one that is not.  A name that cannot be selected need not have identifiers, and
+the server <span class="bcp14">MAY</span> return the empty item "OBJECTID ()" for it, for example for a
 \NonExistent name reported only because it has matching children,
 or for a \Noselect name for which the server stores no metadata.
 A server <span class="bcp14">MAY</span> nevertheless return identifiers for such a name, as in
@@ -2620,7 +2632,10 @@ different user <span class="bcp14">SHOULD</span> have that other user's ACCOUNTI
 </li>
           <li class="normal" id="section-11.8-3.3">
             <p id="section-11.8-3.3.1">Mailboxes in a shared namespace <span class="bcp14">SHOULD</span> have the ACCOUNTID of
-the account that owns the shared data.<a href="#section-11.8-3.3.1" class="pilcrow">¶</a></p>
+the account that owns the shared data.  When no account owns
+it, they have the ACCOUNTID the server allocates for that data
+(<a href="#accountid" class="auto internal xref">Section 4</a>), or, if they are not visible through JMAP, no
+identifiers at all.<a href="#section-11.8-3.3.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <p id="section-11.8-4">This ensures that ACCOUNTID provides meaningful account-level
@@ -3172,6 +3187,21 @@ security consideration for this<a href="#appendix-D-3.2.1" class="pilcrow">¶</a
         <li class="normal" id="appendix-D-3.3">
           <p id="appendix-D-3.3.1">Stated that activation takes effect even when the activating
 command fails (<a href="#activation" class="auto internal xref">Section 2.2</a>)<a href="#appendix-D-3.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.4">
+          <p id="appendix-D-3.4.1">Allowed the empty compound for \NoAccess names, alongside
+\Noselect and \NonExistent<a href="#appendix-D-3.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.5">
+          <p id="appendix-D-3.5.1">Required an ACCOUNTID of its own for mailboxes that belong to no
+user's account, such as an unowned shared namespace (<a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#appendix-D-3.5.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.6">
+          <p id="appendix-D-3.6.1">Relaxed the requirement to include MAILBOXID for every selectable
+mailbox to a <span class="bcp14">SHOULD</span>, keeping the <span class="bcp14">MUST</span> for mailboxes visible
+through JMAP; a mailbox that is not may have no identifiers at
+all, and if it has a MAILBOXID, it also has an ACCOUNTID
+(<a href="#objectid-compound" class="auto internal xref">Section 3</a>, <a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#appendix-D-3.6.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-07</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
