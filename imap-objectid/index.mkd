@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-07
+docname: draft-ietf-mailmaint-imap-objectid-bis-08
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051, RFC9698
@@ -427,6 +427,9 @@ contains the same key-value pairs that the server returns in
 its compound OBJECTID response ({{objectid-compound}}).  The
 client SHOULD include all identifiers that the server provided
 in the most recent compound OBJECTID response for the mailbox.
+That response can be empty, so the list can be too: an empty
+list, `SELECT "mailbox" (OBJECTID ())`, is equivalent to the
+first form.
 
 When the server receives the second form, it MUST attempt to
 locate a mailbox matching the provided identifiers.  If a match
@@ -884,9 +887,10 @@ objectid-compound = "OBJECTID" SP "(" [objectid-kvpair
 
 ; --- OBJECTID+ extensions to SELECT/EXAMINE ---
 
-select-param =/ "OBJECTID" [SP "(" objectid-kvpair
-        *(SP objectid-kvpair) ")"]
-        ; without arguments: activation only
+select-param =/ "OBJECTID" [SP "(" [objectid-kvpair
+        *(SP objectid-kvpair)] ")"]
+        ; without arguments or with an empty list:
+        ;   activation only
         ; with arguments: ID-based mailbox selection
         ;   with fallback to the mailbox name
 
@@ -1406,6 +1410,13 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-08**
+
+* Allowed an empty identifier list in the OBJECTID parameter on
+  SELECT and EXAMINE ({{select-objectid}}), equivalent to the
+  parameter without arguments, so a client can send back an empty
+  compound OBJECTID response as received
 
 **draft-ietf-mailmaint-imap-objectid-bis-07**
 
