@@ -216,8 +216,9 @@ The contents of the compound OBJECTID vary by context:
 * For mailbox context (SELECT, EXAMINE, CREATE, RENAME, STATUS,
   LIST): a server that supports MAILBOXID MUST include it for
   every selectable mailbox.  Whenever the server includes
-  MAILBOXID, it MUST also include ACCOUNTID.  A mailbox name that cannot be selected
-  (\Noselect or \NonExistent) need not have any identifiers; for
+  MAILBOXID, it MUST also include ACCOUNTID.  A mailbox name that
+  cannot be selected (\Noselect, \NonExistent, or the \NoAccess
+  attribute of {{RFC5465}}) need not have any identifiers; for
   such a name the server MAY return the empty compound
   "OBJECTID ()".
 
@@ -709,7 +710,7 @@ S: 12 OK Completed
 The OBJECTID extended data item is returned for every mailbox
 name in the LIST response.  Unlike the OBJECTID STATUS attribute,
 it is not restricted to mailboxes the client could STATUS, and it
-is returned for \Noselect and \NonExistent names.
+is returned for \Noselect, \NonExistent, and \NoAccess names.
 
 As specified in {{objectid-compound}}, a server that supports
 MAILBOXID MUST include it for every selectable mailbox.  A name
@@ -1452,6 +1453,8 @@ working group for their contributions to this specification.
   security consideration for this
 * Stated that activation takes effect even when the activating
   command fails ({{activation}})
+* Allowed the empty compound for \NoAccess names, alongside
+  \Noselect and \NonExistent
 
 **draft-ietf-mailmaint-imap-objectid-bis-07**
 
