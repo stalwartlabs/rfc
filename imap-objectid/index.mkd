@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-07
+docname: draft-ietf-mailmaint-imap-objectid-bis-08
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051, RFC9698
@@ -175,6 +175,12 @@ the activation:
 * ENABLED OBJECTID+
 ~~~
 
+The extension is activated when the server recognizes an
+OBJECTID+-specific feature in a command, even if the command
+subsequently fails.  A client that receives the untagged ENABLED
+response MUST treat the extension as active, regardless of the
+tagged response to the command.
+
 Once activated, the OBJECTID+ extension remains active for the
 duration of the IMAP session. Activation MUST NOT be reversed.
 
@@ -209,12 +215,17 @@ data item.
 The contents of the compound OBJECTID vary by context:
 
 * For mailbox context (SELECT, EXAMINE, CREATE, RENAME, STATUS,
-  LIST): a server that supports MAILBOXID MUST include it for
-  every selectable mailbox.  Whenever the server includes
-  MAILBOXID, it MUST also include ACCOUNTID.  A mailbox name that cannot be selected
-  (\Noselect or \NonExistent) need not have any identifiers; for
-  such a name the server MAY return the empty compound
-  "OBJECTID ()".
+  LIST): a server that supports MAILBOXID SHOULD include it for
+  every selectable mailbox, and MUST include it for every
+  selectable mailbox that is visible as a JMAP Mailbox object.
+  For a selectable mailbox that is not visible through JMAP, the
+  server MAY return the empty compound "OBJECTID ()" instead.
+  Whenever the server includes MAILBOXID, it MUST also include
+  ACCOUNTID.  A
+  mailbox name that cannot be selected (\Noselect, \NonExistent,
+  or the \NoAccess attribute of {{RFC5465}}) need not have any
+  identifiers; for such a name the server MAY return the empty
+  compound "OBJECTID ()".
 
 * For message context (FETCH): the server SHOULD include EMAILID
   and THREADID. ACCOUNTID is not included in FETCH OBJECTID
@@ -251,11 +262,15 @@ When a server advertises both JMAPACCESS and OBJECTID+, the
 ACCOUNTID for each mailbox MUST correspond to the JMAP accountId
 for that account (see {{jmapaccess}}).
 
-When a mailbox is accessed exclusively through IMAP and does not
-have a corresponding representation in JMAP, the server still
-assigns it an ACCOUNTID, since ACCOUNTID is returned wherever
-MAILBOXID is ({{objectid-compound}}).  However, such ACCOUNTIDs need
-not correspond to any JMAP account identifier.
+For a mailbox that is not visible through JMAP (for example, one
+accessible only through IMAP), the server MAY omit all identifiers
+({{objectid-compound}}).  If the server returns a MAILBOXID for
+such a mailbox, it MUST also return an ACCOUNTID, which need not
+correspond to any JMAP accountId.
+
+A mailbox in a shared namespace might not be owned by any user.
+If the server returns identifiers for such a mailbox, its
+ACCOUNTID MUST differ from the ACCOUNTID of every user.
 
 The ACCOUNTID is immutable for a given account within an
 IMAP session. However, if the underlying account is deleted or the
@@ -427,6 +442,9 @@ contains the same key-value pairs that the server returns in
 its compound OBJECTID response ({{objectid-compound}}).  The
 client SHOULD include all identifiers that the server provided
 in the most recent compound OBJECTID response for the mailbox.
+If that response was empty, the client sends an empty list; the
+server MUST treat `SELECT "mailbox" (OBJECTID ())` the same as the
+first form.
 
 When the server receives the second form, it MUST attempt to
 locate a mailbox matching the provided identifiers.  If a match
@@ -434,6 +452,21 @@ is found, the server selects that mailbox regardless of whether
 the mailbox name in the command still refers to it.  If no
 match is found, the server falls back to selecting the mailbox
 by name, following the normal SELECT semantics.
+
+A mailbox matches if each identifier in the list that the server
+supports is equal to the corresponding identifier of that mailbox.
+The server MUST ignore keys that it does not support.  If the list
+does not contain MAILBOXID, the server selects the mailbox by
+name.  If the list
+contains MAILBOXID but not ACCOUNTID, the server MUST interpret
+the MAILBOXID as belonging to the account of the authenticated
+user's personal namespace.
+
+The server MUST NOT match a mailbox that the client is not
+permitted to select by name, for example because the client lacks
+the necessary access rights.  In that case, the server selects the
+mailbox by name, so that the response does not reveal whether a
+mailbox with those identifiers exists.
 
 This mechanism allows clients to reliably reselect a mailbox
 after it has been renamed by another client, following the same
@@ -688,12 +721,14 @@ S: 12 OK Completed
 The OBJECTID extended data item is returned for every mailbox
 name in the LIST response.  Unlike the OBJECTID STATUS attribute,
 it is not restricted to mailboxes the client could STATUS, and it
-is returned for \Noselect and \NonExistent names.
+is returned for \Noselect, \NonExistent, and \NoAccess names.
 
 As specified in {{objectid-compound}}, a server that supports
-MAILBOXID MUST include it for every selectable mailbox.  A name
-that cannot be selected need not have identifiers, and the server
-MAY return the empty item "OBJECTID ()" for it, for example for a
+MAILBOXID SHOULD include it for every selectable mailbox, and MUST
+include it for every selectable mailbox that is visible through
+JMAP.  A name that cannot be selected need not have identifiers,
+and the server MAY return the empty item "OBJECTID ()" for it, for
+example for a
 \NonExistent name reported only because it has matching children,
 or for a \Noselect name for which the server stores no metadata.
 A server MAY nevertheless return identifiers for such a name, as in
@@ -780,6 +815,11 @@ Messages whose EMAILID is exactly the specified ObjectID.
 Syntax: "THREADID" SP objectid
 
 Messages whose THREADID is exactly the specified ObjectID.
+
+A SEARCH for an EMAILID or THREADID that the server has not
+assigned to any message, including a value that the server would
+never assign, MUST NOT match any messages.  The server MUST NOT
+return a NO or BAD response for a syntactically valid ObjectID.
 
 When using the MULTISEARCH extension defined in {{RFC7377}} to search
 across multiple mailboxes, clients SHOULD only search for EMAILID or
@@ -884,9 +924,10 @@ objectid-compound = "OBJECTID" SP "(" [objectid-kvpair
 
 ; --- OBJECTID+ extensions to SELECT/EXAMINE ---
 
-select-param =/ "OBJECTID" [SP "(" objectid-kvpair
-        *(SP objectid-kvpair) ")"]
-        ; without arguments: activation only
+select-param =/ "OBJECTID" [SP "(" [objectid-kvpair
+        *(SP objectid-kvpair)] ")"]
+        ; without arguments or with an empty list:
+        ;   activation only
         ; with arguments: ID-based mailbox selection
         ;   with fallback to the mailbox name
 
@@ -1096,7 +1137,8 @@ user accessing it. For example:
   different user SHOULD have that other user's ACCOUNTID.
 
 * Mailboxes in a shared namespace SHOULD have the ACCOUNTID of
-  the account that owns the shared data.
+  the account that owns the shared data.  See {{accountid}} for
+  shared data that is not owned by any user.
 
 This ensures that ACCOUNTID provides meaningful account-level
 disambiguation and, when JMAPACCESS is advertised, correctly
@@ -1279,6 +1321,17 @@ contents of a mailbox, and the client already learns the name
 from the same response, so this does not widen what a LIST
 discloses beyond the identifiers themselves.
 
+## Selecting by Identifier
+
+The OBJECTID parameter on SELECT and EXAMINE ({{select-objectid}})
+allows a client to identify a mailbox by its identifiers rather
+than by name.  If a server selected a mailbox that the client is
+not permitted to select by name, or responded differently for such
+a mailbox, a client could use this parameter to discover the
+identifiers of mailboxes it has no access to.  For this reason,
+{{select-objectid}} requires the server to select such a mailbox
+only by name.
+
 ## Cross-Account Information Leakage
 
 Servers MUST ensure that the ACCOUNTID mechanism does not inadvertently
@@ -1406,6 +1459,33 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-08**
+
+* Allowed an empty identifier list in the OBJECTID parameter on
+  SELECT and EXAMINE ({{select-objectid}}), equivalent to the
+  parameter without arguments, so that a client can return an
+  empty compound OBJECTID response unchanged
+* Specified how the OBJECTID parameter on SELECT and EXAMINE
+  matches a mailbox: unsupported keys are ignored, MAILBOXID is
+  required, a missing ACCOUNTID refers to the personal namespace,
+  and a mailbox that the client is not permitted to select by name
+  is never selected by identifier; added a corresponding security
+  consideration
+* Specified that activation takes effect even if the activating
+  command fails ({{activation}})
+* Allowed the empty compound for \NoAccess names, in addition to
+  \Noselect and \NonExistent
+* Required a distinct ACCOUNTID for mailboxes in a shared namespace
+  that is not owned by any user ({{accountid}})
+* Relaxed the requirement to include MAILBOXID for every selectable
+  mailbox to a SHOULD, keeping the MUST for mailboxes that are
+  visible through JMAP; for a mailbox that is not visible through
+  JMAP the server MAY omit all identifiers, but if it returns a
+  MAILBOXID it MUST also return an ACCOUNTID ({{objectid-compound}}, {{accountid}})
+* Specified that SEARCH EMAILID and THREADID with an ObjectID that
+  the server has not assigned to any message do not match any
+  messages, rather than returning an error
 
 **draft-ietf-mailmaint-imap-objectid-bis-07**
 
