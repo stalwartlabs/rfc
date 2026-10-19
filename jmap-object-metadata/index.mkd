@@ -1,7 +1,7 @@
 ---
 title: JMAP Object Metadata
 abbrev: JMAP Object Metadata
-docname: draft-ietf-jmap-metadata-03
+docname: draft-ietf-jmap-metadata-04
 submissionType: IETF
 category: std
 updates:
@@ -37,7 +37,6 @@ informative:
   RFC8621: RFC8621
   RFC9661: RFC9661
   RFC9610: RFC9610
-  RFC3744: RFC3744
   RFC5257: RFC5257
   I-D.ietf-jmap-calendars:
   I-D.ietf-jmap-filenode:
@@ -162,7 +161,7 @@ Data can be stored under a namespace that is not supported on the data type, for
 
 Changes to `metadata` or `privateMetadata` are changes to the related object. They advance the related type's state string, appear in the related type's `/changes` response, and are otherwise indistinguishable from changes to any other property of that type, with the following clarification:
 
-Because `privateMetadata` is filtered per viewer, a change made by user A to `privateMetadata` on a shared object MUST advance the related type's state string for user A and MUST NOT advance it for any other user. The same rule applies to `/queryChanges`: a change to user B's `privateMetadata` MUST NOT cause user A's `Foo/queryChanges` to consider the object changed for filter purposes, since the change is not visible to A. A server that cannot provide per-viewer state MUST set `supportsPrivate` to false for every data type, since cross-viewer state advancement leaks the existence of another user's private write (see [](#security-considerations)).
+Because `privateMetadata` is filtered per viewer, a change made by user A to `privateMetadata` on a shared object MUST advance the related type's state string for user A and SHOULD NOT advance it for any other user. Such a change MUST NOT cause the object to be reported in any other user's `Foo/changes` or `Foo/queryChanges` response. A server that advances other users' state reveals when a private change occurred (see [](#security-considerations)).
 
 Changes to `metadata` or `privateMetadata` alone MUST NOT update server-maintained modification timestamps of the related object, such as the `changed` property of FileNode {{I-D.ietf-jmap-filenode}} or the `updated` property of CalendarEvent {{I-D.ietf-jmap-calendars}}. This overrides any requirement of those specifications that the timestamp change on every update.
 
@@ -198,7 +197,7 @@ Setting a patch value to `null` removes the targeted key, per standard PatchObje
 
 The server MUST validate every write against the account capability for the data type. When more than one of the following rules applies, the server MUST evaluate them in the order listed; the first matching rule determines the SetError:
 
-1. If the user cannot read the related object, reject with "notFound". If the user lacks write access to the related object and the write targets `metadata`, reject with "forbidden".
+1. If the user cannot read the related object, reject with "notFound". If the write targets `metadata` and the user lacks `maySetMetadata` ([](#maysetmetadata)), reject with "forbidden".
 2. If the path begins with `privateMetadata` and `supportsPrivate` is false for this data type, reject with "invalidProperties".
 3. If the targeted namespace is not supported on this data type, reject with "invalidProperties" (except for the migration case in [](#namespace-removal)).
 4. If a namespace value would exceed `maxDepth`, reject with "invalidProperties".
@@ -282,27 +281,23 @@ These conditions compose with the data type's existing filter conditions through
 
 Access control for metadata follows the access control of the related object. The two properties are governed by different rules:
 
-- The `metadata` property is shared. A user who has read access to the related object can read the object's `metadata`. A user who has write access to the related object can modify the object's `metadata`. For the data types listed in [](#rights-table), "read" and "write" are the rights given there. For other shareable data types ({{Section 4 of RFC9670}}), they are the rights the type's specification defines in `myRights` for reading the object and for modifying its properties. For other data types, read and write access are those of the account, and write access additionally requires that the account is not read-only (`isReadOnly` is false, {{Section 2 of RFC8620}}).
+- The `metadata` property is shared. A user who can read the related object can read its `metadata`. Modifying it requires the `maySetMetadata` right ([](#maysetmetadata)).
 
 - The `privateMetadata` property is per-user. The server MUST filter responses so that each user sees only the `privateMetadata` content they themselves wrote. Private metadata written by another user on the same related object MUST NOT be visible. To write `privateMetadata` on a related object, the user needs only read access to the related object; write access on the related object is not required.
 
-For the following data types, "read" and "write" are defined as shown. When an object belongs to more than one container (an Email in several Mailboxes, a CalendarEvent in several Calendars, or a ContactCard in several AddressBooks), read access requires the right on at least one of the containers, and write access requires it on every container the object belongs to; when the same update changes the object's containers, write access requires it on every container both before and after the change. On create, the rights apply to the containers given in the create.
+## The maySetMetadata Right {#maysetmetadata}
 
-| Type | Read | Write |
-|---|---|---|
-| Email {{RFC8621}} | `mayReadItems` on a containing Mailbox | `maySetKeywords` on every containing Mailbox |
-| Mailbox {{RFC8621}} | the Mailbox is returned to the user by `Mailbox/get` | `mayRename` |
-| CalendarEvent {{I-D.ietf-jmap-calendars}} | `mayReadItems` on a containing Calendar | `mayWriteAll`, or `mayWriteOwn` if the user is an owner of the event or the event has no owner, on every containing Calendar |
-| Calendar {{I-D.ietf-jmap-calendars}} | the Calendar is returned to the user by `Calendar/get` | `mayWriteAll` |
-| ContactCard {{RFC9610}} | `mayRead` on a containing AddressBook | `mayWrite` on every containing AddressBook |
-| AddressBook {{RFC9610}} | the AddressBook is returned to the user by `AddressBook/get` | `mayWrite` |
-| FileNode {{I-D.ietf-jmap-filenode}} | `mayRead` | `mayRename` |
-| SieveScript {{RFC9661}} | access to the account | the account is not read-only |
-{: #rights-table title="Read and write rights by data type"}
+For every data type that has a `myRights` property (for example Mailbox {{RFC8621}}, Calendar {{I-D.ietf-jmap-calendars}}, AddressBook {{RFC9610}} and FileNode {{I-D.ietf-jmap-filenode}}) and that is a listed data type or contains objects of a listed data type, the rights object gains the following property:
 
-\[\[Open issue: Several of these mappings reuse rights defined for other purposes (for example, `maySetKeywords`, `mayRename`, or `mayWriteAll` for a Calendar's own properties), and JMAP for Calendars and JMAP for Contacts define no right for modifying the properties of a Calendar or AddressBook. The working group needs to decide whether to keep these mappings or to define a dedicated right, such as `mayWriteMetadata`, for every data type that supports metadata. WebDAV (the DAV:write-properties privilege of {{RFC3744}}) and IMAP ANNOTATE (the "n" right of {{RFC5257}}) both separate this right from the right to modify content. Similarly, JMAP for Calendars defines `mayUpdatePrivate` for per-user event properties, whereas this document lets any user with read access write `privateMetadata`.\]\]
+{:vspace}
+**maySetMetadata**: `Boolean`
+: The user may modify the shared `metadata` of this object, and of the objects it contains that have no rights object of their own. For Mailbox, this corresponds to the IMAP ACL "n" right {{RFC5257}}.
 
-The server MUST enforce these rules consistently across `/get`, `/set`, `/query`, `/queryChanges`, and `/changes`. An object the user cannot read is treated for `metadata` and `privateMetadata` exactly as for its other properties (for example, it is reported in `notFound`). A write to an object the user cannot read MUST be rejected with a "notFound" SetError, so that the existence of the object is not revealed. A write to `metadata` without write permission on the related object MUST be rejected with a "forbidden" SetError.
+The right is returned in `myRights` and can be granted through `shareWith` ({{RFC9670}}) like any other right of that type.
+
+An object without a rights object of its own, such as an Email, CalendarEvent or ContactCard, takes the right from its containers. Modifying its `metadata` requires `maySetMetadata` on every container it belongs to; when the same update changes its containers, on every container both before and after the change; and on create, on the containers given in the create. For a listed data type that neither has a rights object nor belongs to a container that has one, such as SieveScript {{RFC9661}}, modifying `metadata` requires that the account is not read-only (`isReadOnly` is false, {{Section 2 of RFC8620}}).
+
+The server MUST enforce these rules consistently across `/get`, `/set`, `/query`, `/queryChanges`, and `/changes`. An object the user cannot read is treated for `metadata` and `privateMetadata` exactly as for its other properties (for example, it is reported in `notFound`). A write to an object the user cannot read MUST be rejected with a "notFound" SetError, so that the existence of the object is not revealed. A write to `metadata` without `maySetMetadata` MUST be rejected with a "forbidden" SetError.
 
 When sharing permissions on a related object change, the visibility of its `metadata` changes accordingly. `privateMetadata` belonging to a user remains visible to that user as long as the user retains read access to the related object. If read access is revoked, the object, including the user's `privateMetadata`, becomes inaccessible to that user; the server MAY delete that `privateMetadata`, and if it does not and access is restored, it is visible again. A user's `privateMetadata` is destroyed together with the related object.
 
@@ -663,7 +658,7 @@ Metadata may contain sensitive information: personal notes, workflow states, app
 
 `privateMetadata` is per-user. The server MUST ensure that each user sees only their own content, even on shared related objects. This is the most common implementation pitfall in this specification: a query or `/get` implementation that returns another user's `privateMetadata` is a serious bug. Servers MUST verify that result filtering applies uniformly to `/get`, `/query`, `/changes`, `/queryChanges`, and to any cached or denormalized representation.
 
-Per-viewer state ([](#state-behavior)) interacts with confidentiality. A server that advances the related type's state for user B in response to user A's private write is not leaking the metadata content, but it is leaking a signal that *something* private to A changed on the related object. The specification therefore requires per-viewer state, and requires `supportsPrivate` to be false where the server cannot provide it.
+A server that advances the related type's state for user B in response to user A's private write ([](#state-behavior)) does not reveal the metadata content, but it does reveal that something private changed in the account, and when. Such a server also wakes up every client of every user sharing the data. Keeping state per viewer avoids both.
 
 ## User Identity and Authentication
 
@@ -758,6 +753,11 @@ This document defines no initial entries for the "JMAP Metadata Namespaces" regi
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-jmap-metadata-04**
+
+* Replaced the mapping of metadata write access onto existing rights with a new `maySetMetadata` right.
+* Relaxed the per-viewer state requirement for private writes to SHOULD NOT, while still forbidding other users' `/changes` and `/queryChanges` from reporting the object.
 
 **draft-ietf-jmap-metadata-03**
 

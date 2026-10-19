@@ -11,7 +11,7 @@
     " name="description">
 <meta content="xml2rfc 3.32.0" name="generator">
 <meta content="Internet-Draft" name="keyword">
-<meta content="draft-ietf-jmap-metadata-03" name="ietf.draft">
+<meta content="draft-ietf-jmap-metadata-04" name="ietf.draft">
 <!-- Generator version information:
   xml2rfc 3.32.0
     Python 3.13.7
@@ -1219,7 +1219,7 @@ li > p:last-of-type:only-child {
 </tr></thead>
 <tfoot><tr>
 <td class="left">De Gennaro</td>
-<td class="center">Expires 20 April 2027</td>
+<td class="center">Expires 22 April 2027</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1229,15 +1229,15 @@ li > p:last-of-type:only-child {
 <dt class="label-workgroup">Workgroup:</dt>
 <dd class="workgroup">JMAP</dd>
 <dt class="label-internet-draft">Internet-Draft:</dt>
-<dd class="internet-draft">draft-ietf-jmap-metadata-03</dd>
+<dd class="internet-draft">draft-ietf-jmap-metadata-04</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-10-17" class="published">17 October 2026</time>
+<time datetime="2026-10-19" class="published">19 October 2026</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Standards Track</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2027-04-20">20 April 2027</time></dd>
+<dd class="expires"><time datetime="2027-04-22">22 April 2027</time></dd>
 <dt class="label-authors">Author:</dt>
 <dd class="authors">
 <div class="author">
@@ -1271,7 +1271,7 @@ li > p:last-of-type:only-child {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 20 April 2027.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 22 April 2027.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1364,7 +1364,10 @@ li > p:last-of-type:only-child {
             <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-access-control" class="internal xref">Access Control</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
-                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-account-delegation-and-admi" class="internal xref">Account Delegation and Administrative Access</a></p>
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-the-maysetmetadata-right" class="internal xref">The maySetMetadata Right</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-account-delegation-and-admi" class="internal xref">Account Delegation and Administrative Access</a></p>
 </li>
             </ul>
 </li>
@@ -1633,7 +1636,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-state-behavior" class="section-name selfRef">State Behavior</a>
         </h3>
 <p id="section-2.2-1">Changes to <code>metadata</code> or <code>privateMetadata</code> are changes to the related object. They advance the related type's state string, appear in the related type's <code>/changes</code> response, and are otherwise indistinguishable from changes to any other property of that type, with the following clarification:<a href="#section-2.2-1" class="pilcrow">¶</a></p>
-<p id="section-2.2-2">Because <code>privateMetadata</code> is filtered per viewer, a change made by user A to <code>privateMetadata</code> on a shared object <span class="bcp14">MUST</span> advance the related type's state string for user A and <span class="bcp14">MUST NOT</span> advance it for any other user. The same rule applies to <code>/queryChanges</code>: a change to user B's <code>privateMetadata</code> <span class="bcp14">MUST NOT</span> cause user A's <code>Foo/queryChanges</code> to consider the object changed for filter purposes, since the change is not visible to A. A server that cannot provide per-viewer state <span class="bcp14">MUST</span> set <code>supportsPrivate</code> to false for every data type, since cross-viewer state advancement leaks the existence of another user's private write (see <a href="#security-considerations" class="auto internal xref">Section 7</a>).<a href="#section-2.2-2" class="pilcrow">¶</a></p>
+<p id="section-2.2-2">Because <code>privateMetadata</code> is filtered per viewer, a change made by user A to <code>privateMetadata</code> on a shared object <span class="bcp14">MUST</span> advance the related type's state string for user A and <span class="bcp14">SHOULD NOT</span> advance it for any other user. Such a change <span class="bcp14">MUST NOT</span> cause the object to be reported in any other user's <code>Foo/changes</code> or <code>Foo/queryChanges</code> response. A server that advances other users' state reveals when a private change occurred (see <a href="#security-considerations" class="auto internal xref">Section 7</a>).<a href="#section-2.2-2" class="pilcrow">¶</a></p>
 <p id="section-2.2-3">Changes to <code>metadata</code> or <code>privateMetadata</code> alone <span class="bcp14">MUST NOT</span> update server-maintained modification timestamps of the related object, such as the <code>changed</code> property of FileNode <span>[<a href="#I-D.ietf-jmap-filenode" class="cite xref">I-D.ietf-jmap-filenode</a>]</span> or the <code>updated</code> property of CalendarEvent <span>[<a href="#I-D.ietf-jmap-calendars" class="cite xref">I-D.ietf-jmap-calendars</a>]</span>. This overrides any requirement of those specifications that the timestamp change on every update.<a href="#section-2.2-3" class="pilcrow">¶</a></p>
 </section>
 </div>
@@ -1685,7 +1688,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <p id="section-3.2-5">The server <span class="bcp14">MUST</span> validate every write against the account capability for the data type. When more than one of the following rules applies, the server <span class="bcp14">MUST</span> evaluate them in the order listed; the first matching rule determines the SetError:<a href="#section-3.2-5" class="pilcrow">¶</a></p>
 <ol start="1" type="1" class="normal type-1" id="section-3.2-6">
 <li id="section-3.2-6.1">
-            <p id="section-3.2-6.1.1">If the user cannot read the related object, reject with "notFound". If the user lacks write access to the related object and the write targets <code>metadata</code>, reject with "forbidden".<a href="#section-3.2-6.1.1" class="pilcrow">¶</a></p>
+            <p id="section-3.2-6.1.1">If the user cannot read the related object, reject with "notFound". If the write targets <code>metadata</code> and the user lacks <code>maySetMetadata</code> (<a href="#maysetmetadata" class="auto internal xref">Section 4.1</a>), reject with "forbidden".<a href="#section-3.2-6.1.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-3.2-6.2">
             <p id="section-3.2-6.2.1">If the path begins with <code>privateMetadata</code> and <code>supportsPrivate</code> is false for this data type, reject with "invalidProperties".<a href="#section-3.2-6.2.1" class="pilcrow">¶</a></p>
@@ -1848,106 +1851,39 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <p id="section-4-1">Access control for metadata follows the access control of the related object. The two properties are governed by different rules:<a href="#section-4-1" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-4-2.1">
-          <p id="section-4-2.1.1">The <code>metadata</code> property is shared. A user who has read access to the related object can read the object's <code>metadata</code>. A user who has write access to the related object can modify the object's <code>metadata</code>. For the data types listed in <a href="#rights-table" class="auto internal xref">Table 1</a>, "read" and "write" are the rights given there. For other shareable data types (<span><a href="https://rfc-editor.org/rfc/rfc9670#section-4" class="relref">Section 4</a> of [<a href="#RFC9670" class="cite xref">RFC9670</a>]</span>), they are the rights the type's specification defines in <code>myRights</code> for reading the object and for modifying its properties. For other data types, read and write access are those of the account, and write access additionally requires that the account is not read-only (<code>isReadOnly</code> is false, <span><a href="https://rfc-editor.org/rfc/rfc8620#section-2" class="relref">Section 2</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>).<a href="#section-4-2.1.1" class="pilcrow">¶</a></p>
+          <p id="section-4-2.1.1">The <code>metadata</code> property is shared. A user who can read the related object can read its <code>metadata</code>. Modifying it requires the <code>maySetMetadata</code> right (<a href="#maysetmetadata" class="auto internal xref">Section 4.1</a>).<a href="#section-4-2.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="section-4-2.2">
           <p id="section-4-2.2.1">The <code>privateMetadata</code> property is per-user. The server <span class="bcp14">MUST</span> filter responses so that each user sees only the <code>privateMetadata</code> content they themselves wrote. Private metadata written by another user on the same related object <span class="bcp14">MUST NOT</span> be visible. To write <code>privateMetadata</code> on a related object, the user needs only read access to the related object; write access on the related object is not required.<a href="#section-4-2.2.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="section-4-3">For the following data types, "read" and "write" are defined as shown. When an object belongs to more than one container (an Email in several Mailboxes, a CalendarEvent in several Calendars, or a ContactCard in several AddressBooks), read access requires the right on at least one of the containers, and write access requires it on every container the object belongs to; when the same update changes the object's containers, write access requires it on every container both before and after the change. On create, the rights apply to the containers given in the create.<a href="#section-4-3" class="pilcrow">¶</a></p>
-<span id="name-read-and-write-rights-by-da"></span><div id="rights-table">
-<table class="center" id="table-1">
-        <caption>
-<a href="#table-1" class="selfRef">Table 1</a>:
-<a href="#name-read-and-write-rights-by-da" class="selfRef">Read and write rights by data type</a>
-        </caption>
-<thead>
-          <tr>
-            <th class="text-left" rowspan="1" colspan="1">Type</th>
-            <th class="text-left" rowspan="1" colspan="1">Read</th>
-            <th class="text-left" rowspan="1" colspan="1">Write</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">Email <span>[<a href="#RFC8621" class="cite xref">RFC8621</a>]</span>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayReadItems</code> on a containing Mailbox</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>maySetKeywords</code> on every containing Mailbox</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">Mailbox <span>[<a href="#RFC8621" class="cite xref">RFC8621</a>]</span>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">the Mailbox is returned to the user by <code>Mailbox/get</code>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayRename</code>
-</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">CalendarEvent <span>[<a href="#I-D.ietf-jmap-calendars" class="cite xref">I-D.ietf-jmap-calendars</a>]</span>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayReadItems</code> on a containing Calendar</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayWriteAll</code>, or <code>mayWriteOwn</code> if the user is an owner of the event or the event has no owner, on every containing Calendar</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">Calendar <span>[<a href="#I-D.ietf-jmap-calendars" class="cite xref">I-D.ietf-jmap-calendars</a>]</span>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">the Calendar is returned to the user by <code>Calendar/get</code>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayWriteAll</code>
-</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">ContactCard <span>[<a href="#RFC9610" class="cite xref">RFC9610</a>]</span>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayRead</code> on a containing AddressBook</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayWrite</code> on every containing AddressBook</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">AddressBook <span>[<a href="#RFC9610" class="cite xref">RFC9610</a>]</span>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">the AddressBook is returned to the user by <code>AddressBook/get</code>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayWrite</code>
-</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">FileNode <span>[<a href="#I-D.ietf-jmap-filenode" class="cite xref">I-D.ietf-jmap-filenode</a>]</span>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayRead</code>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <code>mayRename</code>
-</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">SieveScript <span>[<a href="#RFC9661" class="cite xref">RFC9661</a>]</span>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">access to the account</td>
-            <td class="text-left" rowspan="1" colspan="1">the account is not read-only</td>
-          </tr>
-        </tbody>
-      </table>
-</div>
-<p id="section-4-5">[[Open issue: Several of these mappings reuse rights defined for other purposes (for example, <code>maySetKeywords</code>, <code>mayRename</code>, or <code>mayWriteAll</code> for a Calendar's own properties), and JMAP for Calendars and JMAP for Contacts define no right for modifying the properties of a Calendar or AddressBook. The working group needs to decide whether to keep these mappings or to define a dedicated right, such as <code>mayWriteMetadata</code>, for every data type that supports metadata. WebDAV (the DAV:write-properties privilege of <span>[<a href="#RFC3744" class="cite xref">RFC3744</a>]</span>) and IMAP ANNOTATE (the "n" right of <span>[<a href="#RFC5257" class="cite xref">RFC5257</a>]</span>) both separate this right from the right to modify content. Similarly, JMAP for Calendars defines <code>mayUpdatePrivate</code> for per-user event properties, whereas this document lets any user with read access write <code>privateMetadata</code>.]]<a href="#section-4-5" class="pilcrow">¶</a></p>
-<p id="section-4-6">The server <span class="bcp14">MUST</span> enforce these rules consistently across <code>/get</code>, <code>/set</code>, <code>/query</code>, <code>/queryChanges</code>, and <code>/changes</code>. An object the user cannot read is treated for <code>metadata</code> and <code>privateMetadata</code> exactly as for its other properties (for example, it is reported in <code>notFound</code>). A write to an object the user cannot read <span class="bcp14">MUST</span> be rejected with a "notFound" SetError, so that the existence of the object is not revealed. A write to <code>metadata</code> without write permission on the related object <span class="bcp14">MUST</span> be rejected with a "forbidden" SetError.<a href="#section-4-6" class="pilcrow">¶</a></p>
-<p id="section-4-7">When sharing permissions on a related object change, the visibility of its <code>metadata</code> changes accordingly. <code>privateMetadata</code> belonging to a user remains visible to that user as long as the user retains read access to the related object. If read access is revoked, the object, including the user's <code>privateMetadata</code>, becomes inaccessible to that user; the server <span class="bcp14">MAY</span> delete that <code>privateMetadata</code>, and if it does not and access is restored, it is visible again. A user's <code>privateMetadata</code> is destroyed together with the related object.<a href="#section-4-7" class="pilcrow">¶</a></p>
-<div id="account-delegation-and-administrative-access">
+<div id="maysetmetadata">
 <section id="section-4.1">
-        <h3 id="name-account-delegation-and-admi">
-<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-account-delegation-and-admi" class="section-name selfRef">Account Delegation and Administrative Access</a>
+        <h3 id="name-the-maysetmetadata-right">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-the-maysetmetadata-right" class="section-name selfRef">The maySetMetadata Right</a>
         </h3>
-<p id="section-4.1-1"><code>privateMetadata</code> is keyed by the authenticated identity of the session. A delegate, an impersonating administrator, or any other session authenticated as a different identity than the account owner <span class="bcp14">MUST</span> see and write only its own <code>privateMetadata</code>, never the account owner's. Exposing the account owner's <code>privateMetadata</code> to such a session is outside the scope of this document.<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.1-1">For every data type that has a <code>myRights</code> property (for example Mailbox <span>[<a href="#RFC8621" class="cite xref">RFC8621</a>]</span>, Calendar <span>[<a href="#I-D.ietf-jmap-calendars" class="cite xref">I-D.ietf-jmap-calendars</a>]</span>, AddressBook <span>[<a href="#RFC9610" class="cite xref">RFC9610</a>]</span> and FileNode <span>[<a href="#I-D.ietf-jmap-filenode" class="cite xref">I-D.ietf-jmap-filenode</a>]</span>) and that is a listed data type or contains objects of a listed data type, the rights object gains the following property:<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlNewline" id="section-4.1-2">
+          <dt id="section-4.1-2.1">
+<strong>maySetMetadata</strong>: <code>Boolean</code>
+</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-2.2">
+            <p id="section-4.1-2.2.1">The user may modify the shared <code>metadata</code> of this object, and of the objects it contains that have no rights object of their own. For Mailbox, this corresponds to the IMAP ACL "n" right <span>[<a href="#RFC5257" class="cite xref">RFC5257</a>]</span>.<a href="#section-4.1-2.2.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<p id="section-4.1-3">The right is returned in <code>myRights</code> and can be granted through <code>shareWith</code> (<span>[<a href="#RFC9670" class="cite xref">RFC9670</a>]</span>) like any other right of that type.<a href="#section-4.1-3" class="pilcrow">¶</a></p>
+<p id="section-4.1-4">An object without a rights object of its own, such as an Email, CalendarEvent or ContactCard, takes the right from its containers. Modifying its <code>metadata</code> requires <code>maySetMetadata</code> on every container it belongs to; when the same update changes its containers, on every container both before and after the change; and on create, on the containers given in the create. For a listed data type that neither has a rights object nor belongs to a container that has one, such as SieveScript <span>[<a href="#RFC9661" class="cite xref">RFC9661</a>]</span>, modifying <code>metadata</code> requires that the account is not read-only (<code>isReadOnly</code> is false, <span><a href="https://rfc-editor.org/rfc/rfc8620#section-2" class="relref">Section 2</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>).<a href="#section-4.1-4" class="pilcrow">¶</a></p>
+<p id="section-4.1-5">The server <span class="bcp14">MUST</span> enforce these rules consistently across <code>/get</code>, <code>/set</code>, <code>/query</code>, <code>/queryChanges</code>, and <code>/changes</code>. An object the user cannot read is treated for <code>metadata</code> and <code>privateMetadata</code> exactly as for its other properties (for example, it is reported in <code>notFound</code>). A write to an object the user cannot read <span class="bcp14">MUST</span> be rejected with a "notFound" SetError, so that the existence of the object is not revealed. A write to <code>metadata</code> without <code>maySetMetadata</code> <span class="bcp14">MUST</span> be rejected with a "forbidden" SetError.<a href="#section-4.1-5" class="pilcrow">¶</a></p>
+<p id="section-4.1-6">When sharing permissions on a related object change, the visibility of its <code>metadata</code> changes accordingly. <code>privateMetadata</code> belonging to a user remains visible to that user as long as the user retains read access to the related object. If read access is revoked, the object, including the user's <code>privateMetadata</code>, becomes inaccessible to that user; the server <span class="bcp14">MAY</span> delete that <code>privateMetadata</code>, and if it does not and access is restored, it is visible again. A user's <code>privateMetadata</code> is destroyed together with the related object.<a href="#section-4.1-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="account-delegation-and-administrative-access">
+<section id="section-4.2">
+        <h3 id="name-account-delegation-and-admi">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-account-delegation-and-admi" class="section-name selfRef">Account Delegation and Administrative Access</a>
+        </h3>
+<p id="section-4.2-1"><code>privateMetadata</code> is keyed by the authenticated identity of the session. A delegate, an impersonating administrator, or any other session authenticated as a different identity than the account owner <span class="bcp14">MUST</span> see and write only its own <code>privateMetadata</code>, never the account owner's. Exposing the account owner's <code>privateMetadata</code> to such a session is outside the scope of this document.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -2351,7 +2287,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
         </h3>
 <p id="section-7.1-1">Metadata may contain sensitive information: personal notes, workflow states, application-specific data, and other user-generated content. Servers <span class="bcp14">MUST</span> enforce the access-control rules in <a href="#access-control" class="auto internal xref">Section 4</a>. Failures here are direct privacy breaches.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
 <p id="section-7.1-2"><code>privateMetadata</code> is per-user. The server <span class="bcp14">MUST</span> ensure that each user sees only their own content, even on shared related objects. This is the most common implementation pitfall in this specification: a query or <code>/get</code> implementation that returns another user's <code>privateMetadata</code> is a serious bug. Servers <span class="bcp14">MUST</span> verify that result filtering applies uniformly to <code>/get</code>, <code>/query</code>, <code>/changes</code>, <code>/queryChanges</code>, and to any cached or denormalized representation.<a href="#section-7.1-2" class="pilcrow">¶</a></p>
-<p id="section-7.1-3">Per-viewer state (<a href="#state-behavior" class="auto internal xref">Section 2.2</a>) interacts with confidentiality. A server that advances the related type's state for user B in response to user A's private write is not leaking the metadata content, but it is leaking a signal that <em>something</em> private to A changed on the related object. The specification therefore requires per-viewer state, and requires <code>supportsPrivate</code> to be false where the server cannot provide it.<a href="#section-7.1-3" class="pilcrow">¶</a></p>
+<p id="section-7.1-3">A server that advances the related type's state for user B in response to user A's private write (<a href="#state-behavior" class="auto internal xref">Section 2.2</a>) does not reveal the metadata content, but it does reveal that something private changed in the account, and when. Such a server also wakes up every client of every user sharing the data. Keeping state per viewer avoids both.<a href="#section-7.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="user-identity-and-authentication">
@@ -2359,7 +2295,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
         <h3 id="name-user-identity-and-authentic">
 <a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-user-identity-and-authentic" class="section-name selfRef">User Identity and Authentication</a>
         </h3>
-<p id="section-7.2-1">The private-metadata model relies on accurate user identification. Servers need to identify the authenticated user reliably for every metadata operation and keep each <code>privateMetadata</code> value associated with the user that wrote it, so that identity spoofing or authentication bypass cannot expose another user's private metadata. Delegated and administrative sessions are covered in <a href="#account-delegation-and-administrative-access" class="auto internal xref">Section 4.1</a>.<a href="#section-7.2-1" class="pilcrow">¶</a></p>
+<p id="section-7.2-1">The private-metadata model relies on accurate user identification. Servers need to identify the authenticated user reliably for every metadata operation and keep each <code>privateMetadata</code> value associated with the user that wrote it, so that identity spoofing or authentication bypass cannot expose another user's private metadata. Delegated and administrative sessions are covered in <a href="#account-delegation-and-administrative-access" class="auto internal xref">Section 4.2</a>.<a href="#section-7.2-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="untrusted-namespace-values">
@@ -2570,11 +2506,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <dd class="break"></dd>
 <dt id="I-D.ietf-jmap-filenode">[I-D.ietf-jmap-filenode]</dt>
         <dd>
-<span class="refAuthor">Gondwana, B.</span>, <span class="refTitle">"JMAP File Storage extension"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-jmap-filenode-16</span>, <time datetime="2026-10-16" class="refDate">16 October 2026</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-16">https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-16</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="RFC3744">[RFC3744]</dt>
-        <dd>
-<span class="refAuthor">Clemm, G.</span>, <span class="refAuthor">Reschke, J.</span>, <span class="refAuthor">Sedlar, E.</span>, and <span class="refAuthor">J. Whitehead</span>, <span class="refTitle">"Web Distributed Authoring and Versioning (WebDAV) Access Control Protocol"</span>, <span class="seriesInfo">RFC 3744</span>, <span class="seriesInfo">DOI 10.17487/RFC3744</span>, <time datetime="2004-05" class="refDate">May 2004</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc3744">https://www.rfc-editor.org/rfc/rfc3744</a>&gt;</span>. </dd>
+<span class="refAuthor">Gondwana, B.</span>, <span class="refTitle">"JMAP File Storage extension"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-jmap-filenode-17</span>, <time datetime="2026-10-18" class="refDate">18 October 2026</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-17">https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-17</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC4918">[RFC4918]</dt>
         <dd>
@@ -2615,100 +2547,109 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-changes-2" class="section-name selfRef">Changes</a>
       </h2>
 <p id="appendix-A-1">[[This section to be removed by RFC Editor]]<a href="#appendix-A-1" class="pilcrow">¶</a></p>
-<p id="appendix-A-2"><strong>draft-ietf-jmap-metadata-03</strong><a href="#appendix-A-2" class="pilcrow">¶</a></p>
+<p id="appendix-A-2"><strong>draft-ietf-jmap-metadata-04</strong><a href="#appendix-A-2" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-3.1">
-          <p id="appendix-A-3.1.1">Clarified that metadata-only changes do not update server-maintained modification timestamps.<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-3.1.1">Replaced the mapping of metadata write access onto existing rights with a new <code>maySetMetadata</code> right.<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-3.2">
-          <p id="appendix-A-3.2.1">Defined behavior for requests that do not use the capability.<a href="#appendix-A-3.2.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.3">
-          <p id="appendix-A-3.3.1">Allowed patch paths at any depth, and placed "invalidPatch" in the <code>/set</code> validation order.<a href="#appendix-A-3.3.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.4">
-          <p id="appendix-A-3.4.1">Defined the interaction of <code>updatedProperties</code> and <code>ignoreMetadataOnlyChanges</code> with the Mailbox count properties.<a href="#appendix-A-3.4.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.5">
-          <p id="appendix-A-3.5.1">Added <code>/copy</code> behavior; excluded <code>/import</code> and <code>/parse</code> style methods.<a href="#appendix-A-3.5.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.6">
-          <p id="appendix-A-3.6.1">Excluded metadata from the <code>Email/get</code> default property list.<a href="#appendix-A-3.6.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.7">
-          <p id="appendix-A-3.7.1">Specified the "i;unicode-casemap" collation for <code>metadataTextContains</code>.<a href="#appendix-A-3.7.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.8">
-          <p id="appendix-A-3.8.1">Required lowercase domain-name namespace identifiers.<a href="#appendix-A-3.8.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.9">
-          <p id="appendix-A-3.9.1">Defined read and write rights for the data types of JMAP Mail, Calendars, Contacts, FileNode and Sieve, and the rule for objects in several containers.<a href="#appendix-A-3.9.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.10">
-          <p id="appendix-A-3.10.1">Clarified handling of data in unsupported namespaces in subselectors, filters, complete replacements and copies.<a href="#appendix-A-3.10.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.11">
-          <p id="appendix-A-3.11.1">Allowed filter condition paths at any depth below a namespace.<a href="#appendix-A-3.11.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.12">
-          <p id="appendix-A-3.12.1">Added terminology, defined depth recursively, and made editorial clarifications throughout.<a href="#appendix-A-3.12.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.13">
-          <p id="appendix-A-3.13.1">Recommended omitting the capability when no data type is listed, and noted that limits may count data from other protocols.<a href="#appendix-A-3.13.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-3.2.1">Relaxed the per-viewer state requirement for private writes to <span class="bcp14">SHOULD NOT</span>, while still forbidding other users' <code>/changes</code> and <code>/queryChanges</code> from reporting the object.<a href="#appendix-A-3.2.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="appendix-A-4"><strong>draft-ietf-jmap-metadata-02</strong><a href="#appendix-A-4" class="pilcrow">¶</a></p>
+<p id="appendix-A-4"><strong>draft-ietf-jmap-metadata-03</strong><a href="#appendix-A-4" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-5.1">
-          <p id="appendix-A-5.1.1">Redesigned the extension around two properties (<code>metadata</code> and <code>privateMetadata</code>) on each opted-in JMAP data type, rather than a separate <code>Metadata</code> data type with its own methods. Removed the <code>Metadata</code> data type, all <code>Metadata/*</code> methods, the related object types, the extended <code>/get</code>/<code>/set</code> arguments, and the uniqueness and cascading-deletion machinery.<a href="#appendix-A-5.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.1.1">Clarified that metadata-only changes do not update server-maintained modification timestamps.<a href="#appendix-A-5.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-5.2">
-          <p id="appendix-A-5.2.1">Added a per-data-type capability advertising IANA-registered namespace support (<code>namespaces</code>), vendor (domain-name) namespace support (<code>supportsVendorNamespaces</code>), private-metadata support (<code>supportsPrivate</code>), and a nesting limit (<code>maxDepth</code>).<a href="#appendix-A-5.2.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.2.1">Defined behavior for requests that do not use the capability.<a href="#appendix-A-5.2.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-5.3">
-          <p id="appendix-A-5.3.1">Added <code>updatedProperties</code> to <code>Foo/changes</code> for opted-in types, modelled on <code>Mailbox/changes</code> in RFC 8621. Specified per-viewer behavior for <code>/changes</code> and <code>/queryChanges</code> on shared objects carrying per-user private metadata.<a href="#appendix-A-5.3.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.3.1">Allowed patch paths at any depth, and placed "invalidPatch" in the <code>/set</code> validation order.<a href="#appendix-A-5.3.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-5.4">
-          <p id="appendix-A-5.4.1">Added FilterCondition fields to <code>Foo/query</code>: <code>metadataExists</code>, <code>privateMetadataExists</code>, <code>metadataTextContains</code>, <code>metadataTextEquals</code>, and the corresponding private variants. Servers <span class="bcp14">MAY</span> reject the text-match conditions with "unsupportedFilter" when implementation cost is prohibitive.<a href="#appendix-A-5.4.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.4.1">Defined the interaction of <code>updatedProperties</code> and <code>ignoreMetadataOnlyChanges</code> with the Mailbox count properties.<a href="#appendix-A-5.4.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-5.5">
-          <p id="appendix-A-5.5.1">Added an <code>ignoreMetadataOnlyChanges</code> argument to <code>Foo/changes</code>, letting metadata-uninterested clients skip wakeups for metadata-only changes on data types they otherwise care about.<a href="#appendix-A-5.5.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.5.1">Added <code>/copy</code> behavior; excluded <code>/import</code> and <code>/parse</code> style methods.<a href="#appendix-A-5.5.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-5.6">
-          <p id="appendix-A-5.6.1">Specified PatchObject semantics for <code>metadata</code> and <code>privateMetadata</code>, including handling of unknown namespaces, error ordering on <code>/set</code>, and the migration case where a namespace is removed from the server's advertised set after data has been written.<a href="#appendix-A-5.6.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.6.1">Excluded metadata from the <code>Email/get</code> default property list.<a href="#appendix-A-5.6.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-5.7">
-          <p id="appendix-A-5.7.1">Replaced the previous metadata-types and metadata-properties registries with a single "JMAP Metadata Namespaces" registry. This document defines no initial entries; bindings to other protocols (e.g., IMAP METADATA, WebDAV dead properties) are expected to be defined in separate specifications.<a href="#appendix-A-5.7.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.7.1">Specified the "i;unicode-casemap" collation for <code>metadataTextContains</code>.<a href="#appendix-A-5.7.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-5.8">
+          <p id="appendix-A-5.8.1">Required lowercase domain-name namespace identifiers.<a href="#appendix-A-5.8.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-5.9">
+          <p id="appendix-A-5.9.1">Defined read and write rights for the data types of JMAP Mail, Calendars, Contacts, FileNode and Sieve, and the rule for objects in several containers.<a href="#appendix-A-5.9.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-5.10">
+          <p id="appendix-A-5.10.1">Clarified handling of data in unsupported namespaces in subselectors, filters, complete replacements and copies.<a href="#appendix-A-5.10.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-5.11">
+          <p id="appendix-A-5.11.1">Allowed filter condition paths at any depth below a namespace.<a href="#appendix-A-5.11.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-5.12">
+          <p id="appendix-A-5.12.1">Added terminology, defined depth recursively, and made editorial clarifications throughout.<a href="#appendix-A-5.12.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-5.13">
+          <p id="appendix-A-5.13.1">Recommended omitting the capability when no data type is listed, and noted that limits may count data from other protocols.<a href="#appendix-A-5.13.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="appendix-A-6"><strong>draft-ietf-jmap-metadata-01</strong><a href="#appendix-A-6" class="pilcrow">¶</a></p>
+<p id="appendix-A-6"><strong>draft-ietf-jmap-metadata-02</strong><a href="#appendix-A-6" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-7.1">
-          <p id="appendix-A-7.1.1">Renamed <code>parentType</code> and <code>parentId</code> properties to <code>relatedType</code> and <code>relatedId</code> throughout the document to better reflect their purpose and avoid implying a strict hierarchy.<a href="#appendix-A-7.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.1.1">Redesigned the extension around two properties (<code>metadata</code> and <code>privateMetadata</code>) on each opted-in JMAP data type, rather than a separate <code>Metadata</code> data type with its own methods. Removed the <code>Metadata</code> data type, all <code>Metadata/*</code> methods, the related object types, the extended <code>/get</code>/<code>/set</code> arguments, and the uniqueness and cascading-deletion machinery.<a href="#appendix-A-7.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.2">
-          <p id="appendix-A-7.2.1">Added <code>filterRelatedType</code> and <code>filterMetadataType</code> optional parameters to Metadata/changes method to allow filtering changes by related object type and metadata type.<a href="#appendix-A-7.2.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.2.1">Added a per-data-type capability advertising IANA-registered namespace support (<code>namespaces</code>), vendor (domain-name) namespace support (<code>supportsVendorNamespaces</code>), private-metadata support (<code>supportsPrivate</code>), and a nesting limit (<code>maxDepth</code>).<a href="#appendix-A-7.2.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.3">
-          <p id="appendix-A-7.3.1">Changed the error type from "invalidProperties" to "alreadyExists" when a client attempts to create a Metadata object that violates the uniqueness constraint.<a href="#appendix-A-7.3.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.3.1">Added <code>updatedProperties</code> to <code>Foo/changes</code> for opted-in types, modelled on <code>Mailbox/changes</code> in RFC 8621. Specified per-viewer behavior for <code>/changes</code> and <code>/queryChanges</code> on shared objects carrying per-user private metadata.<a href="#appendix-A-7.3.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.4">
-          <p id="appendix-A-7.4.1">Added requirement that <code>relatedType</code> must be specified in the same FilterCondition object whenever <code>relatedIds</code> is used in Metadata/query.<a href="#appendix-A-7.4.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.4.1">Added FilterCondition fields to <code>Foo/query</code>: <code>metadataExists</code>, <code>privateMetadataExists</code>, <code>metadataTextContains</code>, <code>metadataTextEquals</code>, and the corresponding private variants. Servers <span class="bcp14">MAY</span> reject the text-match conditions with "unsupportedFilter" when implementation cost is prohibitive.<a href="#appendix-A-7.4.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.5">
-          <p id="appendix-A-7.5.1">Added <code>id</code> as a <span class="bcp14">MUST</span> support property for sorting in Metadata/query; other properties changed to <span class="bcp14">SHOULD</span> support.<a href="#appendix-A-7.5.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.5.1">Added an <code>ignoreMetadataOnlyChanges</code> argument to <code>Foo/changes</code>, letting metadata-uninterested clients skip wakeups for metadata-only changes on data types they otherwise care about.<a href="#appendix-A-7.5.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.6">
-          <p id="appendix-A-7.6.1">Replaced the <code>metadataTypes</code> argument with a <code>fetchMetadata</code> Boolean argument (default: false) in the extended /get method.<a href="#appendix-A-7.6.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.6.1">Specified PatchObject semantics for <code>metadata</code> and <code>privateMetadata</code>, including handling of unknown namespaces, error ordering on <code>/set</code>, and the migration case where a namespace is removed from the server's advertised set after data has been written.<a href="#appendix-A-7.6.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.7">
-          <p id="appendix-A-7.7.1">Added <code>onSuccessCreateMetadata</code> and <code>onSuccessUpdateMetadata</code> arguments to the extended /set method to enable transactional metadata operations that are conditional on the success of the related object operation.<a href="#appendix-A-7.7.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.7.1">Replaced the previous metadata-types and metadata-properties registries with a single "JMAP Metadata Namespaces" registry. This document defines no initial entries; bindings to other protocols (e.g., IMAP METADATA, WebDAV dead properties) are expected to be defined in separate specifications.<a href="#appendix-A-7.7.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="appendix-A-8"><strong>draft-ietf-jmap-metadata-00</strong><a href="#appendix-A-8" class="pilcrow">¶</a></p>
+<p id="appendix-A-8"><strong>draft-ietf-jmap-metadata-01</strong><a href="#appendix-A-8" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-9.1">
-          <p id="appendix-A-9.1.1">Initial version<a href="#appendix-A-9.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-9.1.1">Renamed <code>parentType</code> and <code>parentId</code> properties to <code>relatedType</code> and <code>relatedId</code> throughout the document to better reflect their purpose and avoid implying a strict hierarchy.<a href="#appendix-A-9.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-9.2">
+          <p id="appendix-A-9.2.1">Added <code>filterRelatedType</code> and <code>filterMetadataType</code> optional parameters to Metadata/changes method to allow filtering changes by related object type and metadata type.<a href="#appendix-A-9.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-9.3">
+          <p id="appendix-A-9.3.1">Changed the error type from "invalidProperties" to "alreadyExists" when a client attempts to create a Metadata object that violates the uniqueness constraint.<a href="#appendix-A-9.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-9.4">
+          <p id="appendix-A-9.4.1">Added requirement that <code>relatedType</code> must be specified in the same FilterCondition object whenever <code>relatedIds</code> is used in Metadata/query.<a href="#appendix-A-9.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-9.5">
+          <p id="appendix-A-9.5.1">Added <code>id</code> as a <span class="bcp14">MUST</span> support property for sorting in Metadata/query; other properties changed to <span class="bcp14">SHOULD</span> support.<a href="#appendix-A-9.5.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-9.6">
+          <p id="appendix-A-9.6.1">Replaced the <code>metadataTypes</code> argument with a <code>fetchMetadata</code> Boolean argument (default: false) in the extended /get method.<a href="#appendix-A-9.6.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-9.7">
+          <p id="appendix-A-9.7.1">Added <code>onSuccessCreateMetadata</code> and <code>onSuccessUpdateMetadata</code> arguments to the extended /set method to enable transactional metadata operations that are conditional on the success of the related object operation.<a href="#appendix-A-9.7.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="appendix-A-10"><strong>draft-ietf-jmap-metadata-00</strong><a href="#appendix-A-10" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-A-11.1">
+          <p id="appendix-A-11.1.1">Initial version<a href="#appendix-A-11.1.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 </section>
