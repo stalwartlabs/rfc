@@ -7,11 +7,13 @@
   "scripts": {
     "dev": "slidev slides.md --open",
     "build": "slidev build slides.md --base ./ --out dist",
-    "export": "slidev export slides.md --output mta-hooks-bof.pdf"
+    "export": "slidev export slides.md --output mta-hooks-bof.pdf",
+    "site": "slidev build slides.md --base /mta-hooks/slides/ --out dist && rm -rf assets && cp -R dist/index.html dist/404.html dist/assets . && rm -rf dist"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@slidev/cli": "^0.50.0",
     "@slidev/theme-default": "^0.25.0",
     "vue": "^3.4.0"

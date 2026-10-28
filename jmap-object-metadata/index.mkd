@@ -1,7 +1,7 @@
 ---
 title: JMAP Object Metadata
 abbrev: JMAP Object Metadata
-docname: draft-ietf-jmap-metadata-04
+docname: draft-ietf-jmap-metadata-05
 submissionType: IETF
 category: std
 updates:

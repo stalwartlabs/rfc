@@ -1,13 +1,15 @@
 ---
-title: "MTA Hooks: An HTTP-Based Mail Processing Protocol"
+title: "Mail Transfer Agent (MTA) Hooks: An HTTP-Based Protocol for External Mail Processing"
 abbrev: MTA Hooks
-docname: draft-degennaro-mta-hooks-01
+docname: draft-degennaro-mta-hooks-02
 submissionType: IETF
 category: std
-updates: 
-obsoletes:
 ipr: trust200902
-keyword: Internet-Draft
+keyword:
+  - SMTP
+  - MTA
+  - mail filtering
+  - JSON Patch
 stand_alone: yes
 pi: [toc, sortrefs, symrefs]
 
@@ -21,41 +23,107 @@ author:
     city: Sheridan
     region: WY
     code: 82801
-    country: USA
+    country: United States of America
     email: mauro@stalw.art
     uri: https://stalw.art
 
 normative:
+  RFC2045:
+  RFC2047:
+  RFC3339:
+  RFC3461:
+  RFC3463:
+  RFC3986:
+  RFC4291:
+  RFC4422:
+  RFC4632:
+  RFC4648:
+  RFC4954:
+  RFC5234:
+  RFC5280:
   RFC5321:
   RFC5322:
+  RFC6750:
   RFC6901:
+  RFC6902:
+  RFC7672:
   RFC8259:
+  RFC8460:
+  RFC8461:
+  RFC8601:
   RFC8620:
   RFC8621:
+  RFC8689:
   RFC8949:
-  RFC3339:
+  RFC9110:
+  RFC9112:
+  RFC9113:
+  RFC9325:
+  RFC9457:
+  RFC9846:
+  ISO3166-1:
+    title: "Codes for the representation of names of countries and their subdivisions -- Part 1: Country code"
+    author:
+      org: ISO
+    seriesinfo:
+      ISO: 3166-1:2020
+    date: 2020
+  X.690:
+    title: "Information technology - ASN.1 encoding rules: Specification of Basic Encoding Rules (BER), Canonical Encoding Rules (CER) and Distinguished Encoding Rules (DER)"
+    author:
+      org: ITU-T
+    seriesinfo:
+      ITU-T Recommendation: X.690
+    date: 2021
 
 informative:
-  RFC3461:
   RFC6376:
   RFC7208:
-  RFC7489:
+  RFC7942:
+  RFC8314:
+  RFC9114:
+  RFC9562:
+  RFC9989:
+  I-D.ietf-dkim-dkim2-spec:
+  I-D.gondwana-dkim2-authres:
+  MILTER:
+    target: https://www.sendmail.org/doc/sendmail-current/libmilter/docs/
+    title: "Sendmail Mail Filter API (Milter)"
+    author:
+      org: Proofpoint, Inc.
+  PROXY:
+    target: https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+    title: "The PROXY protocol, Versions 1 and 2"
+    author:
+      name: W. Tarreau
+      ins: W. Tarreau
+      org: HAProxy Technologies
+  XCLIENT:
+    target: https://www.postfix.org/XCLIENT_README.html
+    title: "Postfix XCLIENT Howto"
+    author:
+      org: The Postfix Project
+  XFORWARD:
+    target: https://www.postfix.org/XFORWARD_README.html
+    title: "Postfix XFORWARD Howto"
+    author:
+      org: The Postfix Project
 
 --- abstract
 
-This document specifies MTA Hooks, an HTTP-based protocol enabling Mail Transfer Agents (MTAs) to delegate message processing decisions to external services. MTA Hooks provides a modern alternative to legacy mail filtering protocols by leveraging ubiquitous HTTP infrastructure, supporting both JSON and CBOR serialization, and offering fine-grained capability negotiation. The protocol supports both inbound message reception and outbound message delivery scenarios, allowing external scanners to inspect messages, modify content, and influence routing decisions at various stages of mail processing.
+This document specifies MTA Hooks, an HTTP-based protocol that lets Mail Transfer Agents (MTAs) delegate message processing decisions to external services. The MTA sends a JSON or Concise Binary Object Representation (CBOR) description of the SMTP session, envelope, and message to a registered service at defined stages of reception and delivery. The service answers with a JSON Patch that changes the description, and the MTA acts on the resulting state. The same mechanism covers filtering at SMTP time, routing before delivery, and reacting to delivery outcomes, and the MTA controls exactly which changes each service may make.
 
 --- middle
 
 # Introduction
 
-Mail Transfer Agents require extensible mechanisms to integrate with external services for spam filtering, virus scanning, policy enforcement, and compliance monitoring. While legacy protocols such as the Milter protocol have served this purpose, they present challenges in modern deployments including proprietary wire formats, limited tooling, and operational complexity.
+Mail Transfer Agents need extensible mechanisms to integrate external services for spam filtering, virus scanning, policy enforcement, routing, and compliance. Existing mechanisms each cover a part of the problem: content filter protocols such as Milter {{MILTER}} see only message reception, lookup tables receive a single key, and delivery outcomes are mostly recovered by parsing logs.
 
-MTA Hooks addresses these challenges by defining an HTTP-based protocol for mail processing delegation. The protocol leverages the widespread availability of HTTP client and server implementations, standard serialization formats, and established operational practices for HTTP services.
+MTA Hooks covers the whole life of a message with one protocol. At each processing stage the MTA describes the current state as a single JavaScript Object Notation (JSON) {{RFC8259}} object: the SMTP session, the envelope with the status of every recipient, the message, and the delivery attempts. A scanner answers with a JSON Patch {{RFC6902}} against that object. Accepting, rejecting, adding a header, discarding a recipient, choosing a route, or suppressing a delivery status notification (DSN) {{RFC3461}} are all expressed the same way: as a change to the state.
 
-MTA Hooks achieves broad deployment compatibility by building upon standard HTTP semantics and methods, allowing implementers to leverage existing HTTP client and server libraries. The protocol supports both JSON and CBOR serialization to accommodate environments with different performance and parsing requirements. Capability negotiation during registration enables graceful feature discovery and forward compatibility as the protocol evolves. Mandatory transport encryption protects message content in transit, while the authentication mechanism remains pluggable to integrate with diverse deployment environments. The HTTP foundation ensures compatibility with existing operational infrastructure including load balancers, reverse proxies, and monitoring systems.
+The MTA decides which parts of the object each scanner may change, and by default a scanner may only make processing stricter. Making it more permissive, such as overriding a rejection or lowering a TLS requirement, has to be granted explicitly by the MTA operator.
 
-MTA Hooks supports two primary use cases: inbound processing during message reception from remote clients, and outbound processing during message delivery to remote servers. Both scenarios follow a consistent request-response pattern where the MTA invokes the registered hook endpoints at configured processing stages.
+The protocol uses ordinary HTTP {{RFC9110}}, so existing client and server libraries, load balancers, proxies, and monitoring systems work unchanged.
 
 ## Notational Conventions
 
@@ -63,2344 +131,1172 @@ MTA Hooks supports two primary use cases: inbound processing during message rece
 
 ## Terminology
 
-The following terms are used throughout this document:
+MTA:
+: A Mail Transfer Agent as described in {{RFC5321}}.
 
-- MTA (Mail Transfer Agent): A software component responsible for transferring electronic mail messages between hosts, as described in {{RFC5321}}.
+Scanner:
+: An HTTP service that receives hook requests from an MTA and returns changes.
 
-- Hook Endpoint: An HTTP server endpoint that receives hook invocations from an MTA and returns processing instructions.
+Registration:
+: The state, held by the scanner, that records which stages, properties, and changes an MTA has agreed to exchange with it.
 
-- Scanner: A service that registers with an MTA to receive hook invocations. Scanners perform functions such as spam filtering, virus scanning, or policy enforcement. The terms "scanner" and "hook endpoint" are used interchangeably when referring to the service receiving hook requests.
+Subscription:
+: A part of a registration that applies to the messages and stages matching its filter.
 
-- Registration: The process by which an MTA establishes a session with a scanner, including capability negotiation and assignment of a registration identifier.
+Stage:
+: A point in mail processing at which the MTA invokes scanners.
 
-- Inbound Processing: Hook invocation during message reception, when the MTA accepts a message from a remote SMTP client.
+Hook request:
+: The object describing the current state that the MTA sends to a scanner.
 
-- Outbound Processing: Hook invocation during message delivery, when the MTA transmits a message to a remote SMTP server.
+Grant:
+: A permission, given by the MTA, to change a part of the hook request.
 
-- Stage: A specific point in mail processing at which the MTA invokes registered hooks. Different stages provide access to different message properties.
-
-- Action: An instruction from a scanner indicating how the MTA should proceed with message processing.
-
-- Modification: A change to message properties requested by a scanner, expressed as operations on the hook request object.
+Property path:
+: A JSON Pointer {{RFC6901}} into the hook request, in which the reference token "*", used in place of an array index, matches any index.
 
 ## Data Types
 
-This specification defines several object types used throughout the protocol. The following primitive types are used:
+String:
+: A JSON string.
 
-{:vspace}
-**String**
-: A JSON string value.
-
-**Int**
-: An integer in the range -2^53+1 <= value <= 2^53-1.
-
-**UnsignedInt**
+UnsignedInt:
 : An integer in the range 0 <= value <= 2^53-1.
 
-**Boolean**
-: A JSON boolean value (true or false).
+Boolean:
+: A JSON boolean.
 
-**UTCDate**
-: A string in "date-time" format as defined in {{RFC3339}}, where the time-offset component MUST be "Z" (UTC time). For example, "2024-12-21T15:30:00Z".
+UTCDate:
+: A "date-time" string as defined in {{RFC3339}} whose time-offset is "Z".
+
+Bytes:
+: Binary data. In JSON it is a base64 string ({{Section 4 of RFC4648}}); in CBOR it is a byte string.
+
+A\[\] denotes an array of A, and String\[A\] denotes an object whose keys are strings and whose values are of type A. When sent, a property whose type includes null MAY be omitted, which is equivalent to null, and a property with a stated default MAY be omitted, which is equivalent to the default.
 
 # Protocol Overview
 
-MTA Hooks defines a request-response protocol where the MTA acts as an HTTP client and scanners act as HTTP servers. During mail processing, the MTA constructs a request containing message properties and context information, transmits it to registered scanner endpoints, and processes the response to determine subsequent actions.
-
 ## Architecture
 
-The protocol architecture consists of three primary components:
-
-1. The MTA, which initiates HTTP requests to scanner endpoints at configured processing stages.
-
-2. Scanner services, which receive requests, perform analysis, and return responses containing actions and modifications.
-
-3. A registration mechanism through which the MTA declares its intent to send specific stages and properties and the scanner returns a registration identifier used on subsequent invocations.
+The MTA is always the HTTP client. It discovers a scanner, registers with it, and then sends it hook requests during mail processing. The MTA exposes no HTTP endpoint.
 
 ~~~
-+-------+                              +---------+
-|       |  1. Discovery Request        |         |
-|       |----------------------------->|         |
-|       |  2. Discovery Response       |         |
-|       |<-----------------------------|         |
-|       |                              |         |
-|       |  3. Registration Request     |         |
-|  MTA  |----------------------------->| Scanner |
-|       |  4. Registration Response    |         |
-|       |<-----------------------------|         |
-|       |                              |         |
-|       |  5. Hook Request             |         |
-|       |----------------------------->|         |
-|       |  6. Hook Response            |         |
-|       |<-----------------------------|         |
-+-------+                              +---------+
++-----+   GET /.well-known/mta-hooks          +---------+
+|     |-------------------------------------->|         |
+|     |   POST registration                   |         |
+| MTA |-------------------------------------->| Scanner |
+|     |   POST hook request                   |         |
+|     |-------------------------------------->|         |
+|     |<--------------------------------------|         |
++-----+   JSON Patch                          +---------+
 ~~~
 {: #fig-architecture title="MTA Hooks Protocol Flow"}
 
-The protocol flow proceeds as follows:
-
-1. The MTA discovers scanner capabilities by requesting the well-known discovery endpoint.
-
-2. The scanner returns a discovery document describing supported stages, actions, and configuration options.
-
-3. The MTA submits a registration request to the scanner specifying the stages, properties, and filters it will deliver.
-
-4. The scanner validates the request, returns a registration identifier, and confirms the negotiated capabilities.
-
-5. During mail processing, the MTA invokes the scanner's hook endpoint with message properties and context.
-
-6. The scanner returns a response containing an action and optional modifications.
+1. Optionally, the MTA retrieves the scanner's discovery document ({{discovery}}).
+2. The MTA registers, stating the stages, properties, and grants for each subscription ({{registration}}).
+3. At each subscribed stage the MTA sends a hook request ({{hook-request}}).
+4. The scanner returns a JSON Patch, which the MTA validates against the grants and applies ({{hook-response}}).
 
 ## Serialization
 
-Requests and responses are serialized using either JSON {{RFC8259}} or CBOR {{RFC8949}}. The serialization format is negotiated during registration and indicated via HTTP `Content-Type` headers.
+Discovery, registration, and error responses use JSON. Hook requests and responses use JSON or CBOR {{RFC8949}}, chosen at registration. In CBOR, the data model is that of JSON, with text strings as map keys, except that Bytes values are byte strings, which avoids the size increase of base64 for message content. JSON Pointer and JSON Patch apply unchanged, and a "test" operation compares byte strings octet for octet.
 
-For JSON serialization, the `Content-Type` header MUST be "application/json". For CBOR serialization, the `Content-Type` header MUST be "application/cbor".
+## Stages {#stage-list}
 
-Binary data handling differs between formats. In JSON serialization, binary content such as message body parts MUST be encoded using Base64. In CBOR serialization, binary content SHOULD be transmitted as raw byte strings.
+| Stage | Invoked |
+|---|---|
+| connect | When a client connects, before the greeting is sent; on a port with implicit TLS {{RFC8314}}, after the TLS handshake. |
+| ehlo | After each EHLO or HELO command, including the one that follows STARTTLS. |
+| mail | After each MAIL command. |
+| rcpt | After each RCPT command. |
+| data | After the message content has been received, before the final reply. |
+| route | Each time the MTA takes recipients from the queue for a delivery attempt, before resolving or connecting to the next hop. |
+| transmit | Before each SMTP transaction of a delivery attempt, once its envelope is final and before the message is transmitted. |
+| delivery | After the delivery attempts of a delivery job have completed. |
+| dsn | Before the MTA sends a delivery status notification it generated. |
+{: #tab-stages title="Stages"}
 
-## Processing Stages
+The first five stages are inbound stages and the last four are outbound stages. Each inbound stage request carries the state accumulated so far in the session, subject to the subscription's properties, so a scanner that subscribes only to "data" receives the connection, TLS, authentication, envelope, and message in a single request and can still reject the message at SMTP time.
 
-MTA Hooks defines processing stages for both inbound and outbound message handling. Scanners subscribe to specific stages during registration and receive invocations only for subscribed stages.
+A delivery job is a set of recipients of one message that the MTA attempts in one processing cycle. How recipients are grouped into jobs is implementation-defined, except as constrained by routing ({{routing}}).
 
-### Inbound Stages
+## Scanner Chains {#chains}
 
-Inbound stages correspond to SMTP protocol events during message reception:
+When several registrations subscribe to the same stage, the MTA invokes them sequentially in a configured order. Each scanner receives the state as changed by the previous scanners, including the current action and which scanner set it. The chain ends early when a scanner sets a terminal action ({{action-semantics}}).
 
-- connect: Invoked when a remote client establishes a connection, before any SMTP commands are exchanged.
+Each registration is identified in hook requests by a label that the MTA operator assigns to it, for example "spam" or "archive", and that the MTA sends in the registration request. The label is not chosen by the scanner, is stable across re-registration, and is unique within the MTA. It has the syntax of the registration identifier ({{header-fields}}), with at most 64 characters. The reserved label "mta" denotes the MTA itself.
 
-- ehlo: Invoked after the client sends EHLO or HELO command.
+## State Changes
 
-- mail: Invoked after each MAIL FROM command.
+A scanner changes processing by returning a JSON Patch {{RFC6902}} that is applied to the hook request. The MTA then acts on the resulting state. There is no other way to influence processing, so every effect a scanner can have corresponds to a path in the hook request, and every permission is a grant on a path.
 
-- rcpt: Invoked after each RCPT TO command. This stage may be invoked multiple times per transaction.
+# Discovery {#discovery}
 
-- data: Invoked after the complete message has been received, following the DATA command and message content.
+A scanner MAY publish a discovery document at "/.well-known/mta-hooks". The MTA retrieves it with GET. Discovery is optional: the MTA may instead be configured with the registration URL.
 
-### Outbound Stages
+The discovery document has the following properties:
 
-Outbound stages correspond to delivery events during message transmission:
+version: `String`
+: The protocol version, "1.0" for this specification. An MTA MUST NOT register with a scanner whose version it does not support.
 
-- delivery: Invoked after a delivery attempt completes for all recipients, regardless of success or failure.
+registration: `String`
+: URL of the registration endpoint, an absolute URL or a relative reference resolved against the URL of the discovery document ({{Section 5 of RFC3986}}).
 
-- defer: Invoked only when at least one recipient delivery cannot be completed and requires retry.
+serialization: `String[]`
+: Media types of the supported serializations for hook requests: "application/json", "application/cbor", or both.
 
-- dsn: Invoked when the MTA generates a Delivery Status Notification of any type.
+stages: `String[]`
+: Stages the scanner can process.
 
-For outbound stages, the hook is invoked once after delivery attempts for all recipients in a given delivery batch have completed. The scanner receives the delivery status for each recipient and may modify per-recipient handling.
+properties: `String[]`
+: Property paths the scanner wants to receive.
 
-## Inbound Message Processing
+grants: `Grant[]`
+: Changes the scanner may want to make ({{grants}}).
 
-During inbound processing, the MTA invokes registered hooks as it receives messages from remote SMTP clients. This corresponds to traditional mail filtering scenarios where external services inspect incoming mail for spam, viruses, or policy violations.
+maxMessageSize: `UnsignedInt|null`
+: Largest message, in octets, the scanner accepts. The MTA does not send a request for a larger message and instead treats the invocation as a failure of the scanner ({{failure}}).
 
-The inbound flow proceeds through SMTP protocol stages:
-
-1. A remote client connects to the MTA.
-2. The MTA invokes hooks registered for the "connect" stage.
-3. The client sends EHLO/HELO; the MTA invokes "ehlo" stage hooks.
-4. The client sends MAIL FROM; the MTA invokes "mail" stage hooks.
-5. The client sends one or more RCPT TO commands; the MTA invokes "rcpt" stage hooks for each.
-6. The client sends DATA and message content; the MTA invokes "data" stage hooks.
-
-At each stage, scanners may instruct the MTA to accept, reject, or modify the transaction.
-
-### Multiple Scanner Handling
-
-When multiple scanners are registered for the same stage, the MTA invokes them sequentially in an implementation-defined order. Each scanner's response affects the request seen by subsequent scanners.
-
-The scanner chain terminates early when a scanner returns a terminal action:
-
-- Inbound terminal actions: "reject", "discard", "disconnect"
-- Outbound terminal actions: "cancel"
-
-Non-terminal actions ("accept", "quarantine" for inbound; "continue" for outbound) allow the chain to proceed. Each scanner sees the prior scanner's modifications, including any change to the "/action" path, and MAY further modify it.
-
-Action precedence within a chain proceeds from least to most restrictive: "accept" is the weakest, "quarantine" is stronger, and the terminal actions ("reject", "discard", "disconnect") are the strongest. By default, the MTA SHOULD reject responses that downgrade the action to a weaker value (for example, setting "/action" from "quarantine" to "accept"). Implementations MAY provide configuration to permit such downgrades for specific trusted scanners, but this MUST NOT be the default.
-
-Implementations SHOULD provide configuration options for:
-
-- Scanner invocation order (priority-based or explicit ordering)
-- Per-scanner trust to permit action downgrades
-- Logging of chain termination events for operational visibility
-
-Example chain behavior:
-
-1. Scanner A (spam filter) sets action to "accept" and adds X-Spam-Score header
-2. Scanner B (virus scanner) receives modified request, detects malware, sets action to "reject"
-3. Chain terminates; Scanner C is not invoked
-4. MTA rejects the message
-
-## Outbound Message Processing
-
-During outbound processing, the MTA invokes registered hooks as it delivers messages to remote SMTP servers. This supports use cases including delivery logging, compliance monitoring, and routing decisions.
-
-The outbound flow proceeds as follows:
-
-1. The MTA selects a queued message for delivery and identifies the recipients due for delivery at this time.
-2. The MTA attempts delivery to all selected recipients.
-3. After all attempts in this delivery job complete, the MTA invokes hooks registered for the "delivery" stage.
-4. If any recipient requires retry, the MTA invokes "defer" stage hooks.
-5. If the MTA generates a DSN, it invokes "dsn" stage hooks before sending.
-
-A delivery job represents a single processing cycle where the MTA retrieves a message from the queue and attempts delivery to one or more recipients. The specific batching of recipients into delivery jobs is implementation-defined and may depend on factors such as destination domain, connection reuse, or queue configuration. The "delivery" stage hook is invoked once per delivery job after all recipient attempts within that job have completed.
-
-Scanners may modify per-recipient delivery status, suppress DSN generation, or alter retry scheduling.
-
-## Modifications
-
-Scanners communicate changes through modifications to the hook request object, expressed as set, add, and delete operations on JSON Pointers {{RFC6901}}. The complete modification semantics, including operation ordering and error handling, are defined in {{hook-response}}.
-
-# Discovery
-
-MTAs discover scanner capabilities through a well-known HTTP endpoint. Discovery is OPTIONAL; scanner endpoints MAY alternatively be configured manually.
-
-## Well-Known Endpoint
-
-Scanners that support discovery MUST expose a discovery document at the path "/.well-known/mta-hooks". The MTA retrieves this document using an HTTP GET request.
-
-The discovery endpoint MUST support JSON serialization. Support for CBOR serialization is OPTIONAL.
-
-## Discovery Document Format
-
-The discovery document is a JSON or CBOR object containing the following fields:
-
-{:vspace}
-**version**: `String`
-: The protocol version. This specification defines version "1.0".
-
-**endpoints**: `DiscoveryEndpoints`
-: URLs for protocol operations.
-
-**serialization**: `String[]`
-: Supported serialization formats. Valid values are "json" and "cbor".
-
-**capabilities**: `DiscoveryCapabilities`
-: Supported protocol capabilities.
-
-**limits**: `DiscoveryLimits|null`
-: Operational limits, or null if no specific limits are advertised.
-
-**extensions**: `String[]|null`
-: Supported protocol extensions. Extension identifiers SHOULD use a reverse domain name prefix for vendor-specific extensions.
-
-A **DiscoveryEndpoints** object has the following properties:
-
-{:vspace}
-**registration**: `String`
-: URL path for submitting registration requests.
-
-**deregistration**: `String`
-: URL path template for deregistration, with "{registration_id}" placeholder.
-
-A **DiscoveryCapabilities** object has the following properties:
-
-{:vspace}
-**inbound**: `DirectionCapabilities|null`
-: Inbound processing capabilities, or null if inbound processing is not supported.
-
-**outbound**: `DirectionCapabilities|null`
-: Outbound processing capabilities, or null if outbound processing is not supported.
-
-A **DirectionCapabilities** object has the following properties:
-
-{:vspace}
-**stages**: `String[]`
-: Supported stages for this processing direction.
-
-**actions**: `String[]`
-: Supported actions that scanners may request.
-
-**fetchProperties**: `String[]`
-: JSON Pointers for properties the MTA can include in hook requests.
-
-**updateProperties**: `String[]`
-: JSON Pointers for properties scanners may modify.
-
-A **DiscoveryLimits** object has the following properties:
-
-{:vspace}
-**maxMessageSize**: `UnsignedInt|null`
-: Maximum message size in bytes the scanner accepts.
-
-**maxRegistrations**: `UnsignedInt|null`
-: Maximum concurrent registrations.
-
-**timeoutMs**: `UnsignedInt|null`
-: Default timeout in milliseconds for hook invocations.
-
-The `fetchProperties` and `updateProperties` arrays contain JSON Pointers as defined in {{RFC6901}}.  Each pointer identifies a property within
-the hook request structure that the MTA supports including or that scanners may modify. For example, "/envelope/from/address" refers to the sender's email address within the envelope object.
-
-### Example Discovery Document
+timeoutMs: `UnsignedInt|null`
+: Time, in milliseconds, the scanner needs to answer a typical request.
 
 ~~~json
 {
   "version": "1.0",
-
-  "endpoints": {
-    "registration": "/v1/hooks/register",
-    "deregistration": "/v1/hooks/register/{registration_id}"
-  },
-
-  "serialization": ["json", "cbor"],
-
-  "capabilities": {
-    "inbound": {
-      "stages": ["connect", "ehlo", "mail", "rcpt", "data"],
-      "actions": ["accept", "reject", "discard",
-                  "quarantine", "disconnect"],
-      "fetchProperties": ["/envelope", "/message", "/rawMessage",
-                          "/server", "/tls", "/auth", "/senderAuth",
-                          "/client", "/stage", "/action", 
-                          "/timestamp","/response", "/protocol", 
-                          "/queue"],
-      "updateProperties": ["/envelope", "/message", "/rawMessage",
-                           "/action", "/response"]
-    },
-    "outbound": {
-      "stages": ["delivery", "defer", "dsn"],
-      "actions": ["continue", "cancel"],
-      "fetchProperties": ["/envelope", "/message", "/rawMessage",
-                          "/server", "/queue", "/stage", "/action",
-                          "/timestamp", "/protocol"],
-      "updateProperties": ["/envelope/to", "/action", "/message",
-                           "/rawMessage"]
-    }
-  },
-
-  "limits": {
-    "maxMessageSize": 52428800,
-    "maxRegistrations": 64,
-    "timeoutMs": 30000
-  },
-
-  "extensions": ["x-vendor-feature"]
+  "registration": "/v1/registrations",
+  "serialization": ["application/cbor", "application/json"],
+  "stages": ["connect", "rcpt", "data", "route", "delivery"],
+  "properties": ["/session", "/envelope", "/message",
+                 "/senderAuth", "/queue", "/ext/org.example.av"],
+  "grants": [
+    {"path": "/action",
+     "values": ["accept", "quarantine", "reject", "discard"]},
+    {"path": "/response"},
+    {"path": "/message/headers"},
+    {"path": "/envelope/to/*/status"},
+    {"path": "/envelope/to/*/route"},
+    {"path": "/ext/org.example.spam"}
+  ],
+  "maxMessageSize": 52428800,
+  "timeoutMs": 2000
 }
 ~~~
 
-## Manual Configuration
+# Registration {#registration}
 
-Discovery is OPTIONAL. Administrators MAY configure scanner endpoints manually, including capability restrictions and authentication credentials. Manual configuration may be necessary in environments where the well-known endpoint is not accessible or where policy requires explicit configuration.
-
-# Registration
-
-The MTA registers with each configured scanner to negotiate capabilities and establish a session identifier used on subsequent hook invocations. Registration creates state at the scanner that remains active until explicit deregistration or expiration.
-
-The MTA acts as the HTTP client throughout: it discovers scanner capabilities, submits the registration request, manages the lifecycle of the registration, and invokes hooks. The MTA does not expose any HTTP server for scanner-to-MTA communication. Scanner endpoints, credentials, and per-scanner subscription policy are provisioned at the MTA out of band; this specification does not define the provisioning channel.
+The MTA registers by POSTing a registration request to the registration endpoint. The MTA builds the request from its configuration; it states what the MTA will send and what it will allow. The scanner can accept it, narrow it, or refuse it, but never widen it.
 
 ## Registration Request
 
-The MTA submits a registration request via HTTP POST to the registration endpoint advertised in the scanner's discovery document, or configured manually. The request body contains a JSON or CBOR object with the following fields:
+name: `String`
+: Human-readable name of the MTA instance.
 
-{:vspace}
-**name**: `String`
-: Human-readable name identifying the MTA instance, suitable for display in scanner administrative interfaces.
+label: `String`
+: The label of this registration in hook requests ({{chains}}).
 
-**version**: `String|null`
-: MTA software version string.
+softwareVersion: `String|null`
+: MTA software version.
 
-**timeoutMs**: `UnsignedInt|null`
-: Hook invocation timeout the MTA will enforce, in milliseconds. The scanner MAY use this value to size internal queues and processing budgets, but it does not affect MTA behavior.
+timeoutMs: `UnsignedInt`
+: Longest time, in milliseconds, the MTA waits for a hook response.
 
-**expiresAt**: `UTCDate|null`
-: Requested registration expiration timestamp. The scanner MAY assign a different expiration based on policy.
+expiresAt: `UTCDate|null`
+: Requested expiration. The scanner MAY assign a different one.
 
-**serialization**: `String`
-: Requested serialization format for hook requests. MUST be a value from the scanner's advertised serialization list.
+serialization: `String`
+: Media type of the serialization for hook requests and responses. A scanner that does not support it refuses the registration with 422 UNSUPPORTED_SERIALIZATION.
 
-**inbound**: `StageSubscription|null`
-: Inbound hook configuration. Omit or set to null if not subscribing to inbound stages.
+subscriptions: `Subscription[]`
+: The subscriptions, in order. MUST NOT be empty.
 
-**outbound**: `StageSubscription|null`
-: Outbound hook configuration. Omit or set to null if not subscribing to outbound stages.
+A **Subscription** object has the following properties:
 
-**filter**: `FilterOperator|FilterCondition|null`
-: Filter the MTA will apply locally before invoking the scanner. Disclosed for transparency so the scanner can interpret the message stream it receives. Uses filter syntax from {{Section 5.5 of RFC8620}}.
+stages: `String[]`
+: Stages this subscription applies to.
 
-**metadata**: `String[String]|null`
-: Arbitrary key-value pairs for operational metadata.
+filter: `FilterOperator|FilterCondition|null`
+: Which messages and connections this subscription applies to ({{filters}}). Null matches everything.
 
-A **StageSubscription** object has the following properties:
+properties: `String[]`
+: Property paths the MTA will send. A path includes everything below it.
 
-{:vspace}
-**stages**: `String[]`
-: Stages to subscribe to. MUST be a subset of the MTA's supported stages for this direction.
+grants: `Grant[]`
+: Changes the scanner may make ({{grants}}).
 
-**properties**: `String[]|null`
-: JSON Pointers specifying message properties to receive. A value of null requests all supported properties.
+onFailure: `String`
+: What the MTA does when the scanner fails ({{failure}}): "continue" or "tempfail". Default "continue".
 
-At least one of "inbound" or "outbound" MUST be present and non-null in the registration request.
+For each stage, the MTA uses the first subscription, in order, that lists the stage and whose filter matches. If none matches, the scanner is not invoked. Different parts of the mail stream can therefore receive different properties, permissions, and failure handling.
 
-### Filter Configuration
+At the "route" and "delivery" stages, subscriptions are matched per recipient, with envelopeTo evaluated against that recipient alone. When recipients of a job match different subscriptions of the same registration, the MTA invokes the scanner once for each of those subscriptions, in subscription order, with only the recipients it matches, so each subscription's grants and onFailure apply only to its own recipients. At the "transmit" and "dsn" stages the transaction or DSN is matched as a whole, because its changes apply to a single copy.
 
-The filter field uses the FilterOperator and FilterCondition syntax defined in {{Section 5.5 of RFC8620}}. A FilterOperator combines multiple conditions using AND, OR, or NOT logic. A FilterCondition specifies criteria that a message must match.
+### Filters {#filters}
 
-Filter conditions follow {{Section 4.4.1 of RFC8621}} with the following exclusions. The conditions listed below depend on mailbox state, thread state, or message-arrival timing not applicable to MTA processing, and are NOT supported:
+A filter uses the FilterOperator and FilterCondition syntax of {{Section 5.5 of RFC8620}} with the Email filter conditions of {{Section 4.4.1 of RFC8621}}, except those that depend on mailbox or thread state: inMailbox, inMailboxOtherThan, before, after, hasKeyword, notKeyword, allInThreadHaveKeyword, someInThreadHaveKeyword, and noneInThreadHaveKeyword.
 
-- inMailbox
-- inMailboxOtherThan
-- before
-- after
-- allInThreadHaveKeyword
-- someInThreadHaveKeyword
-- noneInThreadHaveKeyword
-- hasKeyword
-- notKeyword
+The following conditions are added. Their String values MAY contain "*", which matches zero or more characters. Domains are compared case-insensitively; local parts and logins are compared exactly.
 
-All other filter conditions defined in {{Section 4.4.1 of RFC8621}} are permitted by this specification, including text-matching conditions such as "from", "to", "cc", "bcc", "subject", "body", "header", and "text", and the size conditions "minSize" and "maxSize". However, support for specific conditions is determined by the scanner implementation. If the registration request specifies a filter condition that the scanner does not support, the registration MUST be rejected with an UNSUPPORTED_FILTER error.
+envelopeFrom: `String`
+: The MAIL FROM address matches.
 
-The following additional conditions are defined for envelope filtering:
+envelopeTo: `String`
+: The address of any recipient whose status is not "failed", "deferred", or "discarded" matches.
 
-{:vspace}
-**envelopeFrom**: `String`
-: Matches if the MAIL FROM address matches the given value. The value MAY include wildcards using the "*" character, which matches zero or more characters.
+clientIp: `String`
+: The client IP address is within the given address or Classless Inter-Domain Routing (CIDR) prefix ({{RFC4632}}, {{Section 2.3 of RFC4291}}).
 
-**envelopeTo**: `String`
-: Matches if any RCPT TO address matches the given value. The value MAY include wildcards using the "*" character, which matches zero or more characters.
+serverPort: `UnsignedInt`
+: The client connected to this port.
 
-Filters apply only to the "data" stage for content-based conditions (those examining message headers or body). For the "mail" and "rcpt" stages, only envelopeFrom and envelopeTo conditions are evaluated; other conditions are ignored for these stages. Messages or envelope commands not matching the filter do not trigger hook invocations.
+tls: `Boolean`
+: Whether the session uses TLS.
 
-### Example Registration Request
+authenticated: `Boolean`
+: Whether the client authenticated.
 
-~~~
-POST /v1/hooks/register HTTP/1.1
-Host: scanner.example.com
-Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+authLogin: `String`
+: The authenticated login matches.
 
-{
-  "name": "Acme MTA mx1",
-  "version": "2.1.0",
+A condition that refers to information not available at the stage being evaluated, such as the subject at the "rcpt" stage or the client address of a locally submitted message, evaluates to false, so its negation evaluates to true.
 
-  "timeoutMs": 25000,
+The filter is evaluated by the MTA. It is included in the registration so the scanner knows which traffic it will see.
 
-  "expiresAt": "2025-12-21T15:30:00Z",
+### Grants {#grants}
 
-  "serialization": "json",
+A **Grant** object has the following properties:
 
-  "inbound": {
-    "stages": ["data"],
-    "properties": ["/message", "/envelope", "/senderAuth"]
-  },
+path: `String`
+: A property path. The grant covers the locations it matches and everything below them.
 
-  "outbound": {
-    "stages": ["delivery"],
-    "properties": null
-  },
+values: `String[]|null`
+: If not null, every String value at or below the path that differs after the patch MUST match one of these values, which MAY contain the "*" wildcard of {{filters}}.
 
-  "filter": {
-    "operator": "OR",
-    "conditions": [
-      {"from": "*@external.example.com"},
-      {"envelopeFrom": "*@partner.example.org"}
-    ]
-  },
+max: `UnsignedInt|null`
+: If not null, a number at the path MUST NOT exceed it after the patch; any other value at the path MUST NOT exceed it in size, in octets, in the negotiated serialization.
 
-  "metadata": {
-    "operator": "acme-mail",
-    "environment": "production",
-    "instance": "mx1"
-  }
-}
+relax: `Boolean`
+: Whether the scanner may change ordered properties in the permissive direction ({{ordering}}). Default false.
+
+A change to a location not covered by a grant is not permitted. When several grants cover a location, the most specific one applies: the one whose path has the most reference tokens and, among those, the one with a literal token where the others have "*". A narrower grant can thus restrict part of a broader one. Examples:
+
+~~~json
+[
+  {"path": "/message/headers"},
+  {"path": "/action", "relax": true},
+  {"path": "/envelope/to/*/route/name",
+   "values": ["default", "vpn-*"]},
+  {"path": "/response/delayMs", "max": 30000},
+  {"path": "/ext/org.example.spam", "max": 4096}
+]
 ~~~
 
 ## Registration Response
 
-Upon successful registration, the scanner returns HTTP status 201 Created with a response body containing:
+On success the scanner returns 201 Created with a Location header field giving the registration URL, and a Registration object:
 
-{:vspace}
-**registrationId**: `String`
-: Unique identifier for this registration. The identifier MUST consist of ASCII alphanumeric characters plus hyphen (-), underscore (_), and colon (:), with a maximum length of 255 characters.
+id: `String`
+: Registration identifier, with the syntax of {{header-fields}}.
 
-**status**: `String`
-: Registration status. Values are "active" or "suspended".
+expiresAt: `UTCDate|null`
+: Expiration time, or null for none.
 
-**createdAt**: `UTCDate`
-: Timestamp of registration creation.
+hookEndpoint: `String`
+: URL to which hook requests are sent, an absolute URL or a relative reference resolved against the registration URL.
 
-**expiresAt**: `UTCDate|null`
-: Timestamp when registration expires, or null if no expiration is set.
+An absolute URL in "registration" or "hookEndpoint" MUST have the same origin as the URL it is resolved against, unless the MTA's configuration allows the other origin. The MTA MUST NOT follow redirects for registration and hook requests; a 3xx status is a failure.
 
-**hookEndpoint**: `String`
-: Absolute or relative URL where the MTA MUST send hook invocations for this registration. A relative URL is resolved against the registration endpoint URL. The scanner MAY return a different path per registration to multiplex tenants.
+serialization: `String`
+: Confirmed serialization media type.
 
-**negotiated**: `NegotiatedCapabilities`
-: Final negotiated capabilities representing the intersection of the MTA's request and the scanner's support.
+subscriptions: `Subscription[]`
+: The subscriptions as accepted. The scanner MAY remove properties and grants it does not need, but MUST NOT otherwise change the subscriptions, because removing a stage or a subscription would let traffic fall through to a later subscription. A scanner that cannot serve a subscription refuses the registration with 422. The MTA MUST NOT send properties or honor changes beyond what is confirmed here.
 
-**endpoints**: `RegistrationEndpoints`
-: URLs for managing this registration.
+~~~
+POST /v1/registrations HTTP/1.1
+Host: scanner.example.com
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
-A **NegotiatedCapabilities** object has the following properties:
-
-{:vspace}
-**serialization**: `String`
-: Confirmed serialization format.
-
-**inbound**: `NegotiatedSubscription|null`
-: Confirmed inbound configuration, or null if not registered for inbound processing.
-
-**outbound**: `NegotiatedSubscription|null`
-: Confirmed outbound configuration, or null if not registered for outbound processing.
-
-A **NegotiatedSubscription** object has the following properties:
-
-{:vspace}
-**stages**: `String[]`
-: Confirmed stages.
-
-**properties**: `String[]`
-: Confirmed property list.
-
-A **RegistrationEndpoints** object has the following properties:
-
-{:vspace}
-**deregistration**: `String`
-: URL for deregistration requests.
-
-**status**: `String`
-: URL for status queries.
-
-### Example Registration Response
+{
+  "name": "mx1.example.com",
+  "label": "spam",
+  "softwareVersion": "2.1.0",
+  "timeoutMs": 5000,
+  "serialization": "application/json",
+  "subscriptions": [
+    {
+      "stages": ["data"],
+      "filter": {"authenticated": false},
+      "properties": ["/session", "/envelope", "/message",
+                     "/senderAuth"],
+      "grants": [
+        {"path": "/action"},
+        {"path": "/response"},
+        {"path": "/message/headers"},
+        {"path": "/ext/org.example.spam", "max": 4096}
+      ],
+      "onFailure": "continue"
+    },
+    {
+      "stages": ["route"],
+      "filter": {"envelopeTo": "*@partner.example"},
+      "properties": ["/envelope", "/queue",
+                     "/ext/org.example.spam"],
+      "grants": [
+        {"path": "/envelope/to/*/route/name",
+         "values": ["vpn-partner"]}
+      ],
+      "onFailure": "tempfail"
+    }
+  ]
+}
+~~~
 
 ~~~
 HTTP/1.1 201 Created
 Content-Type: application/json
-Location: /v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d
+Location: /v1/registrations/reg-7a3b9c2e
 
 {
-  "registrationId": "reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d",
-  "status": "active",
-  "createdAt": "2024-12-21T15:30:00Z",
-  "expiresAt": "2025-12-21T15:30:00Z",
-
-  "hookEndpoint": "/v1/hooks/invoke/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d",
-
-  "negotiated": {
-    "serialization": "json",
-    "inbound": {
-      "stages": ["data"],
-      "properties": ["/message", "/envelope", "/senderAuth"]
-    },
-    "outbound": {
-      "stages": ["delivery"],
-      "properties": ["/message", "/envelope", "/queue", "/server"]
-    }
-  },
-
-  "endpoints": {
-    "deregistration":
-      "/v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d",
-    "status":
-      "/v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d/status"
-  }
+  "id": "reg-7a3b9c2e",
+  "expiresAt": "2027-10-28T10:00:00Z",
+  "hookEndpoint": "/v1/hooks/reg-7a3b9c2e",
+  "serialization": "application/json",
+  "subscriptions": [ ... ]
 }
 ~~~
+
+In this response, which echoes the two requested subscriptions unchanged, they are abbreviated. The HTTP examples in this document omit Content-Length.
 
 ## Authentication {#registration-authentication}
 
-The MTA MUST authenticate to the scanner on every registration, status, and deregistration request. The same credentials are used for hook invocations ({{hook-authentication}}). The specific mechanism is out of scope for this specification; implementations SHOULD support at least one of:
-
-- Bearer tokens via the HTTP Authorization header
-- Mutual TLS with client certificate verification
-- HMAC-based pre-shared key authentication
-
-Credentials are issued by the scanner operator to each MTA permitted to register, through an out-of-band provisioning channel. The scanner MUST verify the MTA's identity from the presented credentials and reject unauthenticated or unauthorized requests. See {{security-considerations}} for deployment guidance.
+The MTA MUST authenticate every request it makes to the scanner other than retrieval of the discovery document. Implementations MUST support bearer tokens {{RFC6750}} in the Authorization header field, and MAY support TLS client certificates instead. Credentials are issued by the scanner operator to each MTA through an out-of-band channel. The scanner MUST reject unauthenticated requests with 401, including a WWW-Authenticate header field as {{RFC6750}} requires, and requests from an MTA not authorized for the registration with 403.
 
 ## Registration Lifecycle
 
-### Status Queries
+The MTA MAY retrieve the current Registration object with GET on the registration URL. It deregisters with DELETE on that URL, to which the scanner answers 204 (No Content). After deregistration the MTA MUST NOT start new hook requests for the registration. Hook requests already in flight MAY complete.
 
-The MTA MAY query a registration's status via HTTP GET to the status endpoint returned during registration.
+A registration that expires or is terminated by the scanner causes subsequent requests to fail with 404 REGISTRATION_NOT_FOUND. The MTA MUST treat that response on a previously active registration as a signal to register again. The MTA SHOULD register again before expiresAt, and when its configuration for the scanner changes. Each registration has a new identifier; once the new registration is active, the MTA SHOULD delete the one it replaces. A scanner SHOULD continue to accept hook requests for a replaced registration for a short grace period.
 
-~~~
-GET /v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d/status \
-  HTTP/1.1
-Host: scanner.example.com
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-~~~
+Scanner instances behind a load balancer MUST share registration state or partition it by registration identifier.
 
-The response contains registration status and optional statistics:
+# Hook Request {#hook-request}
 
-{:vspace}
-**registrationId**: `String`
-: The registration identifier.
+## HTTP Request {#header-fields}
 
-**status**: `String`
-: Current status: "active", "suspended", or "deregistered".
+The MTA sends each hook request with POST to the hookEndpoint, with a Content-Type of "application/json" or "application/cbor" and the following header fields:
 
-**createdAt**: `UTCDate|null`
-: Timestamp of creation.
+MTA-Hooks-Registration:
+: REQUIRED. The registration identifier.
 
-**expiresAt**: `UTCDate|null`
-: Timestamp of expiration.
+MTA-Hooks-Request-Id:
+: REQUIRED. Identifies the logical invocation. It MUST be the same on every retry of an invocation. Scanners SHOULD use it to deduplicate.
 
-**lastInvocation**: `UTCDate|null`
-: Timestamp of most recent hook invocation.
+MTA-Hooks-Context:
+: OPTIONAL. An opaque value that is the same for all requests about the same session at inbound stages, and about the same message at outbound stages, so that load balancers can route related requests to the same scanner instance without parsing the body. Scanners MUST NOT depend on such affinity.
 
-**statistics**: `RegistrationStatistics|null`
-: Operational statistics.
+Their values have the following syntax, using ABNF {{RFC5234}} and the "unreserved" rule of {{Section 2.3 of RFC3986}}:
 
-**health**: `HealthStatus|null`
-: Health check status.
-
-A **RegistrationStatistics** object has the following properties:
-
-{:vspace}
-**invocations**: `InvocationCounts`
-: Invocation counts.
-
-**errors**: `InvocationCounts`
-: Error counts with the same time period structure as invocations.
-
-**averageResponseMs**: `Number`
-: Average response time in milliseconds.
-
-An **InvocationCounts** object has the following properties:
-
-{:vspace}
-**total**: `UnsignedInt`
-: Total count since registration.
-
-**last24h**: `UnsignedInt`
-: Count in past 24 hours.
-
-**last7d**: `UnsignedInt`
-: Count in past 7 days.
-
-**last30d**: `UnsignedInt`
-: Count in past 30 days.
-
-A **HealthStatus** object has the following properties:
-
-{:vspace}
-**status**: `String`
-: Health status: "healthy", "degraded", or "unhealthy".
-
-**lastCheck**: `UTCDate`
-: Timestamp of last health check.
-
-**consecutiveFailures**: `UnsignedInt`
-: Count of consecutive failed health checks.
-
-### Example Status Response
-
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "registrationId": "reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d",
-  "status": "active",
-  "createdAt": "2024-12-21T15:30:00Z",
-  "expiresAt": "2025-12-21T15:30:00Z",
-  "lastInvocation": "2024-12-21T16:42:18Z",
-
-  "statistics": {
-    "invocations": {
-      "total": 15482,
-      "last24h": 3241,
-      "last7d": 10234,
-      "last30d": 43210
-    },
-    "errors": {
-      "total": 32,
-      "last24h": 5,
-      "last7d": 12,
-      "last30d": 28
-    },
-    "averageResponseMs": 45
-  },
-
-  "health": {
-    "status": "healthy",
-    "lastCheck": "2024-12-21T16:44:00Z",
-    "consecutiveFailures": 0
-  }
-}
+~~~ abnf
+MTA-Hooks-Registration = 1*255( ALPHA / DIGIT / "-" / "_" / ":" )
+MTA-Hooks-Request-Id   = 1*128unreserved
+MTA-Hooks-Context      = 1*128unreserved
 ~~~
 
-### Registration Expiration and Renewal
+## Properties
 
-Registrations MAY have an expiration time set by the scanner based on policy. The MTA MUST re-register before expiration to maintain continuous service. Re-registration follows the same process as initial registration and requires full capability renegotiation; the scanner SHOULD issue a fresh registration identifier on renewal and SHOULD continue to honor hook invocations carrying the prior identifier for a brief grace period to avoid races.
+The hook request is an object whose properties are listed below. "stage", "timestamp", and "timeoutMs" are always sent, and "action", "decidedBy", and "response" are always sent at inbound stages. The others are sent when they are covered by the subscription's properties and available at the stage.
 
-The MTA SHOULD monitor its registration status (either by tracking expiresAt locally or by polling the status endpoint) and initiate re-registration before expiration.
+stage: `String`
+: The current stage.
 
-## Deregistration
+action: `String`
+: Inbound stages only: what the MTA will do unless changed ({{action-semantics}}).
 
-The MTA deregisters by sending an HTTP DELETE request to the deregistration endpoint.
+decidedBy: `String`
+: Inbound stages only: label of the registration that last changed the action, or "mta".
 
-~~~
-DELETE /v1/hooks/register/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d \
-  HTTP/1.1
-Host: scanner.example.com
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-~~~
+response: `SmtpResponse`
+: Inbound stages only: the SMTP reply the MTA will send for the current command.
 
-Upon successful deregistration, the scanner returns HTTP status 200 with confirmation:
+timestamp: `UTCDate`
+: When the stage began.
 
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
+timeoutMs: `UnsignedInt`
+: Milliseconds the scanner has to answer this request: the registration's timeoutMs, reduced by any budget the MTA's configuration assigns to the stage or the chain and by time already spent on earlier attempts of this invocation. Answers arriving later are discarded.
 
-{
-  "registrationId": "reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d",
-  "status": "deregistered",
-  "deregisteredAt": "2024-12-21T16:45:00Z"
-}
-~~~
+traceId: `String|null`
+: Opaque identifier that correlates the message across the MTAs of an administrative domain. How it is obtained and propagated between MTAs is outside the scope of this document. It SHOULD be globally unique, for example a version 7 Universally Unique Identifier (UUIDv7) {{RFC9562}}. A scanner with a grant MAY set it while it is null; once set, it cannot be changed.
 
-After deregistration, the MTA MUST NOT send further hook invocations referencing the deregistered registration identifier.
+session: `Session|null`
+: The session in which the message was received ({{session}}).
 
-### In-Flight Requests
+capabilities: `String[String|null]`
+: At the "ehlo" stage, the SMTP service extensions the MTA will announce, keyed by upper-case keyword, with the parameters as a space-separated string or null ({{ehlo}}).
 
-Hook invocations that are in-flight at the time of deregistration MAY complete normally. The scanner SHOULD accept and respond to hook requests that arrive during or shortly after deregistration processing, as network latency may cause requests dispatched before deregistration to arrive afterward.
+envelope: `Envelope`
+: Sender and recipients ({{envelope}}).
 
-Once deregistration completes, the MTA MUST NOT initiate new hook invocations to the deregistered scanner's hook endpoint. The scanner SHOULD allow a brief grace period (implementation-defined, but typically a few seconds) for in-flight requests before considering the deregistration fully complete.
+message: `Email`
+: The parsed message ({{message}}).
 
-### Scanner-Initiated Termination
+rawMessage: `Bytes`
+: The message in Internet Message Format {{RFC5322}}.
 
-The scanner MAY terminate a registration by setting its status to "deregistered" and returning an error to subsequent MTA requests against the registration. Implementation-specific policies govern when scanners do this, for example after detecting that the MTA has stopped sending hook requests for an extended period. The scanner SHOULD log such terminations and the MTA SHOULD treat any 404 REGISTRATION_NOT_FOUND response on a previously-active registration as a signal to re-register.
+senderAuth: `SenderAuth`
+: Sender authentication results ({{sender-auth}}).
 
-# Hook Request
+queue: `Queue`
+: The queued message ({{queue}}).
 
-When processing reaches a stage for which scanners are registered, the MTA constructs a hook request and transmits it to each registered scanner's hook endpoint.
+ext: `String[Object]`
+: Extension data ({{ext}}).
 
-## Request Structure
+A property is not sent when the MTA does not have its information, such as the envelope before MAIL, the message before the end of DATA, the queue before the MTA assigns an identifier, or the session and senderAuth at outbound stages when the MTA did not retain them. At the "transmit" stage, envelope and message describe the transaction about to be performed. At the "dsn" stage, envelope, message, and rawMessage describe the DSN about to be sent; queue identifies the message the DSN reports on.
 
-Hook requests are transmitted via HTTP POST to the hook endpoint URL returned in the registration response. The `Content-Type` header indicates the serialization format negotiated during registration.
+## Session {#session}
 
-The following request headers apply to hook invocations:
+A **Session** object describes an SMTP session. For a message submitted by other means, such as the JSON Meta Application Protocol (JMAP) {{RFC8621}} or a local submission program, it describes that submission as far as applicable; for example, "auth" identifies the submitting account and "client" is null for local submission.
 
-{:vspace}
-**X-MTA-Hooks-Registration**
-: REQUIRED. The registration identifier returned during registration. The scanner uses this to correlate the request with negotiated capabilities and to multiplex registrations sharing a hook endpoint host.
+id: `String`
+: Unique identifier of the session, stable across its stages and transactions.
 
-**X-MTA-Hooks-Request-Id**
-: REQUIRED. A unique identifier for this logical hook invocation. The MTA MUST keep this value stable across retries of the same invocation. Scanners SHOULD deduplicate on this identifier to remain idempotent under retry. The value MUST be a string of at most 128 ASCII characters drawn from the unreserved set defined in {{!RFC3986}}.
+startedAt: `UTCDate`
+: When the connection was accepted.
 
-**Authorization** (or transport-layer credentials)
-: REQUIRED. See {{hook-authentication}}.
+client: `ClientInfo|null`
+: The client.
 
-The request body contains a JSON or CBOR object with properties determined by the registration. The following sections describe available properties organized by category.
+server: `ServerInfo|null`
+: The address the client connected to.
 
-## Authentication {#hook-authentication}
+tls: `TlsInfo|null`
+: TLS negotiated or attempted on the session, or null.
 
-The MTA MUST authenticate every hook invocation using the credentials provisioned for the registration. Scanners MUST verify the credentials and reject any unauthenticated hook request with HTTP 401. Scanners SHOULD also verify that the credentials are bound to the registration identified by `X-MTA-Hooks-Registration`; a mismatch MUST be rejected with HTTP 403.
+auth: `SmtpAuth|null`
+: Authentication of the client, or null.
 
-The same authentication mechanisms supported for registration ({{registration-authentication}}) apply to hook invocations.
-
-## Common Properties
-
-The following properties are available for both inbound and outbound processing:
-
-{:vspace}
-**stage**: `String`
-: The current processing stage.
-
-**action**: `String`
-: The action the MTA will perform if no scanner modifications occur. For inbound processing, values are "accept", "reject", "discard", "quarantine", or "disconnect". For outbound processing, values are "continue" or "cancel".
-
-**envelope**: `Envelope`
-: The message envelope containing sender and recipient information.
-
-**message**: `Object|null`
-: A structured representation of the email message based on the Email object defined in {{Section 4 of RFC8621}}.
-
-**rawMessage**: `String|null`
-: The complete message in Internet Message Format as defined in {{RFC5322}}. In JSON serialization, the value is Base64-encoded. In CBOR serialization, the value is a raw byte string.
-
-**timestamp**: `UTCDate`
-: Timestamp when the current stage began.
-
-**protocol**: `ProtocolInfo|null`
-: Protocol information.
-
-**queue**: `QueueInfo|null`
-: Queue information.
-
-**server**: `ServerInfo|null`
-: Information about the MTA.
-
-## Envelope Properties
-
-An **Envelope** object has the following properties:
-
-{:vspace}
-**from**: `EnvelopeAddress`
-: Sender information from MAIL FROM command.
-
-**to**: `EnvelopeAddress[]|DeliveryRecipient[]`
-: Recipient information from RCPT TO commands. For inbound processing, this is an array of EnvelopeAddress objects. For outbound processing, this is an array of DeliveryRecipient objects.
-
-An **EnvelopeAddress** object represents an address in the message envelope and has the following properties:
-
-{:vspace}
-**address**: `String|null`
-: The email address. For MAIL FROM, this MAY be null to represent the null reverse-path. For RCPT TO, this MUST NOT be null.
-
-**parameters**: `String[String]`
-: SMTP parameters associated with the address as key-value pairs. Common parameters include ORCPT, ENVID, and other DSN-related parameters defined in {{RFC3461}}.
-
-For outbound processing, recipient objects include additional delivery status fields described in {{outbound-properties}}.
-
-## Queue Properties
-
-A **QueueInfo** object has the following properties:
-
-{:vspace}
-**id**: `String`
-: Unique queue identifier for this message within this MTA. The identifier MUST be unique for the lifetime of the message in the queue and SHOULD remain stable across hook invocations for the same queued message.
-
-## Message Properties
-
-### Structured Message
-
-The `message` property contains a structured representation of the email message based on the Email object defined in {{Section 4 of RFC8621}}. The following differences from the JMAP Email object apply:
-
-- Metadata properties defined in {{Section 4.1.1 of RFC8621}} are not included, with the exception of the "size" property which MAY be present.
-- The `blobId` property is replaced by a `blob` property containing the actual content. In JSON serialization, blob values are Base64-encoded strings. In CBOR serialization, blob values are raw byte strings.
-
-Property availability depends on the processing stage and MTA capabilities. At early stages such as "connect" or "ehlo", message properties are not available.
-
-### Raw Message
-
-The `rawMessage` property contains the complete message in Internet Message Format as defined in {{RFC5322}}, including all MIME parts
-and attachments. In JSON serialization, the value is Base64-encoded. In CBOR serialization, the value is a raw byte string.
-
-The `rawMessage` property represents the entire message as stored or received by the MTA. When present, it provides byte-exact access to the message content, which is necessary for operations such as cryptographic signature verification.
-
-Scanners MAY request both `message` and `rawMessage` properties. If a scanner's response modifies both properties, only `rawMessage` modifications are applied; `message` modifications are ignored.
-
-The raw message content MUST NOT appear within the `message` property as a blob value. The `message` property contains only the structured parsed representation with individual body part contents available via `bodyValues`, while `rawMessage` contains the complete unparsed message.
-
-### Choosing Between Structured and Raw
-
-The `message` property provides a structured, parsed representation suitable for:
-
-- Header inspection and modification
-- Recipient analysis  
-- Content-type aware body part processing
-- Efficient access to specific message components
-
-The `rawMessage` property provides the complete RFC 5322 message suitable for:
-
-- Cryptographic verification (DKIM signature validation)
-- Archival or compliance logging
-- Processing that requires byte-exact message content
-- Forwarding or re-injection without modification
-
-Scanners that need both structured access and raw content SHOULD request both properties. When modifying messages, scanners SHOULD prefer structured modifications via the `message` property unless byte-exact control is required. Modifications to `rawMessage` require the scanner to produce a complete, valid RFC 5322 message.
-
-## Server Properties
-
-A **ServerInfo** object has the following properties:
-
-{:vspace}
-**name**: `String`
-: Server hostname.
-
-**ip**: `String`
-: Server IP address.
-
-**port**: `UnsignedInt`
-: Server port number.
-
-## Protocol Properties
-
-A **ProtocolInfo** object has the following properties:
-
-{:vspace}
-**version**: `String`
-: MTA Hooks protocol version.
-
-## Inbound Properties {#inbound-properties}
-
-The following properties are available only during inbound processing:
-
-{:vspace}
-**response**: `SmtpResponse|null`
-: The SMTP response the MTA would send if no scanner modifications occur.
-
-**client**: `ClientInfo|null`
-: Information about the connecting SMTP client.
-
-**senderAuth**: `SenderAuthentication|null`
-: Results of sender authentication checks.
-
-**auth**: `SmtpAuthentication|null`
-: SMTP authentication information, if the client authenticated.
-
-**tls**: `TlsInfo|null`
-: TLS connection information.
-
-### SMTP Response Properties
-
-An **SmtpResponse** object represents an SMTP response and has the following properties:
-
-{:vspace}
-**code**: `UnsignedInt`
-: The three-digit SMTP status code.
-
-**enhancedCode**: `String|null`
-: The enhanced mail system status code as defined in {{!RFC3463}}, if available.
-
-**message**: `String`
-: The human-readable response text.
-
-### Client Properties
+counters: `String[UnsignedInt]`
+: Session counters and measurements, keyed by names from the registry in {{iana-counters}}. The MTA includes those it maintains.
 
 A **ClientInfo** object has the following properties:
 
-{:vspace}
-**ip**: `String`
+ip: `String`
 : Client IP address.
 
-**port**: `UnsignedInt`
-: Client port number.
+port: `UnsignedInt`
+: Client port.
 
-**ptr**: `String|null`
-: PTR record for client IP, if available.
+ptr: `String|null`
+: Host name from the PTR record of the IP address.
 
-**ehlo**: `String`
-: EHLO or HELO string sent by client.
+ehlo: `String|null`
+: Argument of the most recent EHLO or HELO command.
 
-**asn**: `UnsignedInt|null`
-: Autonomous System Number for client IP, if available.
+asn: `UnsignedInt|null`
+: Autonomous System Number (ASN) of the IP address.
 
-**country**: `String|null`
-: ISO 3166-1 alpha-2 country code for client IP, if available.
+country: `String|null`
+: Alpha-2 country code {{ISO3166-1}} of the IP address.
 
-**activeConnections**: `UnsignedInt|null`
-: Number of concurrent connections from this client.
+activeConnections: `UnsignedInt|null`
+: Concurrent connections from this IP address.
 
-### TLS Properties
+proxy: `ProxyInfo|null`
+: How the client identity was conveyed, if not taken from the socket.
+
+The client properties carry the effective client identity. When it was conveyed by a proxy mechanism that the MTA trusts, "proxy" describes that mechanism; when the mechanism is not trusted, the MTA ignores it and the request contains the socket identity without a "proxy" property.
+
+A **ProxyInfo** object has the following properties:
+
+protocol: `String`
+: "proxy-v1" or "proxy-v2" for the PROXY protocol {{PROXY}}, "xclient" for XCLIENT {{XCLIENT}}, or "xforward" for XFORWARD {{XFORWARD}}.
+
+ip: `String`
+: IP address of the proxy, the socket peer.
+
+port: `UnsignedInt`
+: Port of the proxy.
+
+overridden: `String[]`
+: Property paths of the session values that came from the proxy, for example "/session/client/ip" or "/session/server/port".
+
+A **ServerInfo** object has the following properties:
+
+name: `String`
+: Host name the MTA uses on this connection.
+
+ip: `String`
+: IP address the client connected to.
+
+port: `UnsignedInt`
+: Port the client connected to.
 
 A **TlsInfo** object has the following properties:
 
-{:vspace}
-**version**: `String`
-: TLS protocol version (e.g., "TLSv1.3").
+version: `String|null`
+: TLS version: "TLSv1.2" or "TLSv1.3", or null if no handshake completed.
 
-**cipher**: `String`
-: Cipher suite name.
+cipher: `String|null`
+: Name of the cipher suite as listed in the IANA "TLS Cipher Suites" registry, or null if no handshake completed.
 
-**cipherBits**: `UnsignedInt`
-: Cipher key length in bits.
+peerCertificate: `Certificate|null`
+: The certificate presented by the peer: the client certificate at inbound stages, the server certificate at outbound stages. Null if none was presented.
 
-**certIssuer**: `String|null`
-: Client certificate issuer, if a client certificate was presented.
+policy: `String|null`
+: Outbound only: the policy type applied, as defined for "policy-type" in {{RFC8460}}.
 
-**certSubject**: `String|null`
-: Client certificate subject, if a client certificate was presented.
+failure: `String|null`
+: Outbound only: why TLS failed, as a "result-type" value of {{RFC8460}}, or null.
 
-### Sender Authentication Properties
+A **Certificate** object has the following properties:
 
-A **SenderAuthentication** object has the following properties:
+chain: `Bytes[]`
+: The certificates as presented, encoded with the Distinguished Encoding Rules (DER) {{X.690}}, end-entity certificate first.
 
-{:vspace}
-**spf-ehlo**: `String|null`
-: SPF result for EHLO identity as defined in {{RFC7208}}.
+verification: `String`
+: "pass" if the MTA verified the certificate, using PKIX {{RFC5280}} or DNS-Based Authentication of Named Entities (DANE) {{RFC7672}}; "none" if it did not attempt verification; otherwise why verification failed, as one of the "result-type" values "certificate-expired", "certificate-not-trusted", "certificate-host-mismatch", or "validation-failure" of {{RFC8460}}.
 
-**spf-mail**: `String|null`
-: SPF result for MAIL FROM identity as defined in {{RFC7208}}.
+The certificate is reported whether or not it could be verified. A certificate that did not verify is an unauthenticated assertion by the peer; it is useful for recognizing a peer, but not as proof of its identity.
 
-**dkim**: `String|null`
-: DKIM verification result as defined in {{RFC6376}}.
+An **SmtpAuth** object has the following properties:
 
-**arc**: `String|null`
-: ARC verification result.
+login: `String`
+: Authenticated identity.
 
-**dmarc**: `String|null`
-: DMARC evaluation result as defined in {{RFC7489}}.
+method: `String|null`
+: Name of the Simple Authentication and Security Layer (SASL) {{RFC4422}} mechanism used with SMTP AUTH {{RFC4954}}, or null for authentication by other means.
 
-Authentication result values follow the conventions established in the respective specifications.
+## Envelope and Recipients {#envelope}
 
-### SMTP Authentication Properties
+An **Envelope** object has the following properties:
 
-An **SmtpAuthentication** object has the following properties:
+from: `Address`
+: The reverse-path.
 
-{:vspace}
-**login**: `String`
-: Authenticated username.
+to: `Recipient[]`
+: The recipients.
 
-**method**: `String`
-: SASL mechanism used for authentication.
+An **Address** object has the following properties:
 
-## Outbound Properties {#outbound-properties}
+address: `String|null`
+: The address, or null for the null reverse-path.
 
-The following properties are available only during outbound processing.
+parameters: `String[String|null]`
+: All Extended SMTP (ESMTP) parameters given with the address, keyed by upper-case name, with null for a parameter without a value. Values that their extension encodes as xtext, such as ENVID and the address in ORCPT {{RFC3461}}, are decoded. Examples are SIZE, BODY, SMTPUTF8, REQUIRETLS, RET, ENVID, NOTIFY, and ORCPT.
 
-### Extended Queue Properties
+A **Recipient** object has the properties of Address, where address is not null, and the following:
 
-For outbound processing, the queue property uses an **OutboundQueueInfo** object, which extends QueueInfo with additional fields:
+status: `String`
+: See below.
 
-{:vspace}
-**id**: `String`
-: Unique queue identifier for this message.
+response: `SmtpResponse|null`
+: The reply that determined the status: the reply given to the RCPT command at inbound stages, or the reply of the next hop at outbound stages.
 
-**expiresAt**: `UTCDate|null`
-: Timestamp when the queue entry expires.
+decidedBy: `String`
+: Label of the registration that last changed the status, or "mta".
 
-**attempts**: `UnsignedInt`
-: Total delivery attempts made so far.
+expansion: `String[]|null`
+: Inbound only: the addresses this recipient resolves to after alias expansion and rewriting, when the MTA has already resolved it.
 
-### Recipient Delivery Status
+originalRecipient: `String|null`
+: Outbound only: the address as given in RCPT TO, when this recipient resulted from expansion or rewriting.
 
-For outbound processing, each recipient in envelope.to is represented as a DeliveryRecipient object.
+attempts: `UnsignedInt`
+: Outbound only: delivery attempts made for this recipient.
 
-A **DeliveryRecipient** object extends EnvelopeAddress with delivery status information and has the following properties:
+nextAttemptAt: `UTCDate|null`
+: Outbound only: when the next attempt is scheduled.
 
-{:vspace}
-**address**: `String`
-: The recipient email address.
+nextDsnAt: `UTCDate|null`
+: Outbound only: when the next delay DSN is scheduled.
 
-**parameters**: `String[String]`
-: SMTP parameters associated with the address as key-value pairs.
+route: `Route`
+: Outbound only: the route used for the next attempt ({{routing}}). Its null properties take the MTA's defaults.
 
-**status**: `String`
-: The delivery status for this recipient. Values are:
+lastAttempt: `Attempt|null`
+: Outbound only: the most recent delivery attempt.
 
-  - "pending": The MTA has not yet attempted delivery for this recipient.
-  - "delivered": Delivery succeeded.
-  - "deferred": Delivery failed transiently and will be retried per the schedule in `nextAttemptAt`.
-  - "failed": Delivery failed permanently and the MTA will generate a failure DSN.
-  - "failed-silent": Delivery is suppressed and the MTA MUST NOT generate any DSN for this recipient. Typically set by a scanner via modification to drop a recipient without notifying the sender.
+The status of a recipient is one of:
 
-**attempt**: `UnsignedInt`
-: The current delivery attempt number for this recipient.
+| Status | Meaning |
+|---|---|
+| pending | The recipient of the RCPT command being processed. |
+| accepted | Accepted at RCPT and not yet attempted. |
+| deferred | Temporarily failed: a 4xx reply at RCPT, or an outbound attempt to be retried. |
+| failed | Permanently failed: a 5xx reply at RCPT, or an outbound failure for which a DSN is due. |
+| delivered | Delivered to the next hop. |
+| discarded | Dropped without delivery and without a DSN. |
+{: #tab-status title="Recipient Status"}
 
-**lastResponse**: `SmtpResponse|null`
-: The last SMTP response received for this recipient, or null if no attempt has been made.
+At inbound stages, recipients appear in the order of their RCPT commands, including those rejected or deferred. At the "rcpt" stage the last recipient is the one of the current command, with status "pending". At outbound stages, the array contains the recipients that the invocation covers: those of the delivery job matched by the subscription, those of the transaction at the "transmit" stage, or the recipient of the DSN at the "dsn" stage.
 
-**nextAttemptAt**: `UTCDate|null`
-: The scheduled time for the next delivery attempt, or null if no retry is scheduled.
+An **Attempt** object has the following properties:
 
-**nextDsnAt**: `UTCDate|null`
-: The scheduled time for the next DSN generation, or null if no DSN is scheduled.
+at: `UTCDate`
+: When the attempt was made.
 
-**queueName**: `String|null`
-: The name of the outbound queue handling this recipient, if applicable.
+remote: `RemoteHost|null`
+: The host the MTA connected to, or null if no connection was made.
 
-For the "dsn" stage, the `message` and `rawMessage` properties contain the DSN message that the MTA is about to send. Scanners MAY modify or delete these properties to alter or suppress DSN generation.
+sourceIp: `String|null`
+: The local IP address used.
 
-## Example Inbound Hook Request
+tls: `TlsInfo|null`
+: TLS on the connection, or null if TLS was not attempted.
+
+A **RemoteHost** object has the following properties:
+
+host: `String`
+: Host name of the next hop, such as the MX name.
+
+ip: `String`
+: IP address connected to.
+
+port: `UnsignedInt`
+: Port connected to.
+
+## Message {#message}
+
+The "message" property is the Email object of {{Section 4 of RFC8621}}, without the metadata properties of {{Section 4.1.1 of RFC8621}} other than "size", and with the "blobId" of each EmailBodyPart replaced by a "blob" property of type Bytes holding the part's content after decoding its Content-Transfer-Encoding {{RFC2045}}. The "rawMessage" property is the message octet for octet, which signature verification and archiving require.
+
+A scanner can request either or both. Header changes are made through "/message/headers"; the convenience properties derived from headers, such as "subject" and "from", cannot be changed. Body changes are made through "bodyValues" and "bodyStructure", or by replacing "rawMessage" with a complete new message. A patch that changes both "message" and "rawMessage" is invalid. After a change, the MTA presents both consistently to the following scanners.
+
+## Sender Authentication {#sender-auth}
+
+A **SenderAuth** object has the following properties, each holding a result value of the corresponding Authentication-Results method {{RFC8601}}, or null if not evaluated:
+
+iprev: `String|null`
+: Reverse DNS check of the client address (forward-confirmed reverse DNS).
+
+spfHelo: `String|null`
+: Sender Policy Framework (SPF) {{RFC7208}} for the HELO identity.
+
+spfMailFrom: `String|null`
+: SPF for the MAIL FROM identity.
+
+dkim: `String|null`
+: DomainKeys Identified Mail (DKIM) {{RFC6376}}.
+
+dkim2: `String|null`
+: DKIM2 {{I-D.ietf-dkim-dkim2-spec}}, with the result values of {{I-D.gondwana-dkim2-authres}}.
+
+dmarc: `String|null`
+: Domain-based Message Authentication, Reporting, and Conformance (DMARC) {{RFC9989}}.
+
+## Queue {#queue}
+
+A **Queue** object has the following properties:
+
+id: `String`
+: Identifier of the message in the MTA's queue.
+
+expiresAt: `UTCDate|null`
+: When the MTA gives up delivering the message. Present at outbound stages.
+
+The queue identifier MUST be the same at every stage and every delivery job of the message, from "data" to the last "delivery" or "dsn", and MUST be unique within the MTA for the lifetime of the message. Scanners can therefore keep the state they collected at inbound stages until expiresAt.
+
+## Extension Data {#ext}
+
+The "ext" object holds data outside this specification. Each key is a namespace named by a reverse domain name controlled by its definer, for example "org.example.spam", and its value is an object whose content that definer specifies.
+
+Extension data is written by the MTA and by scanners, and exchanged like any other property: the subscription's properties decide which namespaces a scanner receives, and its grants decide which it can write. A namespace written by one scanner and sent to another is how scanners pass results along a chain without adding header fields to the message. Recipients of a request MUST ignore namespaces they do not understand.
+
+Extension data is kept with the message for as long as the message is in the MTA, so data written at the "data" stage is available again at the "route", "delivery", and "dsn" stages. Data written before the MAIL command is kept with the session and copied to each of its transactions. The MTA SHOULD limit the size of each namespace through the "max" of the grant.
+
+## SMTP Response {#smtp-response}
+
+An **SmtpResponse** object has the following properties:
+
+code: `UnsignedInt`
+: The reply code.
+
+enhancedCode: `String|null`
+: The enhanced status code {{RFC3463}}.
+
+message: `String`
+: The reply text.
+
+delayMs: `UnsignedInt|null`
+: Milliseconds the MTA waits before sending the reply. At the "connect" stage this delays the greeting, which reveals clients that send commands before it. The MTA MUST cap it, normally through the "max" of the grant, below the 5-minute timeouts that SMTP clients apply ({{Section 4.5.3.2 of RFC5321}}).
+
+## EHLO Capabilities {#ehlo}
+
+At the "ehlo" stage, a scanner can only withhold what the MTA offers: it may remove keywords, remove space-separated parameters from a value, or lower a numeric value such as that of SIZE. Other changes to "capabilities" are invalid regardless of grants. This allows, for example, offering AUTH only on some networks or withholding PIPELINING and CHUNKING from suspicious clients.
+
+## Examples
+
+An inbound request at the "data" stage, with the message abbreviated:
 
 ~~~
-POST /v1/hooks/invoke/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d \
-  HTTP/1.1
+POST /v1/hooks/reg-7a3b9c2e HTTP/1.1
 Host: scanner.example.com
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-X-MTA-Hooks-Registration: reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d
-X-MTA-Hooks-Request-Id: 01HZ8K3X7F4Y5N6Q9R2S3T4U5V
+MTA-Hooks-Registration: reg-7a3b9c2e
+MTA-Hooks-Request-Id: 01JBDX3X7F4Y5N6Q9R2S3T4U5V
+MTA-Hooks-Context: 01JBDX3TQ8V0D6H1E2F3G4H5J6
 
 {
   "stage": "data",
   "action": "accept",
-  "timestamp": "2024-12-21T16:30:00Z",
-
-  "response": {
-    "code": 250,
-    "enhancedCode": "2.0.0",
-    "message": "OK"
+  "decidedBy": "mta",
+  "response": {"code": 250, "enhancedCode": "2.0.0",
+               "message": "Queued as 4F2A31B0C9"},
+  "timestamp": "2026-10-28T16:30:00Z",
+  "timeoutMs": 4200,
+  "session": {
+    "id": "01JBDX3TQ8V0D6H1E2F3G4H5J6",
+    "startedAt": "2026-10-28T16:29:58Z",
+    "client": {"ip": "192.0.2.100", "port": 54321,
+               "ptr": "mail.example.org",
+               "ehlo": "mail.example.org", "asn": 64496},
+    "server": {"name": "mx1.example.com",
+               "ip": "198.51.100.25", "port": 25},
+    "tls": {"version": "TLSv1.3",
+            "cipher": "TLS_AES_256_GCM_SHA384",
+            "peerCertificate": null},
+    "auth": null,
+    "counters": {"commands": 5, "transactions": 1,
+                 "pregreetBytes": 0}
   },
-
-  "protocol": {
-    "version": "1.0"
-  },
-
-  "queue": {
-    "id": "queue_abc123"
-  },
-
   "envelope": {
-    "from": {
-      "address": "sender@example.org",
-      "parameters": {}
-    },
+    "from": {"address": "sender@example.org",
+             "parameters": {"SIZE": "2048", "BODY": "8BITMIME"}},
     "to": [
-      {
-        "address": "recipient@example.com",
-        "parameters": {}
-      }
+      {"address": "bob@example.com", "parameters": {},
+       "status": "accepted", "decidedBy": "mta",
+       "response": {"code": 250, "message": "OK"}},
+      {"address": "nobody@example.com", "parameters": {},
+       "status": "failed", "decidedBy": "mta",
+       "response": {"code": 550, "enhancedCode": "5.1.1",
+                    "message": "User unknown"}}
     ]
   },
-
   "message": {
     "size": 2048,
     "subject": "Meeting Tomorrow",
-    "from": [
-      {
-        "name": "Sender Name",
-        "email": "sender@example.org"
-      }
-    ],
-    "to": [
-      {
-        "email": "recipient@example.com"
-      }
-    ],
-    "sentAt": "2024-12-21T16:29:00Z",
-    "messageId": ["<msg123@example.org>"],
     "headers": [
-      {"name": "From", "value": "Sender Name <sender@example.org>"},
-      {"name": "To", "value": "recipient@example.com"},
-      {"name": "Subject", "value": "Meeting Tomorrow"},
-      {"name": "Date", "value": "Sat, 21 Dec 2024 16:29:00 +0000"},
-      {"name": "Message-ID", "value": "<msg123@example.org>"}
+      {"name": "From", "value": " Sender <sender@example.org>"},
+      {"name": "To", "value": " bob@example.com"},
+      {"name": "Subject", "value": " Meeting Tomorrow"}
     ],
-    "bodyStructure": {
-      "type": "text/plain",
-      "charset": "utf-8",
-      "size": 28
-    },
     "bodyValues": {
-      "1": {
-        "value": "Let's meet tomorrow at 10am.",
-        "isEncodingProblem": false,
-        "isTruncated": false
-      }
+      "1": {"value": "Let's meet tomorrow at 10am.",
+            "isEncodingProblem": false, "isTruncated": false}
     }
   },
-
-  "client": {
-    "ip": "192.0.2.100",
-    "port": 54321,
-    "ptr": "mail.example.org",
-    "ehlo": "mail.example.org",
-    "activeConnections": 3
-  },
-
-  "server": {
-    "name": "mx1.example.com",
-    "ip": "198.51.100.25",
-    "port": 25
-  },
-
-  "tls": {
-    "version": "TLSv1.3",
-    "cipher": "TLS_AES_256_GCM_SHA384",
-    "cipherBits": 256
-  },
-
-  "senderAuth": {
-    "spf-mail": "pass",
-    "dkim": "pass",
-    "dmarc": "pass"
-  }
+  "senderAuth": {"iprev": "pass", "spfMailFrom": "pass",
+                 "dkim": "pass", "dkim2": "none", "dmarc": "pass"}
 }
 ~~~
 
-## Example Outbound Hook Request
+An outbound request at the "route" stage:
 
-~~~
-POST /v1/hooks/invoke/reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d \
-  HTTP/1.1
-Host: scanner.example.com
-Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-X-MTA-Hooks-Registration: reg_7a3b9c2e-4d5f-6a7b-8c9d-0e1f2a3b4c5d
-X-MTA-Hooks-Request-Id: 01HZ8K9P2QABCDEFGH7J8K9L0M
-
+~~~json
 {
-  "stage": "delivery",
-  "action": "continue",
-  "timestamp": "2024-12-21T17:00:00Z",
-
-  "protocol": {
-    "version": "1.0"
-  },
-
-  "queue": {
-    "id": "queue_def456",
-    "expiresAt": "2024-12-24T17:00:00Z",
-    "attempts": 3
-  },
-
+  "stage": "route",
+  "timestamp": "2026-10-28T17:00:00Z",
+  "timeoutMs": 2000,
+  "queue": {"id": "4F2A31B0C9", "expiresAt": "2026-11-02T16:30:00Z"},
   "envelope": {
-    "from": {
-      "address": "notifications@example.com",
-      "parameters": {}
-    },
+    "from": {"address": "sales@example.com", "parameters": {}},
     "to": [
-      {
-        "address": "user1@recipient.example",
-        "parameters": {},
-        "status": "delivered",
-        "attempt": 1,
-        "lastResponse": {
-          "code": 250,
-          "enhancedCode": "2.0.0",
-          "message": "Message accepted"
-        }
-      },
-      {
-        "address": "user2@recipient.example",
-        "parameters": {},
-        "status": "deferred",
-        "attempt": 3,
-        "lastResponse": {
-          "code": 451,
-          "enhancedCode": "4.7.1",
-          "message": "Try again later"
-        },
-        "nextAttemptAt": "2024-12-21T18:00:00Z",
-        "nextDsnAt": "2024-12-22T17:00:00Z"
-      }
+      {"address": "a@partner.example", "parameters": {},
+       "status": "deferred", "decidedBy": "mta",
+       "response": {"code": 451, "enhancedCode": "4.4.1",
+                    "message": "Connection timed out"},
+       "attempts": 1, "nextAttemptAt": "2026-10-28T17:00:00Z",
+       "nextDsnAt": "2026-10-29T16:30:00Z",
+       "route": {"name": null},
+       "lastAttempt": {
+         "at": "2026-10-28T16:45:00Z",
+         "remote": {"host": "mx.partner.example",
+                    "ip": "203.0.113.7", "port": 25},
+         "sourceIp": "198.51.100.25", "tls": null}}
     ]
   },
-
-  "message": {
-    "subject": "Your order has shipped",
-    "from": [{"email": "notifications@example.com"}],
-    "to": [
-      {"email": "user1@recipient.example"},
-      {"email": "user2@recipient.example"}
-    ],
-    "size": 4096
-  },
-
-  "server": {
-    "name": "smtp-out.example.com",
-    "ip": "198.51.100.50",
-    "port": 25
-  }
+  "ext": {"org.example.spam": {"score": 0.4}}
 }
 ~~~
 
 # Hook Response {#hook-response}
 
-Scanners respond to hook requests with modifications to the request object. These modifications instruct the MTA how to proceed with message processing.
+## Structure
 
-## Response Structure
+A scanner answers with 200 and a JSON Patch {{RFC6902}} in the negotiated serialization, or with 204 and no body when it has no changes. An empty patch also means no changes. In JSON the Content-Type is "application/json-patch+json"; in CBOR it is "application/cbor" and the patch is the CBOR encoding of the same array.
 
-On success, scanners respond with HTTP 200 OK and a body conforming to this section, or with HTTP 204 No Content and an empty body to indicate "no modifications". The response body contains a JSON or CBOR object specifying modifications to apply to the hook request. The object has the following fields:
+The patch is applied to the hook request as held by the MTA, which can include properties that were not sent. A scanner can, for example, add a header field with "add" at "/message/headers/0" without receiving the message, or append a recipient at "/envelope/to/-". In that state, every property defined for an object that exists at the stage is present, with the value null when it has none, so "replace" and "test" behave the same whether or not a null property was sent. The "/envelope/to" array is the one the request carries, in the same order.
 
-{:vspace}
-**set**: `SetOperation[]|null`
-: An array of set operations to apply, or null if no set operations.
+## Validation and Application {#validation}
 
-**add**: `AddOperation[]|null`
-: An array of add operations to apply, or null if no add operations.
+The MTA applies the patch to a copy of the state. The patch is valid only if:
 
-**delete**: `DeleteOperation[]|null`
-: An array of delete operations to apply, or null if no delete
-  operations.
+1. it applies successfully according to {{RFC6902}}, including all "test" operations;
+2. the "from" of every "copy" and "move" operation, and the "path" of every "test" operation, is covered by the subscription's properties;
+3. every location whose value differs between the original and the resulting state is covered by a grant of the subscription, and satisfies the "values" and "max" of the grant that applies ({{grants}});
+4. it does not change "stage", "timestamp", "timeoutMs", any "decidedBy", or a non-null "traceId", which no grant covers;
+5. the resulting state respects the ordering of {{ordering}} unless that grant relaxes it; and
+6. the resulting state is otherwise valid: values have the types defined in this document, actions and statuses are permitted at the stage ({{action-semantics}}, {{recipient-changes}}), at most one of "message" and "rawMessage" changed, and header fields, addresses, and message content are well formed ({{injection}}).
 
-A **SetOperation** object has the following properties:
+Because validation compares states, it does not depend on which operations produced the result. A valid patch replaces the state, after which the MTA sets "decidedBy" of the action and of each changed recipient to the label of the registration. An invalid patch is discarded as a whole, is logged with the request identifier, and counts as a failure of the scanner ({{failure}}).
 
-{:vspace}
-**path**: `String`
-: JSON Pointer (per {{RFC6901}}) to the property to replace.
+## Ordering {#ordering}
 
-**value**: `any`
-: The new value for the property.
+Some properties are ordered from permissive to strict. Without "relax", a scanner may only keep them, move them in the strict direction, or move them between equally strict values:
 
-An **AddOperation** object has the following properties:
+| Property | Permissive to strict |
+|---|---|
+| /action | accept, quarantine, then reject, discard, and disconnect (all equally strict) |
+| /envelope/to/*/route/tls | none, opportunistic, required, verified |
+{: #tab-ordering title="Ordered Properties"}
 
-{:vspace}
-**path**: `String`
-: JSON Pointer to the location where the value should be added.
+A null "tls" ranks as the requirement the MTA would otherwise apply. With "relax", the scanner may, for example, accept a message that the MTA's own policy rejected or that an earlier scanner quarantined. Such a grant makes the scanner the final authority for the property ({{authority}}). When several scanners with "relax" change the same property, the last one in the chain prevails.
 
-**value**: `any`
-: The value to add.
+## Actions {#action-semantics}
 
-**index**: `UnsignedInt|null`
-: For array additions, the zero-based index at which to insert the
-  value. If null or omitted, the value is appended to the array.
+At inbound stages, the action applies to the command being processed:
 
-A **DeleteOperation** object has the following properties:
+| Action | Meaning |
+|---|---|
+| accept | Continue normally. |
+| quarantine | Accept the message and quarantine it instead of delivering it. Not permitted at the "connect" and "ehlo" stages. |
+| reject | Send "/response", a 4xx or 5xx reply. At the "connect" stage it replaces the greeting and MUST be a 554 reply ({{Section 3.1 of RFC5321}}); a temporary refusal of the connection is expressed with "disconnect". At the "rcpt" stage it rejects the recipient. |
+| discard | At the "mail" and "data" stages: accept the message and drop it. At the "rcpt" stage: accept the recipient and set it to "discarded". Not permitted at the "connect" and "ehlo" stages. |
+| disconnect | Send "/response", a 421 reply ({{Section 3.8 of RFC5321}}), and close the connection. |
+{: #tab-actions title="Actions"}
 
-{:vspace}
-**path**: `String`
-: JSON Pointer to the property to remove.
+The terminal actions are "reject", "discard", and "disconnect": after a scanner sets one, the MTA invokes no further scanners for that stage. At the "rcpt" stage, "reject" and "discard" apply only to the current recipient, and processing of the transaction continues.
 
-## Actions
+At the start of each inbound stage, the action is the one the MTA's own policy assigns to the command, except that a "quarantine" set at the "mail" or "rcpt" stage, or a "discard" set at the "mail" stage, applies to the message and is kept for the later stages of the transaction. The chain runs even if that initial action is terminal, so that a scanner with "relax" can override it.
 
-Scanners change the MTA's action by including a set operation targeting the "/action" path. The following values are valid for inbound and outbound processing respectively.
+Outbound stages have no action: their outcome is the status of each recipient ({{recipient-changes}}). The chain ends early when every recipient of the invocation has been discarded.
 
-The following action values are valid:
+"accept", "quarantine", and "discard" require a 2xx reply, or the intermediate reply SMTP requires for the command; "reject" requires a 4xx or 5xx reply; and "disconnect" requires a 421 reply. If "/response" does not satisfy this, the MTA uses its default reply for the action.
 
-### Inbound Actions
+## Recipient Changes {#recipient-changes}
 
-{:vspace}
-**accept**
-: Accept the message for delivery to recipients. Non-terminal; chain
-  continues.
+Recipients cannot be removed from "/envelope/to"; a recipient is dropped by setting its status to "discarded". Recipients can be added at the "data" stage, with status "accepted". The status of a recipient can be changed as follows:
 
-**reject**
-: Reject the message and return an error response to the sending
-  client. Terminal; chain stops.
+| Stage | From | To |
+|---|---|---|
+| data | accepted | discarded |
+| route, transmit, delivery | accepted, deferred | deferred, failed, discarded |
+| delivery | failed | discarded |
+| dsn | accepted | discarded |
+{: #tab-transitions title="Recipient Status Changes"}
 
-**discard**
-: Accept the message from the client but do not deliver it. The
-  client receives a success response. Terminal; chain stops.
+Setting a failed recipient to "discarded" suppresses its DSN, and discarding the recipient of a DSN at the "dsn" stage suppresses that DSN. A scanner that sets a recipient to "failed" or "deferred" MAY also set its "response", which the MTA reports in the DSN; otherwise the MTA uses a default reply. At the "route" and "delivery" stages, "nextAttemptAt" and "nextDsnAt" can be changed for recipients that remain deferred.
 
-**quarantine**
-: Accept the message and place it in quarantine for administrative
-  review. Quarantine location and handling are implementation-defined.
-  Non-terminal; chain continues.
+Discarding a message or a recipient after accepting it, and suppressing a DSN, depart from {{Section 6.1 of RFC5321}} and are subject to the cautions of {{Section 6.2 of RFC5321}}. MTAs SHOULD log them, and operators SHOULD grant them only for unwanted mail or where the sender is notified by other means.
 
-**disconnect**
-: Terminate the SMTP connection immediately. Terminal; chain stops.
+At the "rcpt" stage the outcome of the current recipient is set through "/action" and "/response", and the MTA records it in the recipient's status. Per-recipient outcomes after the DATA command are limited to "discarded" because SMTP gives a single reply to the message.
 
-### Outbound Actions
+## Routing {#routing}
 
-**continue**
-: Proceed with normal processing. Non-terminal; chain continues.
+At the "route" stage, a scanner can choose how each recipient of the job is delivered by changing its "route". A **Route** object has the following properties:
 
-**cancel**
-: Cancel all pending deliveries for this message. Terminal; chain stops.
+name: `String|null`
+: A route the MTA has configured, such as a queue or transport name, carrying its own next hop, TLS, source address, credential, and throttling settings. The names a scanner may use are given by the "values" of its grant.
 
-## Modifications
+nextHop: `String|null`
+: Host name or IP address to deliver to, overriding the route's next hop.
 
-Scanners communicate changes by specifying operations on the hook request object. The response contains JSON Pointer paths identifying properties to modify and the operations to perform. These modifications can alter any aspect of the transaction that the MTA permits, including:
+port: `UnsignedInt|null`
+: Port to connect to.
 
-- The action the MTA should take (accept, reject, quarantine, etc.)
-- The SMTP response to send to the client or expect from the server
-- Message headers and body content
-- Envelope addresses (sender and recipients)
-- Per-recipient delivery status for outbound processing
+mxLookup: `Boolean|null`
+: Whether "nextHop" is a domain whose MX records are resolved (true) or a host to connect to directly (false).
 
-Three modification operations are supported:
+sourceIp: `String|null`
+: Local IP address to connect from.
 
-{:vspace}
-**set**
-: Replace the value at a specified path with a new value.
+tls: `String|null`
+: Minimum TLS requirement: "none", "opportunistic", "required" (TLS without authentication of the server), or "verified" (TLS with the server authenticated by DANE {{RFC7672}}, SMTP MTA Strict Transport Security (MTA-STS) {{RFC8461}}, or PKIX {{RFC5280}}).
 
-**add**
-: Insert a value at a specified path. For objects, this adds a new
-  property. For arrays, this inserts an element at the specified
-  index or appends if no index is given.
+A null property takes its value from the named route, or from the MTA's default routing when "name" is null as well. Two routes are different when any of their properties differ after null properties have been resolved. Because each property can be granted separately, an MTA can let a scanner choose only among predefined routes, or give it complete control over next hops, source addresses, and TLS. Credentials are never carried in a route; they belong to the named route.
 
-**delete**
-: Remove the value at a specified path.
+The MTA MUST NOT deliver recipients with different routes in the same SMTP transaction. Otherwise, how recipients are batched remains implementation-defined. A route change persists for the recipient until changed again, and the "route" stage runs before every attempt, so a scanner can fail over based on "attempts" and "lastAttempt". The "delivery" stage runs once for the job, after all of its partial deliveries.
 
-### Set Operations
+A grant that relaxes "tls" lets the scanner lower the requirement below the policy published by the destination, as a "TLS-Required: No" header field does ({{Section 4.2.2 of RFC8689}}), for example to deliver a TLS report to a domain whose TLS is broken; lowering it to "none" also skips STARTTLS. Like that header field, it does not apply to a message sent with the REQUIRETLS parameter ({{Section 4.1 of RFC8689}}). The MTA SHOULD log every route change together with the registration label and the recipient, and MUST apply its loop detection to scanner-chosen next hops.
 
-Set operations replace values at specified paths.
+## Transmission {#transmission}
+
+The "transmit" stage runs once for each SMTP transaction, after the MTA has grouped the recipients of the job into transactions, so the request carries the exact reverse-path and recipients that will be sent. A scanner can change the message for this transaction only, for example to add signatures that cover the envelope of each hop, such as DKIM2 signatures {{I-D.ietf-dkim-dkim2-spec}}. Within the envelope, only recipient status can be changed. Status changes are kept; changes to the message apply to this transaction only and are not kept in the queue. The stage runs again for every attempt, so signatures carry the time and envelope of the attempt that uses them. A DSN is changed the same way at the "dsn" stage.
+
+## Examples
+
+Add header fields and pass a score to later scanners:
 
 ~~~json
-{
-  "set": [
-    {
-      "path": "/action",
-      "value": "reject"
-    },
-    {
-      "path": "/response",
-      "value": {
-        "code": 550,
-        "enhancedCode": "5.7.1",
-        "message": "Message rejected due to policy"
-      }
-    }
-  ]
-}
+[
+  {"op": "add", "path": "/message/headers/0",
+   "value": {"name": "X-Spam-Status", "value": " No, score=0.4"}},
+  {"op": "add", "path": "/ext/org.example.spam",
+   "value": {"score": 0.4, "symbols": ["DKIM_VALID"]}}
+]
 ~~~
 
-### Add Operations
-
-Add operations insert new values. For arrays, an optional index specifies insertion position.
+Reject a message:
 
 ~~~json
-{
-  "add": [
-    {
-      "path": "/message/headers",
-      "value": {"name": "X-Spam-Score", "value": "5.2"},
-      "index": 0
-    },
-    {
-      "path": "/envelope/to",
-      "value": {
-        "address": "archive@example.com",
-        "parameters": {}
-      }
-    }
-  ]
-}
+[
+  {"op": "replace", "path": "/action", "value": "reject"},
+  {"op": "replace", "path": "/response",
+   "value": {"code": 550, "enhancedCode": "5.7.1",
+             "message": "Message rejected: virus detected"}}
+]
 ~~~
 
-### Delete Operations
-
-Delete operations remove values at specified paths. When deleting array elements, indices refer to positions in the array at the time each delete operation executes. Because delete operations execute sequentially and earlier deletions cause subsequent elements to shift to lower indices, scanners SHOULD order array deletions from highest to lowest index to avoid unexpected results.
-
-For example, to delete elements originally at indices 1 and 3 from an array:
+Slow down a suspicious client at the "connect" stage:
 
 ~~~json
-{
-  "delete": [
-    {"path": "/message/headers/3"},
-    {"path": "/message/headers/1"}
-  ]
-}
+[
+  {"op": "add", "path": "/response/delayMs", "value": 15000}
+]
 ~~~
 
-Deleting index 3 first leaves the element originally at index 1 still at index 1. If the order were reversed, deleting index 1 first would shift the element originally at index 3 to index 2.
+Route the first recipient through a virtual private network (VPN), but only if no other scanner has already routed it:
 
-### Modification Order
+~~~json
+[
+  {"op": "test", "path": "/envelope/to/0/route/name",
+   "value": null},
+  {"op": "replace", "path": "/envelope/to/0/route/name",
+   "value": "vpn-partner"}
+]
+~~~
 
-The MTA applies modifications in the following order:
+Drop a failed recipient without a DSN at the "delivery" stage:
 
-1. Set operations
-2. Add operations
-3. Delete operations
-
-This ordering allows predictable results when multiple operations affect related paths.
-
-To change the action the MTA takes, the scanner sets the "/action" path to the desired value. To modify the SMTP response, the scanner can either set individual response fields (e.g., "/response/code", "/response/message") or replace the entire response object by setting "/response".
-
-If a scanner modifies both the "message" and "rawMessage" properties, the "rawMessage" modification takes precedence and "message" modifications are ignored.
-
-### Conflicting Operations
-
-If a response contains multiple operations targeting the same path or overlapping paths, the MTA applies them in the defined order (set, then add, then delete). The final state reflects all operations applied sequentially. For example, if a response sets "/message/subject" and also deletes "/message/subject", the subject will be deleted (delete operations execute last).
-
-Implementations SHOULD NOT submit responses with conflicting operations targeting the same path, as the resulting behavior, while deterministic, may be confusing.
-
-### No Modification Response
-
-If a scanner has no modifications to request, it MUST return either:
-
-- An empty JSON/CBOR object: `{}`
-- A response with empty or null modification arrays: `{"set": null, "add": null, "delete": null}`
-- An HTTP 204 No Content response with no body
-
-In all cases, the MTA proceeds with the action specified in the original request. The scanner chain continues to the next registered scanner unless the current action is terminal.
-
-### Size Limits
-
-MTAs MAY impose limits on the size of modification values. If a modification would cause a header or message to exceed configured size limits, the MTA SHOULD reject that specific modification and log the failure.
-
-### Modification Errors
-
-If a modification cannot be applied (for example, the path references a non-existent property for deletion, or the path is not in the permitted updateProperties list), the MTA SHOULD:
-
-1. Log the error with sufficient detail for debugging
-2. Increment modification failure statistics
-3. Continue processing remaining modifications in the response
-
-The MTA MUST NOT reject the entire response due to a single failed modification unless the failed modification is critical to interpreting the response (such as an invalid action value).
+~~~json
+[
+  {"op": "replace", "path": "/envelope/to/2/status",
+   "value": "discarded"}
+]
+~~~
 
 ## Error Responses {#hook-error-responses}
 
-A scanner that cannot process a hook request returns an HTTP 4xx or 5xx status with a body that follows the error structure defined in {{error-codes}}. Status code semantics:
-
-- 401 Unauthorized: The MTA's credentials are missing or invalid. The MTA MUST NOT retry without acquiring fresh credentials.
-- 403 Forbidden: The credentials are valid but not authorized for this registration or operation. The MTA MUST NOT retry without operator intervention.
-- 404 Not Found: The registration referenced by `X-MTA-Hooks-Registration` is unknown to the scanner. The MTA SHOULD treat the registration as terminated and re-register before sending further hooks.
-- 410 Gone: The registration has been deregistered. The MTA MUST stop sending hooks under this registration; the MTA MAY re-register.
-- 413 Content Too Large: The request body exceeds the scanner's `maxMessageSize`. The MTA MUST NOT retry the same payload.
-- 422 Unprocessable Content: The request was syntactically valid but referenced unsupported properties or values. Treated as a 4xx; do not retry.
-- 429 Too Many Requests: The scanner is rate-limiting. The MTA SHOULD honor the `Retry-After` header if present.
-- 5xx: A transient scanner error. The MTA MAY retry per its retry policy ({{retry-policy}}).
-
-If the response body is not parseable as the negotiated serialization, or if it conforms to the response schema but contains modifications targeting paths outside the registration's negotiated `updateProperties`, the MTA MUST treat the response as malformed: it MUST NOT apply any modifications from the response, MUST proceed with the default action carried in the request, MUST log the failure with the request identifier, and MAY count the response toward the scanner's failure statistics for circuit-breaking purposes.
-
-## Example Hook Responses
-
-### Accept with Header Addition
-
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "add": [
-    {
-      "path": "/message/headers",
-      "value": {"name": "X-Spam-Status", "value": "No"},
-      "index": 0
-    },
-    {
-      "path": "/message/headers",
-      "value": {"name": "X-Spam-Score", "value": "1.2"},
-      "index": 1
-    }
-  ]
-}
-~~~
-
-### Reject with Custom Response
-
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "set": [
-    {
-      "path": "/action",
-      "value": "reject"
-    },
-    {
-      "path": "/response",
-      "value": {
-        "code": 550,
-        "enhancedCode": "5.7.1",
-        "message": "Message rejected: virus detected"
-      }
-    }
-  ]
-}
-~~~
+A scanner that cannot process a request returns a 4xx or 5xx status with the error body of {{error-list}}:
 
-### Modify Subject and Add Recipient
+- 401: Credentials missing or invalid. The MTA MUST NOT retry with the same credentials.
+- 403: Credentials not authorized for the registration. The MTA MUST NOT retry.
+- 404: Registration unknown. The MTA registers again.
+- 413: Request body larger than the scanner accepts. The MTA MUST NOT retry it.
+- 422: The request uses unsupported properties or values. The MTA MUST NOT retry it.
+- 429: Rate limited. The MTA SHOULD NOT send further requests under the registration until the time given by Retry-After, if any, and applies onFailure to invocations meanwhile.
+- 5xx: Transient error. The MTA MAY retry ({{retry}}).
 
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
+Any other status is a failure that the MTA MUST NOT retry. MTAs SHOULD alert their operators to 401, 403, 413, and 422, which persist until the configuration changes; with "tempfail" they can hold mail until the message expires.
 
-{
-  "set": [
-    {
-      "path": "/message/subject",
-      "value": "[EXTERNAL] Original Subject"
-    }
-  ],
-  "add": [
-    {
-      "path": "/envelope/to",
-      "value": {
-        "address": "compliance@example.com",
-        "parameters": {}
-      }
-    }
-  ]
-}
-~~~
+# Transport {#transport}
 
-### Cancel Specific Recipient Delivery
+## HTTP and TLS
 
-For outbound processing, to cancel delivery for a specific recipient:
+Implementations MUST support HTTP/1.1 {{RFC9112}} and SHOULD support HTTP/2 {{RFC9113}}; they MAY support HTTP/3 {{RFC9114}}. MTAs SHOULD reuse connections to a scanner.
 
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
+All MTA Hooks traffic MUST use TLS 1.2 or later and follow the recommendations of {{RFC9325}}; implementations SHOULD support TLS 1.3 {{RFC9846}}. The MTA MUST validate the scanner's certificate; private certificate authorities may be configured, but validation SHOULD NOT be disabled.
 
-{
-  "set": [
-    {
-      "path": "/envelope/to/1/status",
-      "value": "failed-silent"
-    }
-  ]
-}
-~~~
+## Retries {#retry}
 
-### No Action Response
+On a network error or a 5xx status, the MTA MAY retry within the request's timeoutMs, with exponential backoff and jitter.
 
-If a scanner has no changes to request, it returns an empty response body or a response with no action or modifications:
+## Failure Handling {#failure}
 
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
+A scanner fails when it does not answer within timeoutMs, when all retries fail, when it returns a status other than 200 or 204, or when its patch is invalid ({{validation}}). The MTA then leaves the state unchanged and acts according to the subscription's onFailure:
 
-{}
-~~~
+continue:
+: Proceed with the next scanner, as if the scanner had made no changes.
 
-The MTA proceeds with the default action specified in the request.
+tempfail:
+: At the "connect" and "ehlo" stages, answer with a 421 4.3.0 reply and close the connection; at the other inbound stages, answer the current command with a 451 4.3.0 reply ({{Section 4.3.2 of RFC5321}}). At the "route" and "transmit" stages, leave the invocation's accepted and deferred recipients deferred and retry them later; a transaction skipped this way does not count as an attempt. At the "dsn" stage, keep the DSN queued and retry it later. At the "delivery" stage, outcomes are already final, so the failure only means the scanner's changes are lost; a scanner that must reliably suppress DSNs does so at the "dsn" stage.
 
-# Transport
+"tempfail" is appropriate where a missing decision must not let mail through, such as mandatory routing or mandatory archiving. It can stop the affected mail flow while the scanner is unavailable, so scanners used this way SHOULD be deployed redundantly, and subscription filters SHOULD limit it to the mail that requires it. MTAs SHOULD temporarily stop calling a scanner that fails repeatedly, and apply its onFailure in the meantime.
 
-This section specifies HTTP transport requirements for MTA Hooks communications.
+# Implementation Status
 
-## HTTP Version
+Note to the RFC Editor: please remove this section, and the reference to {{RFC7942}}, before publication.
 
-Implementations MUST support HTTP/1.1 {{!RFC9112}}. Implementations SHOULD support HTTP/2 {{!RFC9113}} for improved performance through multiplexing. Implementations MAY support HTTP/3 {{!RFC9114}}.
+This section records the status of known implementations of the protocol defined by this specification at the time of posting of this Internet-Draft, and is based on a proposal described in {{RFC7942}}. The description of implementations in this section is intended to assist the IETF in its decision processes in progressing drafts to RFCs. Please note that the listing of any individual implementation here does not imply endorsement by the IETF. Furthermore, no effort has been spent to verify the information presented here that was supplied by IETF contributors. This is not intended as, and must not be construed to be, a catalog of available implementations or their features. Readers are advised to note that other implementations may exist.
 
-When multiple HTTP versions are available, implementations SHOULD prefer newer versions for their performance benefits while maintaining fallback to HTTP/1.1.
-
-## TLS Requirements
-
-All MTA Hooks communications MUST use TLS. Implementations MUST support TLS 1.2 {{!RFC5246}} and SHOULD support TLS 1.3 {{!RFC8446}}.
-
-Implementations MUST validate server certificates against trusted certificate authorities. Self-signed certificates SHOULD NOT be accepted in production deployments unless explicitly configured by administrators.
-
-Cipher suite selection SHOULD follow current best practices. Implementations SHOULD disable cipher suites known to be weak or compromised. 
-
-## Request Methods
-
-The following HTTP methods are used:
-
-- GET: Discovery document retrieval and status queries
-- POST: Registration requests and hook invocations
-- DELETE: Deregistration requests
-
-## Content Negotiation
-
-For hook requests and responses, the `Content-Type` header MUST be set to "application/json" for JSON serialization or "application/cbor" for CBOR serialization.
-
-The `Accept` header MAY be used during discovery to indicate preferred serialization format. If the scanner cannot provide the requested format, it SHOULD return the discovery document in JSON format.
-
-## Error Handling
-
-### HTTP Status Codes
-
-MTAs SHOULD interpret HTTP status codes as follows:
-
-- 2xx: Request successful. Process response body.
-- 4xx: Client error. Do not retry; log error and proceed with default action.
-- 5xx: Server error. May retry according to policy.
-
-### Timeout Handling
-
-If a scanner does not respond within the configured timeout, the MTA SHOULD proceed with the default action. Timeout handling policy (fail-open vs. fail-closed) is implementation-defined and SHOULD be configurable.
-
-### Retry Policy {#retry-policy}
-
-For transient errors (5xx status codes, network failures, timeouts), implementations SHOULD implement retry with exponential backoff. A recommended policy is:
-
-- Maximum 3 retry attempts
-- Initial delay: 100 milliseconds
-- Backoff multiplier: 2
-- Maximum delay: 5 seconds
-- Add random jitter of 0-100 milliseconds
-
-The MTA MUST keep the `X-MTA-Hooks-Request-Id` header value stable across retries of the same logical invocation, so scanners can deduplicate. Implementations MAY provide configuration options to adjust retry parameters.
-
-## Connection Management
-
-Implementations SHOULD use connection pooling to reduce latency for repeated requests to the same scanner endpoint. HTTP/2 multiplexing, where available, reduces the need for multiple connections.
-
-Implementations SHOULD respect HTTP keep-alive semantics and connection limits advertised by scanners.
-
-# Implementation Considerations
-
-## MTA Considerations
-
-### Unavailable Scanners
-
-When a scanner becomes unavailable (timeouts, errors, deregistration), the MTA must determine how to proceed. Common policies include:
-
-- Fail-open: Proceed with default action as if scanner approved
-- Fail-closed: Reject or defer message processing
-
-The appropriate policy depends on deployment requirements. Security-focused deployments may prefer fail-closed, while availability-focused deployments may prefer fail-open. Implementations SHOULD make this policy configurable.
-
-### Performance Considerations
-
-Synchronous hook invocation adds latency to mail processing. Implementations SHOULD consider:
-
-- Connection pooling and keep-alive for scanner connections
-- Parallel invocation of independent scanners where ordering is not required
-- Timeout tuning based on scanner response time characteristics
-
-## Scanner Considerations
-
-### Idempotency
-
-Scanners SHOULD design their processing to be idempotent. Network issues or MTA retries may result in duplicate invocations for the same message. Scanners SHOULD handle duplicate requests gracefully.
-
-### Response Time
-
-Scanners operate in the critical path of mail delivery. Long response times delay message processing and may cause timeouts. Scanners SHOULD:
-
-- Process requests promptly
-- Implement internal timeouts shorter than MTA timeouts
-- Consider asynchronous processing for expensive operations
-- Return default responses when processing cannot complete in time
-
-### Stateless Design
-
-Scanners SHOULD avoid relying on state from previous invocations. Each hook request contains complete context for processing decisions. Stateless design improves reliability and simplifies horizontal scaling.
-
-## Large Message Handling
-
-Large messages present challenges for both MTAs and scanners. Implementations SHOULD consider:
-
-- Message size limits advertised in discovery documents
-- Truncation policies for oversized messages
-- Memory management for large message bodies
-
-Streaming or chunked delivery is not currently specified. For very large messages, implementations MAY arrange out-of-band content retrieval, though this is outside the scope of this specification.
-
-## High Availability
-
-### Scanner High Availability
-
-For production deployments, scanners SHOULD be deployed with redundancy. Approaches include:
-
-- Multiple scanner instances behind a load balancer
-- Health checking with automatic failover
-- Geographic distribution for disaster recovery
-
-Hook endpoints typically resolve to a load-balanced address; the MTA holds a single endpoint URL per registration.
-
-### Registration State
-
-Registration state resides at the scanner. Scanner instances behind a load balancer MUST share registration state (or partition deterministically by registration identifier) so that hook requests can be served regardless of which instance receives them. The MTA SHOULD treat 404 REGISTRATION_NOT_FOUND on a previously-active registration as a signal to re-register rather than as a permanent failure.
+Stalwart Mail Server:
+: Organization: Stalwart Labs LLC, with which the author is affiliated. Role: MTA. Coverage: an earlier revision of this specification (-01). Licensing: AGPL-3.0 for the open-source edition. Contact: mauro@stalw.art.
 
 # Security Considerations {#security-considerations}
 
 ## Trust Model
 
-MTA Hooks places the MTA exclusively in the role of HTTP client. The MTA does not expose any HTTP server to scanners and does not accept inbound registration requests. This containment is deliberate: it eliminates a category of attacks (registration flood, server-side request forgery via callback verification, exposure of MTA management endpoints) that would otherwise threaten the most security-critical component on the mail path.
+The MTA acts only as an HTTP client and exposes no endpoint to scanners. This removes attacks such as registration floods against the MTA and request forgery through callbacks. The scanner operator decides which MTAs may register and issues credentials; the MTA operator decides which scanners to call and what each may change.
 
-The trust boundary runs in one direction. The scanner operator decides which MTAs may register and provisions credentials accordingly. The MTA admin decides which scanners to call out to and configures them out of band. Mutual trust is established before any protocol traffic flows.
+## Authority of Scanners {#authority}
 
-## Authentication and Authorization
+A scanner can only change what its grants cover, and by default only toward stricter processing. Grants that relax ordered properties, change routes, or rewrite content make the scanner part of the trusted base for those decisions: a compromised scanner with full routing authority can redirect or exfiltrate mail, and one with "relax" on "/action" can let malicious mail through. Operators SHOULD give such grants only to scanners they trust accordingly, limit them with subscription filters, and log their use. The MTA MUST enforce grants itself and MUST NOT rely on scanners respecting them.
 
-Authentication of every MTA-to-scanner request (registration, status, deregistration, hook invocation) is REQUIRED. Scanners MUST reject unauthenticated requests with HTTP 401. The specific authentication mechanism is out of scope; recommended approaches:
+Scanner-chosen next hops and ports can also direct the MTA's connections at internal services. An MTA SHOULD restrict them by configuration, for example through the "values" of the grant on "nextHop", and MUST apply to them the same address restrictions it applies to next hops found in the DNS.
 
-- Bearer tokens: Simple to implement; tokens MUST be generated with sufficient entropy (at least 128 bits) and rotated periodically. Tokens SHOULD be scoped to a single MTA identity.
-- Mutual TLS: Provides strong authentication and binds identity to transport security. RECOMMENDED for high-trust deployments.
-- HMAC signatures: Allows authentication without transmitting bearer secrets; requires secure key distribution.
+## Credentials
 
-Authorization policies at the scanner SHOULD restrict, per-MTA-identity, which stages may be subscribed to, which properties may be requested, and which actions may be performed. Policies SHOULD be enforced both at registration time (rejecting impermissible registrations) and at hook-response time (ignoring out-of-policy modifications).
-
-## Credential Provisioning
-
-Scanner operators issue credentials to MTA operators through an out-of-band channel that this specification does not define. Credential provisioning practices SHOULD include:
-
-- Per-MTA-instance credentials (avoid shared secrets across multiple MTAs).
-- Credential rotation on a defined cadence.
-- Immediate revocation when an MTA instance is decommissioned or compromised.
-- Storage of credentials at the MTA in protected configuration that is not logged or exported with diagnostics.
-
-Scanner-issued credentials SHOULD encode the MTA identity in a way that survives renewal of the underlying secret (for example, a stable client-certificate Subject CN, or a tenant identifier conveyed alongside a rotated bearer token).
-
-## Transport Security
-
-All MTA Hooks communications MUST use TLS to protect message content and authentication credentials in transit. Implementations MUST validate certificates to prevent man-in-the-middle attacks.
-
-For internal network deployments, administrators may choose to use private certificate authorities. However, disabling certificate validation is NOT RECOMMENDED even for internal communications.
-
-## Message Confidentiality
-
-Email messages frequently contain sensitive personal or business information. Scanners necessarily receive access to message content to perform their functions. Deployments SHOULD consider:
-
-- Data handling policies for scanner operators
-- Logging policies that avoid recording message content
-- Data retention limits at scanner endpoints
-- Regulatory requirements such as GDPR for personal data processing
+Credentials SHOULD be issued per MTA instance, rotated, revoked when an instance is decommissioned, and kept out of logs and diagnostics. Bearer tokens MUST have at least 128 bits of entropy, and the security considerations of {{RFC6750}} apply. Scanners SHOULD apply authorization per MTA identity at registration and SHOULD rate limit registrations per identity. The discovery document is unauthenticated and SHOULD be rate limited.
 
 ## Denial of Service
 
-### Registration Flood
+Slow or failing scanners can tie up MTA resources. MTAs MUST enforce timeouts and SHOULD limit concurrent requests per scanner. Delayed replies hold SMTP connections open; besides capping delayMs ({{smtp-response}}), the MTA SHOULD limit how many delayed replies it serves at once. Recipients added at the "data" stage can amplify a message, so MTAs SHOULD limit how many a patch may add. Scanners SHOULD limit request rate, concurrency, and body size per registration.
 
-Although the registration endpoint is on the scanner, an attacker that obtains valid MTA credentials could flood the scanner with registration churn. Scanners SHOULD:
+## Injection {#injection}
 
-- Authenticate before parsing any registration body.
-- Rate limit registration and deregistration per MTA identity.
-- Limit maximum concurrent registrations per MTA identity.
-- Apply the same protections to the discovery endpoint, which is unauthenticated by design.
+The MTA MUST validate everything a patch writes: header field names and values MUST NOT allow injection of a carriage return (CR) or line feed (LF), or malformed encoded words {{RFC2047}}; added or changed addresses MUST be syntactically valid and subject to the MTA's relay and recipient policy; and body changes MUST produce well-formed MIME {{RFC2045}}.
 
-### Scanner Resource Exhaustion
+## Unverified Data
 
-A compromised or misconfigured MTA could overwhelm a scanner with hook requests. Scanners SHOULD:
+Certificates that did not verify, proxy information, and client-supplied values such as the EHLO argument are assertions by the peer. Scanners MUST NOT treat them as authenticated identities. A trace identifier received from outside the MTA's administrative domain can be chosen by an attacker to link unrelated mail, so MTAs MUST NOT accept one from untrusted sources.
 
-- Implement per-registration rate limiting and concurrency caps.
-- Set appropriate request body size limits, advertised in the discovery document.
-- Monitor for unusual invocation patterns and suspend offending registrations.
+# Privacy Considerations
 
-### Slow Scanner Attacks
-
-Slow scanner responses can exhaust MTA resources (connection slots, memory, queued mail). MTAs SHOULD:
-
-- Enforce strict timeouts; never wait indefinitely for a hook response.
-- Limit concurrent requests to any single scanner.
-- Implement circuit breaker patterns for repeatedly slow or failing scanners.
-
-### Compromised Scanner
-
-A compromised scanner can attempt to coerce the MTA into mishandling mail by returning malicious modifications. The MTA's defense in depth is to enforce its declared `updateProperties` strictly, validate every modification ({{injection-attacks}}), and reject responses that violate the negotiated capabilities. The MTA SHOULD NOT depend on the scanner to behave honestly.
-
-## Injection Attacks {#injection-attacks}
-
-Scanner responses contain modifications applied to message processing. Implementations MUST validate all scanner-provided data:
-
-- Header names and values MUST be validated to prevent header injection (CR/LF smuggling, malformed encoded-words, header folding abuse).
-- Recipient addresses MUST be syntactically validated and re-checked against MTA policy before being added to the envelope.
-- Body modifications MUST not introduce malformed MIME structure or content that violates declared character sets.
-- Modifications targeting paths outside the registration's negotiated `updateProperties` MUST be discarded.
-
-## Privacy Considerations
-
-Email processing inherently involves access to personal communications. Implementations SHOULD minimize data exposure:
-
-- Scanners SHOULD request only necessary properties
-- MTAs SHOULD honor property restrictions from capability negotiation
-- Logging SHOULD avoid recording message content or metadata
-- Scanner operators SHOULD implement appropriate data protection measures
+Hook requests can contain message content, addresses, client IP addresses, and authentication identities. MTAs SHOULD send only the properties a scanner needs, and the subscription mechanism makes this possible per stage and per part of the mail stream. Scanner operators SHOULD avoid logging content and personal data, and SHOULD limit retention to what their function requires.
 
 # IANA Considerations
 
-## Well-Known URI Registration
+## Well-Known URI
 
-This document registers the following well-known URI per {{!RFC8615}}:
+IANA is requested to register the following well-known URI {{!RFC8615}}:
 
-URI suffix: mta-hooks
+- URI suffix: mta-hooks
+- Change controller: IETF
+- Specification document: this document
+- Status: permanent
 
-Change controller: IETF
+## HTTP Field Names
 
-Specification document: This document
+IANA is requested to register the following field names in the "Hypertext Transfer Protocol (HTTP) Field Name Registry" ({{Section 16.3.1 of RFC9110}}), with status "permanent", no structured type, and this document as the reference: MTA-Hooks-Registration, MTA-Hooks-Request-Id, MTA-Hooks-Context.
 
-Status: permanent
+## MTA Hooks Registries
 
-Related information: N/A
+IANA is requested to create a new registry group named "MTA Hooks" containing the four registries below. For all of them, new registrations require Specification Required {{!RFC8126}}, and the change controller of the initial entries is the IETF.
 
-## MTA Hooks Serialization Format Registry
+The designated experts SHOULD check that a name is a short identifier in the style of the existing entries and does not duplicate the semantics of an existing entry. For a stage, they SHOULD check that the specification defines when it is invoked, what the request contains, and which changes are permitted. For an action, they SHOULD check that its meaning is defined at every stage where it is permitted, and its place in the ordering of {{ordering}}.
 
-IANA is requested to create a new registry entitled "MTA Hooks Serialization Formats" with the following initial contents:
+### MTA Hooks Stages
 
-- Format: json
-  - Description: JSON serialization per RFC 8259
-  - Reference: This document
+Each entry gives the name, the direction (inbound or outbound), when the stage is invoked, the reference, and the change controller.
 
-- Format: cbor
-  - Description: CBOR serialization per RFC 8949
-  - Reference: This document
+| Name | Direction | Invoked | Reference |
+|---|---|---|---|
+| connect | inbound | Client connected, before the greeting | RFC XXXX |
+| ehlo | inbound | After each EHLO or HELO command | RFC XXXX |
+| mail | inbound | After each MAIL command | RFC XXXX |
+| rcpt | inbound | After each RCPT command | RFC XXXX |
+| data | inbound | After the message content | RFC XXXX |
+| route | outbound | Before each delivery attempt of a job | RFC XXXX |
+| transmit | outbound | Before each SMTP transaction | RFC XXXX |
+| delivery | outbound | After the attempts of a job | RFC XXXX |
+| dsn | outbound | Before sending a generated DSN | RFC XXXX |
 
-New registrations require Specification Required per {{!RFC8126}}.
+### MTA Hooks Actions
 
-## MTA Hooks Inbound Action Registry
+Each entry gives the name, whether the action is terminal, its rank in the ordering of {{ordering}} (higher is stricter), the reference, and the change controller. The meaning of each initial entry at each stage is given in {{tab-actions}}.
 
-IANA is requested to create a new registry entitled "MTA Hooks Inbound Actions" with the following initial contents:
+| Name | Terminal | Rank | Reference |
+|---|---|---|---|
+| accept | no | 0 | RFC XXXX |
+| quarantine | no | 1 | RFC XXXX |
+| reject | yes | 2 | RFC XXXX |
+| discard | yes | 2 | RFC XXXX |
+| disconnect | yes | 2 | RFC XXXX |
 
-- Action: accept
-  - Description: Accept message for delivery
-  - Reference: This document
+### MTA Hooks Session Counters {#iana-counters}
 
-- Action: reject
-  - Description: Reject message with error response
-  - Reference: This document
+Each entry gives the name, its meaning, the reference, and the change controller. The reference of every initial entry is RFC XXXX.
 
-- Action: discard
-  - Description: Accept but do not deliver message
-  - Reference: This document
+| Name | Meaning |
+|---|---|
+| commands | SMTP commands received |
+| errors | Commands answered with a 4xx or 5xx reply |
+| invalidCommands | Commands that were unknown or syntactically invalid |
+| rsets | RSET commands |
+| transactions | MAIL commands accepted, including the current transaction |
+| messagesAccepted | Messages accepted for delivery |
+| messagesRejected | Messages rejected after DATA |
+| pregreetBytes | Octets the client sent before the greeting |
+| pipeliningViolations | Commands sent ahead of a reply without PIPELINING, or across a synchronization point |
+| bareLineEnds | Lines ended by a bare LF or bare CR |
+| firstCommandDelayMs | Milliseconds between the greeting and the first command |
+{: #tab-counters title="Initial Session Counters"}
 
-- Action: quarantine
-  - Description: Place message in quarantine
-  - Reference: This document
+### MTA Hooks Error Codes
 
-- Action: disconnect
-  - Description: Terminate SMTP connection
-  - Reference: This document
-
-New registrations require Specification Required per {{!RFC8126}}.
-
-## MTA Hooks Outbound Action Registry
-
-IANA is requested to create a new registry entitled "MTA Hooks Outbound Actions" with the following initial contents:
-
-- Action: continue
-  - Description: Proceed with normal delivery processing
-  - Reference: This document
-
-- Action: cancel
-  - Description: Cancel pending deliveries
-  - Reference: This document
-
-New registrations require Specification Required per {{!RFC8126}}.
-
-## MTA Hooks Inbound Stage Registry
-
-IANA is requested to create a new registry entitled "MTA Hooks Inbound Stages" with the following initial contents:
-
-- Stage: connect
-  - Description: Client connection established
-  - Reference: This document
-
-- Stage: ehlo
-  - Description: EHLO/HELO command received
-  - Reference: This document
-
-- Stage: mail
-  - Description: MAIL FROM command received
-  - Reference: This document
-
-- Stage: rcpt
-  - Description: RCPT TO command received
-  - Reference: This document
-
-- Stage: data
-  - Description: Message content received
-  - Reference: This document
-
-New registrations require Specification Required per {{!RFC8126}}.
-
-## MTA Hooks Outbound Stage Registry
-
-IANA is requested to create a new registry entitled "MTA Hooks Outbound Stages" with the following initial contents:
-
-- Stage: delivery
-  - Description: Delivery attempt completed
-  - Reference: This document
-
-- Stage: defer
-  - Description: Delivery deferred for retry
-  - Reference: This document
-
-- Stage: dsn
-  - Description: DSN generation pending
-  - Reference: This document
-
-New registrations require Specification Required per {{!RFC8126}}.
-
-## MTA Hooks Error Code Registry
-
-IANA is requested to create a new registry entitled "MTA Hooks Error Codes" with the initial contents specified in {{error-codes}}.
-
-New registrations require Specification Required per {{!RFC8126}}.
+Each entry gives the code, the HTTP status it is used with, its meaning, the reference, and the change controller. The initial entries are those of {{tab-errors}}, each with the reference RFC XXXX.
 
 --- back
 
-# Error Codes {#error-codes}
+# Error Codes {#error-list}
 
-This appendix defines error codes used in MTA Hooks error responses.
-
-## Error Response Structure
-
-Error responses use the following structure:
+Error responses are Problem Details {{RFC9457}} with the media type "application/problem+json", whatever serialization the registration uses, and an extension member "code" holding one of the codes below:
 
 ~~~json
 {
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error description"
-  }
+  "type": "about:blank",
+  "status": 404,
+  "title": "Not Found",
+  "code": "REGISTRATION_NOT_FOUND",
+  "detail": "No registration reg-7a3b9c2e"
 }
 ~~~
 
-## HTTP 400 Bad Request
-
-- INVALID_REQUEST: Malformed JSON or CBOR, or missing required fields.
-- CAPABILITY_MISMATCH: Requested capability not supported by the scanner.
-- INVALID_STAGE: One or more requested stages are not valid.
-- INVALID_ACTION: One or more requested actions are not valid.
-- INVALID_MODIFICATION: One or more requested modifications are not valid.
-- NO_STAGES_REQUESTED: Neither inbound nor outbound stages were specified.
-- FILTER_INVALID: Filter configuration is syntactically invalid.
-- MISSING_REQUEST_ID: The X-MTA-Hooks-Request-Id header is missing on a hook invocation.
-
-## HTTP 401 Unauthorized
-
-- AUTHENTICATION_REQUIRED: No authentication credentials provided.
-- INVALID_CREDENTIALS: Provided credentials are invalid or expired.
-
-## HTTP 403 Forbidden
-
-- REGISTRATION_DENIED: Valid credentials but the MTA identity is not authorized to register.
-- DOMAIN_NOT_ALLOWED: MTA not authorized for the requested domains.
-- REGISTRATION_MISMATCH: The credentials are not bound to the registration identified by X-MTA-Hooks-Registration.
-
-## HTTP 404 Not Found
-
-- REGISTRATION_NOT_FOUND: No registration exists with the specified identifier.
-
-## HTTP 409 Conflict
-
-- REGISTRATION_LIMIT_REACHED: Maximum number of registrations for this MTA identity exceeded.
-
-## HTTP 410 Gone
-
-- REGISTRATION_DEREGISTERED: The registration has been deregistered and will not be re-activated.
-
-## HTTP 413 Content Too Large
-
-- REQUEST_TOO_LARGE: The request body exceeds the scanner's advertised maxMessageSize.
-
-## HTTP 422 Unprocessable Content
-
-- UNSUPPORTED_FILTER: The filter contains conditions that are not supported by this scanner.
-- UNSUPPORTED_PROPERTY: One or more requested properties are not in the scanner's advertised fetchProperties.
-
-## HTTP 429 Too Many Requests
-
-- RATE_LIMITED: Too many requests; retry after the time specified in the Retry-After header.
-
-## HTTP 500 Internal Server Error
-
-- INTERNAL_ERROR: Unexpected server error during processing.
-
-## HTTP 503 Service Unavailable
-
-- REGISTRATION_DISABLED: Registration temporarily disabled by administrator.
-- SCANNER_UNAVAILABLE: The scanner is temporarily unable to process hook invocations.
-
-# Complete Example Flows
-
-This appendix provides complete request and response examples for common scenarios.
-
-## Inbound Spam Filtering
-
-This example shows a complete flow for spam filtering during inbound message reception.
-
-### Discovery
-
-~~~
-GET /.well-known/mta-hooks HTTP/1.1
-Host: scanner.example.com
-Accept: application/json
-~~~
-
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "version": "1.0",
-  "endpoints": {
-    "registration": "/v1/hooks/register",
-    "deregistration": "/v1/hooks/register/{registration_id}"
-  },
-  "serialization": ["json"],
-  "capabilities": {
-    "inbound": {
-      "stages": ["data"],
-      "actions": ["accept", "reject", "quarantine"],
-      "fetchProperties": ["/message", "/envelope", "/senderAuth",
-                          "/client"],
-      "updateProperties": ["/message/headers", "/action", "/response"]
-    }
-  },
-  "limits": {
-    "maxMessageSize": 26214400,
-    "timeoutMs": 30000
-  }
-}
-~~~
-
-### Registration
-
-~~~
-POST /v1/hooks/register HTTP/1.1
-Host: scanner.example.com
-Content-Type: application/json
-Authorization: Bearer sk_live_abc123
-
-{
-  "name": "Acme MTA mx1",
-  "version": "3.0.1",
-  "timeoutMs": 20000,
-  "serialization": "json",
-  "inbound": {
-    "stages": ["data"],
-    "properties": ["/message", "/envelope", "/senderAuth", "/client"]
-  },
-  "metadata": {
-    "operator": "acme-corp"
-  }
-}
-~~~
-
-### Registration Response
-
-~~~
-HTTP/1.1 201 Created
-Content-Type: application/json
-Location: /v1/hooks/register/reg_spam_001
-
-{
-  "registrationId": "reg_spam_001",
-  "status": "active",
-  "createdAt": "2024-12-21T10:00:00Z",
-  "expiresAt": "2025-01-21T10:00:00Z",
-  "hookEndpoint": "/v1/hooks/invoke/reg_spam_001",
-  "negotiated": {
-    "serialization": "json",
-    "inbound": {
-      "stages": ["data"],
-      "properties": ["/message", "/envelope", "/senderAuth", "/client"]
-    }
-  },
-  "endpoints": {
-    "deregistration": "/v1/hooks/register/reg_spam_001",
-    "status": "/v1/hooks/register/reg_spam_001/status"
-  }
-}
-~~~
-
-### Hook Invocation - Clean Message
-
-~~~
-POST /v1/hooks/invoke/reg_spam_001 HTTP/1.1
-Host: scanner.example.com
-Content-Type: application/json
-Authorization: Bearer sk_live_abc123
-X-MTA-Hooks-Registration: reg_spam_001
-X-MTA-Hooks-Request-Id: 01HZ8K3X7F4Y5N6Q9R2S3T4U5V
-
-{
-  "stage": "data",
-  "action": "accept",
-  "timestamp": "2024-12-21T10:30:00Z",
-  "response": {
-    "code": 250,
-    "enhancedCode": "2.0.0",
-    "message": "OK"
-  },
-  "envelope": {
-    "from": {"address": "alice@sender.example", "parameters": {}},
-    "to": [{"address": "bob@recipient.example", "parameters": {}}]
-  },
-  "message": {
-    "subject": "Quarterly Report",
-    "from": [{"email": "alice@sender.example", "name": "Alice Smith"}],
-    "to": [{"email": "bob@recipient.example"}],
-    "size": 15360,
-    "bodyValues": {
-      "1": {
-        "value": "Please find attached the Q4 report...",
-        "isEncodingProblem": false,
-        "isTruncated": false
-      }
-    }
-  },
-  "senderAuth": {
-    "spf-mail": "pass",
-    "dkim": "pass",
-    "dmarc": "pass"
-  },
-  "client": {
-    "ip": "192.0.2.50",
-    "ehlo": "mail.sender.example"
-  }
-}
-~~~
-
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "add": [
-    {
-      "path": "/message/headers",
-      "value": {"name": "X-Spam-Status", "value": "No, score=0.5"},
-      "index": 0
-    }
-  ]
-}
-~~~
-
-### Hook Invocation - Spam Detected
-
-~~~
-POST /v1/hooks/invoke/reg_spam_001 HTTP/1.1
-Host: scanner.example.com
-Content-Type: application/json
-Authorization: Bearer sk_live_abc123
-X-MTA-Hooks-Registration: reg_spam_001
-X-MTA-Hooks-Request-Id: 01HZ8KAW6D2E3F4G5H6J7K8L9M
-
-{
-  "stage": "data",
-  "action": "accept",
-  "timestamp": "2024-12-21T10:35:00Z",
-  "response": {
-    "code": 250,
-    "enhancedCode": "2.0.0",
-    "message": "OK"
-  },
-  "envelope": {
-    "from": {"address": "promo@spammer.invalid", "parameters": {}},
-    "to": [{"address": "bob@recipient.example", "parameters": {}}]
-  },
-  "message": {
-    "subject": "YOU HAVE WON $1,000,000!!!",
-    "from": [{"email": "winner@lottery.invalid"}],
-    "to": [{"email": "bob@recipient.example"}],
-    "size": 8192
-  },
-  "senderAuth": {
-    "spf-mail": "fail",
-    "dkim": "none",
-    "dmarc": "fail"
-  },
-  "client": {
-    "ip": "203.0.113.99",
-    "ehlo": "totally-legit.invalid"
-  }
-}
-~~~
-
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "set": [
-    {
-      "path": "/action",
-      "value": "reject"
-    },
-    {
-      "path": "/response",
-      "value": {
-        "code": 550,
-        "enhancedCode": "5.7.1",
-        "message": "Message rejected due to spam content"
-      }
-    }
-  ]
-}
-~~~
-
-## Outbound Delivery Logging
-
-This example shows outbound hook usage for delivery status logging and compliance.
-
-### Registration
-
-~~~
-POST /v1/hooks/register HTTP/1.1
-Host: logger.example.net
-Content-Type: application/json
-Authorization: Bearer sk_live_def456
-
-{
-  "name": "Acme MTA mx1",
-  "version": "1.0.0",
-  "timeoutMs": 5000,
-  "serialization": "json",
-  "outbound": {
-    "stages": ["delivery", "dsn"],
-    "properties": null
-  }
-}
-~~~
-
-~~~
-HTTP/1.1 201 Created
-Content-Type: application/json
-
-{
-  "registrationId": "reg_logger_001",
-  "status": "active",
-  "createdAt": "2024-12-21T11:00:00Z",
-  "hookEndpoint": "/v1/hooks/invoke/reg_logger_001",
-  "negotiated": {
-    "serialization": "json",
-    "outbound": {
-      "stages": ["delivery", "dsn"],
-      "properties": ["/envelope", "/message", "/queue", "/server"]
-    }
-  },
-  "endpoints": {
-    "deregistration": "/v1/hooks/register/reg_logger_001",
-    "status": "/v1/hooks/register/reg_logger_001/status"
-  }
-}
-~~~
-
-### Hook Invocation - Partial Delivery
-
-~~~
-POST /v1/hooks/invoke/reg_logger_001 HTTP/1.1
-Host: logger.example.net
-Content-Type: application/json
-Authorization: Bearer sk_live_def456
-X-MTA-Hooks-Registration: reg_logger_001
-X-MTA-Hooks-Request-Id: 01HZ8MBN5Q4R3S2T1U0V9W8X7Y
-
-{
-  "stage": "delivery",
-  "action": "continue",
-  "timestamp": "2024-12-21T12:00:00Z",
-  "queue": {
-    "id": "q_msg_12345",
-    "expiresAt": "2024-12-24T12:00:00Z",
-    "attempts": 1
-  },
-  "envelope": {
-    "from": {"address": "notify@example.com", "parameters": {}},
-    "to": [
-      {
-        "address": "user1@active.example",
-        "parameters": {},
-        "status": "delivered",
-        "attempt": 1,
-        "lastResponse": {
-          "code": 250,
-          "enhancedCode": "2.0.0",
-          "message": "Delivered"
-        }
-      },
-      {
-        "address": "user2@slow.example",
-        "parameters": {},
-        "status": "deferred",
-        "attempt": 1,
-        "lastResponse": {
-          "code": 451,
-          "enhancedCode": "4.7.1",
-          "message": "Greylisted, try again"
-        },
-        "nextAttemptAt": "2024-12-21T12:15:00Z"
-      },
-      {
-        "address": "user3@invalid.example",
-        "parameters": {},
-        "status": "failed",
-        "attempt": 1,
-        "lastResponse": {
-          "code": 550,
-          "enhancedCode": "5.1.1",
-          "message": "User unknown"
-        }
-      }
-    ]
-  },
-  "message": {
-    "subject": "System Notification",
-    "messageId": "<notify-12345@example.com>",
-    "size": 2048
-  }
-}
-~~~
-
-~~~
-HTTP/1.1 204 No Content
-~~~
-
-## Deregistration
-
-~~~
-DELETE /v1/hooks/register/reg_spam_001 HTTP/1.1
-Host: scanner.example.com
-Authorization: Bearer sk_live_abc123
-~~~
-
-~~~
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "registrationId": "reg_spam_001",
-  "status": "deregistered",
-  "deregisteredAt": "2024-12-21T18:00:00Z"
-}
-~~~
+| Status | Code | Meaning |
+|---|---|---|
+| 400 | INVALID_REQUEST | Malformed body or missing required fields |
+| 400 | INVALID_FILTER | Filter is syntactically invalid |
+| 400 | MISSING_REQUEST_ID | MTA-Hooks-Request-Id is missing |
+| 401 | AUTHENTICATION_REQUIRED | No credentials were provided |
+| 401 | INVALID_CREDENTIALS | Credentials are invalid or expired |
+| 403 | REGISTRATION_DENIED | The MTA may not register |
+| 403 | REGISTRATION_MISMATCH | Credentials are not bound to the registration |
+| 404 | REGISTRATION_NOT_FOUND | No such registration |
+| 409 | REGISTRATION_LIMIT_REACHED | Too many registrations for this MTA |
+| 413 | REQUEST_TOO_LARGE | Request body larger than the scanner accepts |
+| 422 | UNSUPPORTED_SERIALIZATION | The serialization is not supported |
+| 422 | UNSUPPORTED_STAGE | A stage is not supported |
+| 422 | UNSUPPORTED_PROPERTY | A property is not supported |
+| 422 | UNSUPPORTED_FILTER | A filter condition is not supported |
+| 429 | RATE_LIMITED | Too many requests |
+| 500 | INTERNAL_ERROR | Unexpected error |
+| 503 | UNAVAILABLE | Temporarily unable to process requests |
+{: #tab-errors title="Error Codes"}
 
 # Acknowledgments
 
-The authors thank the developers and operators of existing mail filtering systems whose experience informed this design.
+The author thanks the operators of mailbox.org for their detailed proposals on routing, observability, and inbound signals, and the developers and operators of existing mail filtering systems whose experience informed this design.
 
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
 
+**draft-degennaro-mta-hooks-02**
+
+* Responses are JSON Patch documents (RFC 6902), applied atomically; the custom set/add/delete format and its ordering rules are removed.
+* Registrations consist of ordered subscriptions, each with its own filter, properties, grants, and failure policy. Filters gain connection conditions.
+* Replaced updateProperties with grants that can restrict values and sizes. Ordered properties can only become stricter unless a grant relaxes them, which replaces the downgrade rule. The discovery document lists the changes a scanner wants as grants, replacing its actions and updates lists.
+* Actions apply to inbound stages only. Outbound outcomes, including DSN suppression, are expressed through recipient status, replacing "continue" and "cancel". Removed the "defer" stage, which duplicated "delivery".
+* At the "route" and "delivery" stages subscriptions are matched per recipient, so grants and failure handling apply only to the recipients a subscription matches.
+* Added the "route" stage with per-recipient routes, and the "transmit" stage, which runs per SMTP transaction so scanners can sign each copy with its final envelope, as DKIM2 requires.
+* Removed ARC, which the DMARC working group proposes to move to Historic, from sender authentication and added DKIM2.
+* Bearer tokens (RFC 6750) are mandatory to implement. Error responses use Problem Details (RFC 9457). Header field values have a defined syntax.
+* Serializations are named by media type; removed the serialization registry. The registration request carries the registration's label, and no longer carries metadata. A scanner can only narrow a registration by removing properties and grants.
+* Certificates report a verification failure using RFC 8460 result types. Sessions also describe non-SMTP submissions.
+* One Recipient object across all stages with a common status set and a decidedBy attribution; rejected recipients remain in the array; "failed-silent" became "discarded".
+* Properties are no longer split by direction. Client, TLS, and authentication data are grouped into a Session object, which is available at outbound stages when the MTA knows it.
+* Added session identifier and counters, proxy information, EHLO capabilities, certificate chains with verification result, per-attempt remote host and TLS details using RFC 8460 values, delayMs, a per-request timeoutMs, traceId, and extension data with message lifetime.
+* Clarified ESMTP parameters and queue identifier stability. Added iprev to sender authentication.
+* Dropped the "X-" prefix from header fields (RFC 6648) and added MTA-Hooks-Context.
+* Simplified the registration lifecycle to GET and DELETE on the registration URL; removed the status endpoint, its statistics, the registration status and creation time, and the maxRegistrations limit.
+
 **draft-degennaro-mta-hooks-01**
 
-* Inverted the registration model: the MTA is now exclusively the HTTP client. The registration, status, and deregistration endpoints reside at the scanner; the MTA no longer exposes any HTTP server to scanners.
-* Removed the callback URL concept and callback verification handshake. The scanner's hook endpoint is returned in the registration response.
-* Required X-MTA-Hooks-Registration on every hook invocation. Added X-MTA-Hooks-Request-Id for safe deduplication on retry.
-* Specified authentication requirements for hook invocations and credential provisioning practices.
-* Specified the error response contract for hook invocations and the status code semantics.
-* Clarified action precedence in multi-scanner chains and removed the duplicate Multiple Scanner Handling section.
-* Replaced "Modification Order" duplication with a forward reference.
-* Documented the failed-silent recipient status.
-* Corrected the enhanced status code reference from RFC 3461 to RFC 3463.
-* Clarified filter conditions: minSize and maxSize are permitted; the confused reference to Section 4.1.1 of RFC 8621 has been removed.
-* Replaced callback-related error codes (CALLBACK_UNREACHABLE, CALLBACK_VERIFICATION_FAILED, TLS_REQUIRED, TLS_CERTIFICATE_INVALID, INVALID_CALLBACK_URL, CALLBACK_NOT_ALLOWED, ALREADY_REGISTERED) with codes appropriate to the new model (REGISTRATION_MISMATCH, REGISTRATION_DEREGISTERED, REQUEST_TOO_LARGE, UNSUPPORTED_PROPERTY, MISSING_REQUEST_ID, SCANNER_UNAVAILABLE).
-* Rewrote Security Considerations around the new trust model and credential provisioning.
+* Inverted the registration model: the MTA is now exclusively the HTTP client.
+* Required a registration identifier and request identifier on every hook request.
+* Specified authentication, error responses, and action precedence.
 
 **draft-degennaro-mta-hooks-00**
 
 * Initial version
-
-
-
