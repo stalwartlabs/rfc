@@ -32,6 +32,7 @@ normative:
   RFC9670: RFC9670
   RFC6901: RFC6901
   RFC5051: RFC5051
+  RFC4648: RFC4648
 
 informative:
   RFC8621: RFC8621
@@ -147,11 +148,42 @@ Example:
 }
 ~~~
 
-The depth of a value is defined recursively: a scalar (string, number, boolean or null) has depth 0; an array has the maximum depth of its elements (0 if empty); an object has depth 1 plus the maximum depth of its member values (1 if empty). For example, `{"a": 1}` has depth 1 and `{"x": [{"y": 1}]}` has depth 2. If the account capability specifies a `maxDepth` for a data type, the depth of a namespace value MUST NOT exceed it; servers MUST reject writes that would exceed it with an "invalidProperties" SetError.
+The depth of a value is defined recursively: a scalar (string, number, boolean or null) or a Binary value ([](#binary-values)) has depth 0; an array has the maximum depth of its elements (0 if empty); an object has depth 1 plus the maximum depth of its member values (1 if empty). For example, `{"a": 1}` has depth 1 and `{"x": [{"y": 1}]}` has depth 2. If the account capability specifies a `maxDepth` for a data type, the depth of a namespace value MUST NOT exceed it; servers MUST reject writes that would exceed it with an "invalidProperties" SetError.
 
 A patch that targets one namespace MUST NOT remove or alter any other namespace, including namespaces that are not supported on the data type.
 
 Vendors are encouraged to register namespace identifiers that are likely to be useful beyond the vendor's own products, using the procedure in [](#namespaces-registry). Registration enhances interoperability and avoids fragmentation.
+
+### Binary Values {#binary-values}
+
+JSON strings hold Unicode text, so a namespace value cannot carry arbitrary bytes directly. A namespace that needs to store bytes uses a **Binary** object, which has exactly the following members:
+
+{:vspace}
+**@type**: `String`
+: The value "Binary".
+
+**base64**: `String`
+: The bytes, encoded in base64 with padding ({{Section 4 of RFC4648}}).
+
+Any object within a namespace value that has an `@type` member with the value "Binary" is a Binary value. A namespace definition MUST NOT use such an object for anything else. A Binary value that has any other member, or whose `base64` member is not valid base64 with padding, is malformed.
+
+A Binary value is a single value, like a string: it has depth 0 ([](#namespaces)), a patch path or filter path cannot address its members, and the text-match filter conditions ([](#filter-conditions)) never match it. The server stores and returns it exactly as given.
+
+Example, a vendor namespace holding a 32-byte value:
+
+~~~ json
+{
+  "metadata": {
+    "acme.example.com": {
+      "label": "draft copy",
+      "thumbprint": {
+        "@type": "Binary",
+        "base64": "VEVYVHR0eHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      }
+    }
+  }
+}
+~~~
 
 ### Data in Unsupported Namespaces {#namespace-removal}
 
@@ -191,7 +223,7 @@ The `metadata` and `privateMetadata` properties are mutable.
 
 In a `create` entry of `Foo/set`, each property's value MUST be a complete JSON object (possibly the empty object `{}`). A value of `null` for either property MUST be rejected with an "invalidProperties" SetError; the canonical "no metadata" form is `{}`. In an `update`, `null` is equivalent to `{}`.
 
-In an `update` entry of `Foo/set`, clients MAY either send a complete object as the value of `metadata` or `privateMetadata` (replacing the previous value entirely), or use the PatchObject form ({{Section 5.3 of RFC8620}}). Patch paths start with `metadata/<namespace>` or `privateMetadata/<namespace>` (replacing or removing an entire namespace value) and MAY continue to any depth below it (for example, `metadata/<namespace>/<key>/<subkey>`), with the semantics of {{Section 5.3 of RFC8620}}: the parent of the target MUST exist, and a path that traverses an array is rejected with an "invalidPatch" SetError.
+In an `update` entry of `Foo/set`, clients MAY either send a complete object as the value of `metadata` or `privateMetadata` (replacing the previous value entirely), or use the PatchObject form ({{Section 5.3 of RFC8620}}). Patch paths start with `metadata/<namespace>` or `privateMetadata/<namespace>` (replacing or removing an entire namespace value) and MAY continue to any depth below it (for example, `metadata/<namespace>/<key>/<subkey>`), with the semantics of {{Section 5.3 of RFC8620}}: the parent of the target MUST exist, and a path that traverses an array or a Binary value ([](#binary-values)) is rejected with an "invalidPatch" SetError.
 
 Setting a patch value to `null` removes the targeted key, per standard PatchObject semantics ({{Section 5.3 of RFC8620}}). Setting a path to a complete object value replaces whatever was previously at that path; in particular, a patch of the shape `"metadata/<namespace>": { ... }` replaces the entire content of that namespace, deleting any keys not present in the new value. Clients that want to add or update individual properties without removing others need to patch the specific keys.
 
@@ -201,8 +233,9 @@ The server MUST validate every write against the account capability for the data
 2. If the path begins with `privateMetadata` and `supportsPrivate` is false for this data type, reject with "invalidProperties".
 3. If the targeted namespace is not supported on this data type, reject with "invalidProperties" (except for the migration case in [](#namespace-removal)).
 4. If a namespace value would exceed `maxDepth`, reject with "invalidProperties".
+5. If a namespace value contains a malformed Binary value ([](#binary-values)), reject with "invalidProperties".
 
-Patch errors that can be determined from the request alone (for example, two paths where one is a prefix of the other) MUST be reported with "invalidPatch" before rule 1 is evaluated. Patch errors that depend on the current value of the property (a missing parent, or a path through an array) MUST be reported with "invalidPatch" after rule 3 and before rule 4.
+Patch errors that can be determined from the request alone (for example, two paths where one is a prefix of the other) MUST be reported with "invalidPatch" before rule 1 is evaluated. Patch errors that depend on the current value of the property (a missing parent, or a path through an array or a Binary value) MUST be reported with "invalidPatch" after rule 3 and before rule 4.
 
 ### Quota Enforcement on /set
 
@@ -242,7 +275,7 @@ A **MetadataTextMatch** object has the following fields:
 
 {:vspace}
 **path**: `String`
-: The path within the metadata object to match against: a namespace identifier, optionally followed by a JSON Pointer {{RFC6901}} into the namespace value (for example, `<namespace>`, `<namespace>/<key>` or `<namespace>/<key>/<subkey>`). Object members are addressed by name; a path that would traverse an array or a scalar addresses no value. A path that is not well formed (for example, one with an invalid `~` escape) MUST be rejected with an "invalidArguments" error.
+: The path within the metadata object to match against: a namespace identifier, optionally followed by a JSON Pointer {{RFC6901}} into the namespace value (for example, `<namespace>`, `<namespace>/<key>` or `<namespace>/<key>/<subkey>`). Object members are addressed by name; a path that would traverse an array, a scalar or a Binary value ([](#binary-values)) addresses no value. A path that is not well formed (for example, one with an invalid `~` escape) MUST be rejected with an "invalidArguments" error.
 
 **value**: `String`
 : The string to search for at `path`. The interpretation of this string (substring containment versus exact equality) is determined by the FilterCondition field that carries the `MetadataTextMatch`.
@@ -753,6 +786,10 @@ This document defines no initial entries for the "JMAP Metadata Namespaces" regi
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-jmap-metadata-05**
+
+* Added the Binary value, so namespaces can store bytes that are not UTF-8 text.
 
 **draft-ietf-jmap-metadata-04**
 
