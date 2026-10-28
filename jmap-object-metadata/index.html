@@ -14,15 +14,15 @@
 <meta content="draft-ietf-jmap-metadata-04" name="ietf.draft">
 <!-- Generator version information:
   xml2rfc 3.32.0
-    Python 3.13.7
-    ConfigArgParse 1.7.5
+    Python 3.14.4
+    ConfigArgParse 1.7.1
     google-i18n-address 3.1.1
     intervaltree 3.2.1
     Jinja2 3.1.6
     lxml 6.0.2
-    platformdirs 4.9.4
+    platformdirs 4.9.2
     pycountry 26.2.16
-    PyYAML 6.0.2
+    PyYAML 6.0.3
     requests 2.32.5
     wcwidth 0.6.0
 -->
@@ -1219,7 +1219,7 @@ li > p:last-of-type:only-child {
 </tr></thead>
 <tfoot><tr>
 <td class="left">De Gennaro</td>
-<td class="center">Expires 22 April 2027</td>
+<td class="center">Expires 1 May 2027</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1232,12 +1232,12 @@ li > p:last-of-type:only-child {
 <dd class="internet-draft">draft-ietf-jmap-metadata-04</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-10-19" class="published">19 October 2026</time>
+<time datetime="2026-10-28" class="published">28 October 2026</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Standards Track</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2027-04-22">22 April 2027</time></dd>
+<dd class="expires"><time datetime="2027-05-01">1 May 2027</time></dd>
 <dt class="label-authors">Author:</dt>
 <dd class="authors">
 <div class="author">
@@ -1271,7 +1271,7 @@ li > p:last-of-type:only-child {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 22 April 2027.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 1 May 2027.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1323,7 +1323,10 @@ li > p:last-of-type:only-child {
                 <p id="section-toc.1-1.2.2.1.1"><a href="#section-2.1" class="auto internal xref">2.1</a>.  <a href="#name-namespaces" class="internal xref">Namespaces</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.1">
-                    <p id="section-toc.1-1.2.2.1.2.1.1"><a href="#section-2.1.1" class="auto internal xref">2.1.1</a>.  <a href="#name-data-in-unsupported-namespa" class="internal xref">Data in Unsupported Namespaces</a></p>
+                    <p id="section-toc.1-1.2.2.1.2.1.1"><a href="#section-2.1.1" class="auto internal xref">2.1.1</a>.  <a href="#name-binary-values" class="internal xref">Binary Values</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.2">
+                    <p id="section-toc.1-1.2.2.1.2.2.1"><a href="#section-2.1.2" class="auto internal xref">2.1.2</a>.  <a href="#name-data-in-unsupported-namespa" class="internal xref">Data in Unsupported Namespaces</a></p>
 </li>
                 </ul>
 </li>
@@ -1617,15 +1620,57 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 }
 </pre><a href="#section-2.1-6" class="pilcrow">¶</a>
 </div>
-<p id="section-2.1-7">The depth of a value is defined recursively: a scalar (string, number, boolean or null) has depth 0; an array has the maximum depth of its elements (0 if empty); an object has depth 1 plus the maximum depth of its member values (1 if empty). For example, <code>{"a": 1}</code> has depth 1 and <code>{"x": [{"y": 1}]}</code> has depth 2. If the account capability specifies a <code>maxDepth</code> for a data type, the depth of a namespace value <span class="bcp14">MUST NOT</span> exceed it; servers <span class="bcp14">MUST</span> reject writes that would exceed it with an "invalidProperties" SetError.<a href="#section-2.1-7" class="pilcrow">¶</a></p>
+<p id="section-2.1-7">The depth of a value is defined recursively: a scalar (string, number, boolean or null) or a Binary value (<a href="#binary-values" class="auto internal xref">Section 2.1.1</a>) has depth 0; an array has the maximum depth of its elements (0 if empty); an object has depth 1 plus the maximum depth of its member values (1 if empty). For example, <code>{"a": 1}</code> has depth 1 and <code>{"x": [{"y": 1}]}</code> has depth 2. If the account capability specifies a <code>maxDepth</code> for a data type, the depth of a namespace value <span class="bcp14">MUST NOT</span> exceed it; servers <span class="bcp14">MUST</span> reject writes that would exceed it with an "invalidProperties" SetError.<a href="#section-2.1-7" class="pilcrow">¶</a></p>
 <p id="section-2.1-8">A patch that targets one namespace <span class="bcp14">MUST NOT</span> remove or alter any other namespace, including namespaces that are not supported on the data type.<a href="#section-2.1-8" class="pilcrow">¶</a></p>
 <p id="section-2.1-9">Vendors are encouraged to register namespace identifiers that are likely to be useful beyond the vendor's own products, using the procedure in <a href="#namespaces-registry" class="auto internal xref">Section 8.2</a>. Registration enhances interoperability and avoids fragmentation.<a href="#section-2.1-9" class="pilcrow">¶</a></p>
-<div id="namespace-removal">
+<div id="binary-values">
 <section id="section-2.1.1">
-          <h4 id="name-data-in-unsupported-namespa">
-<a href="#section-2.1.1" class="section-number selfRef">2.1.1. </a><a href="#name-data-in-unsupported-namespa" class="section-name selfRef">Data in Unsupported Namespaces</a>
+          <h4 id="name-binary-values">
+<a href="#section-2.1.1" class="section-number selfRef">2.1.1. </a><a href="#name-binary-values" class="section-name selfRef">Binary Values</a>
           </h4>
-<p id="section-2.1.1-1">Data can be stored under a namespace that is not supported on the data type, for example after a server reconfiguration, after a vendor withdraws support, or when the data was copied from another account (<a href="#copy" class="auto internal xref">Section 3.4</a>). Such data <span class="bcp14">MUST</span> continue to be returned by <code>/get</code> for read-only access. Any <code>/set</code> operation that targets the namespace, other than a patch that removes the namespace entirely (<code>"metadata/&lt;namespace&gt;": null</code> or <code>"privateMetadata/&lt;namespace&gt;": null</code>), <span class="bcp14">MUST</span> be rejected with an "invalidProperties" SetError. A complete replacement of <code>metadata</code> or <code>privateMetadata</code> <span class="bcp14">MAY</span> include such a namespace only with a value equal to the stored one, where two JSON objects are equal when they have the same members with equal values, regardless of member order; omitting the namespace from a complete replacement removes it. This ensures clients can always migrate data off an unsupported namespace, but cannot continue to extend it.<a href="#section-2.1.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-1">JSON strings hold Unicode text, so a namespace value cannot carry arbitrary bytes directly. A namespace that needs to store bytes uses a <strong>Binary</strong> object, which has exactly the following members:<a href="#section-2.1.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlNewline" id="section-2.1.1-2">
+            <dt id="section-2.1.1-2.1">
+<strong>@type</strong>: <code>String</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-2.1.1-2.2">
+              <p id="section-2.1.1-2.2.1">The value "Binary".<a href="#section-2.1.1-2.2.1" class="pilcrow">¶</a></p>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-2.1.1-2.3">
+<strong>base64</strong>: <code>String</code>
+</dt>
+            <dd style="margin-left: 1.5em" id="section-2.1.1-2.4">
+              <p id="section-2.1.1-2.4.1">The bytes, encoded in base64 with padding (<span><a href="https://rfc-editor.org/rfc/rfc4648#section-4" class="relref">Section 4</a> of [<a href="#RFC4648" class="cite xref">RFC4648</a>]</span>).<a href="#section-2.1.1-2.4.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+</dl>
+<p id="section-2.1.1-3">Any object within a namespace value that has an <code>@type</code> member with the value "Binary" is a Binary value. A namespace definition <span class="bcp14">MUST NOT</span> use such an object for anything else. A Binary value that has any other member, or whose <code>base64</code> member is not valid base64 with padding, is malformed.<a href="#section-2.1.1-3" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-4">A Binary value is a single value, like a string: it has depth 0 (<a href="#namespaces" class="auto internal xref">Section 2.1</a>), a patch path or filter path cannot address its members, and the text-match filter conditions (<a href="#filter-conditions" class="auto internal xref">Section 3.6</a>) never match it. The server stores and returns it exactly as given.<a href="#section-2.1.1-4" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-5">Example, a vendor namespace holding a 32-byte value:<a href="#section-2.1.1-5" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-2.1.1-6">
+<pre>
+{
+  "metadata": {
+    "acme.example.com": {
+      "label": "draft copy",
+      "thumbprint": {
+        "@type": "Binary",
+        "base64": "VEVYVHR0eHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      }
+    }
+  }
+}
+</pre><a href="#section-2.1.1-6" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="namespace-removal">
+<section id="section-2.1.2">
+          <h4 id="name-data-in-unsupported-namespa">
+<a href="#section-2.1.2" class="section-number selfRef">2.1.2. </a><a href="#name-data-in-unsupported-namespa" class="section-name selfRef">Data in Unsupported Namespaces</a>
+          </h4>
+<p id="section-2.1.2-1">Data can be stored under a namespace that is not supported on the data type, for example after a server reconfiguration, after a vendor withdraws support, or when the data was copied from another account (<a href="#copy" class="auto internal xref">Section 3.4</a>). Such data <span class="bcp14">MUST</span> continue to be returned by <code>/get</code> for read-only access. Any <code>/set</code> operation that targets the namespace, other than a patch that removes the namespace entirely (<code>"metadata/&lt;namespace&gt;": null</code> or <code>"privateMetadata/&lt;namespace&gt;": null</code>), <span class="bcp14">MUST</span> be rejected with an "invalidProperties" SetError. A complete replacement of <code>metadata</code> or <code>privateMetadata</code> <span class="bcp14">MAY</span> include such a namespace only with a value equal to the stored one, where two JSON objects are equal when they have the same members with equal values, regardless of member order; omitting the namespace from a complete replacement removes it. This ensures clients can always migrate data off an unsupported namespace, but cannot continue to extend it.<a href="#section-2.1.2-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -1668,7 +1713,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
             <p id="section-3.1-3.3.1">An explicit root entry supersedes subselectors with the same root. For example, <code>["metadata", "metadata/x"]</code> returns the complete <code>metadata</code> object; the <code>metadata/x</code> entry is redundant rather than restrictive.<a href="#section-3.1-3.3.1" class="pilcrow">¶</a></p>
 </li>
           <li class="normal" id="section-3.1-3.4">
-            <p id="section-3.1-3.4.1">A subselector naming a namespace that is not supported (<a href="#namespaces" class="auto internal xref">Section 2.1</a>) on the data type <span class="bcp14">MUST</span> be silently omitted from the response, unless the object has data stored under that namespace (<a href="#namespace-removal" class="auto internal xref">Section 2.1.1</a>), which is then returned. This lets clients perform capability-tolerant fetches without first consulting the session capability.<a href="#section-3.1-3.4.1" class="pilcrow">¶</a></p>
+            <p id="section-3.1-3.4.1">A subselector naming a namespace that is not supported (<a href="#namespaces" class="auto internal xref">Section 2.1</a>) on the data type <span class="bcp14">MUST</span> be silently omitted from the response, unless the object has data stored under that namespace (<a href="#namespace-removal" class="auto internal xref">Section 2.1.2</a>), which is then returned. This lets clients perform capability-tolerant fetches without first consulting the session capability.<a href="#section-3.1-3.4.1" class="pilcrow">¶</a></p>
 </li>
           <li class="normal" id="section-3.1-3.5">
             <p id="section-3.1-3.5.1">This specification defines slash-path subselectors only for <code>metadata</code> and <code>privateMetadata</code>. The use of slash-path subselectors with any other property name is outside the scope of this document.<a href="#section-3.1-3.5.1" class="pilcrow">¶</a></p>
@@ -1683,7 +1728,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
         </h3>
 <p id="section-3.2-1">The <code>metadata</code> and <code>privateMetadata</code> properties are mutable.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
 <p id="section-3.2-2">In a <code>create</code> entry of <code>Foo/set</code>, each property's value <span class="bcp14">MUST</span> be a complete JSON object (possibly the empty object <code>{}</code>). A value of <code>null</code> for either property <span class="bcp14">MUST</span> be rejected with an "invalidProperties" SetError; the canonical "no metadata" form is <code>{}</code>. In an <code>update</code>, <code>null</code> is equivalent to <code>{}</code>.<a href="#section-3.2-2" class="pilcrow">¶</a></p>
-<p id="section-3.2-3">In an <code>update</code> entry of <code>Foo/set</code>, clients <span class="bcp14">MAY</span> either send a complete object as the value of <code>metadata</code> or <code>privateMetadata</code> (replacing the previous value entirely), or use the PatchObject form (<span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.3" class="relref">Section 5.3</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>). Patch paths start with <code>metadata/&lt;namespace&gt;</code> or <code>privateMetadata/&lt;namespace&gt;</code> (replacing or removing an entire namespace value) and <span class="bcp14">MAY</span> continue to any depth below it (for example, <code>metadata/&lt;namespace&gt;/&lt;key&gt;/&lt;subkey&gt;</code>), with the semantics of <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.3" class="relref">Section 5.3</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>: the parent of the target <span class="bcp14">MUST</span> exist, and a path that traverses an array is rejected with an "invalidPatch" SetError.<a href="#section-3.2-3" class="pilcrow">¶</a></p>
+<p id="section-3.2-3">In an <code>update</code> entry of <code>Foo/set</code>, clients <span class="bcp14">MAY</span> either send a complete object as the value of <code>metadata</code> or <code>privateMetadata</code> (replacing the previous value entirely), or use the PatchObject form (<span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.3" class="relref">Section 5.3</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>). Patch paths start with <code>metadata/&lt;namespace&gt;</code> or <code>privateMetadata/&lt;namespace&gt;</code> (replacing or removing an entire namespace value) and <span class="bcp14">MAY</span> continue to any depth below it (for example, <code>metadata/&lt;namespace&gt;/&lt;key&gt;/&lt;subkey&gt;</code>), with the semantics of <span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.3" class="relref">Section 5.3</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>: the parent of the target <span class="bcp14">MUST</span> exist, and a path that traverses an array or a Binary value (<a href="#binary-values" class="auto internal xref">Section 2.1.1</a>) is rejected with an "invalidPatch" SetError.<a href="#section-3.2-3" class="pilcrow">¶</a></p>
 <p id="section-3.2-4">Setting a patch value to <code>null</code> removes the targeted key, per standard PatchObject semantics (<span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.3" class="relref">Section 5.3</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>). Setting a path to a complete object value replaces whatever was previously at that path; in particular, a patch of the shape <code>"metadata/&lt;namespace&gt;": { ... }</code> replaces the entire content of that namespace, deleting any keys not present in the new value. Clients that want to add or update individual properties without removing others need to patch the specific keys.<a href="#section-3.2-4" class="pilcrow">¶</a></p>
 <p id="section-3.2-5">The server <span class="bcp14">MUST</span> validate every write against the account capability for the data type. When more than one of the following rules applies, the server <span class="bcp14">MUST</span> evaluate them in the order listed; the first matching rule determines the SetError:<a href="#section-3.2-5" class="pilcrow">¶</a></p>
 <ol start="1" type="1" class="normal type-1" id="section-3.2-6">
@@ -1694,13 +1739,16 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
             <p id="section-3.2-6.2.1">If the path begins with <code>privateMetadata</code> and <code>supportsPrivate</code> is false for this data type, reject with "invalidProperties".<a href="#section-3.2-6.2.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-3.2-6.3">
-            <p id="section-3.2-6.3.1">If the targeted namespace is not supported on this data type, reject with "invalidProperties" (except for the migration case in <a href="#namespace-removal" class="auto internal xref">Section 2.1.1</a>).<a href="#section-3.2-6.3.1" class="pilcrow">¶</a></p>
+            <p id="section-3.2-6.3.1">If the targeted namespace is not supported on this data type, reject with "invalidProperties" (except for the migration case in <a href="#namespace-removal" class="auto internal xref">Section 2.1.2</a>).<a href="#section-3.2-6.3.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-3.2-6.4">
             <p id="section-3.2-6.4.1">If a namespace value would exceed <code>maxDepth</code>, reject with "invalidProperties".<a href="#section-3.2-6.4.1" class="pilcrow">¶</a></p>
 </li>
+          <li id="section-3.2-6.5">
+            <p id="section-3.2-6.5.1">If a namespace value contains a malformed Binary value (<a href="#binary-values" class="auto internal xref">Section 2.1.1</a>), reject with "invalidProperties".<a href="#section-3.2-6.5.1" class="pilcrow">¶</a></p>
+</li>
         </ol>
-<p id="section-3.2-7">Patch errors that can be determined from the request alone (for example, two paths where one is a prefix of the other) <span class="bcp14">MUST</span> be reported with "invalidPatch" before rule 1 is evaluated. Patch errors that depend on the current value of the property (a missing parent, or a path through an array) <span class="bcp14">MUST</span> be reported with "invalidPatch" after rule 3 and before rule 4.<a href="#section-3.2-7" class="pilcrow">¶</a></p>
+<p id="section-3.2-7">Patch errors that can be determined from the request alone (for example, two paths where one is a prefix of the other) <span class="bcp14">MUST</span> be reported with "invalidPatch" before rule 1 is evaluated. Patch errors that depend on the current value of the property (a missing parent, or a path through an array or a Binary value) <span class="bcp14">MUST</span> be reported with "invalidPatch" after rule 3 and before rule 4.<a href="#section-3.2-7" class="pilcrow">¶</a></p>
 <div id="quota-enforcement-on-set">
 <section id="section-3.2.1">
           <h4 id="name-quota-enforcement-on-set">
@@ -1744,7 +1792,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <a href="#section-3.4" class="section-number selfRef">3.4. </a><a href="#name-copy" class="section-name selfRef">/copy</a>
         </h3>
 <p id="section-3.4-1"><code>Foo/copy</code> copies <code>metadata</code> to the new object. The copying user's <code>privateMetadata</code> on the source object becomes that user's <code>privateMetadata</code> on the new object; other users' <code>privateMetadata</code> <span class="bcp14">MUST NOT</span> be copied. When the request does not use this capability, only <code>metadata</code> is copied. The create object <span class="bcp14">MAY</span> include <code>metadata</code> and <code>privateMetadata</code> to override the copied values, with the same rules as a create in <code>Foo/set</code>; for <code>Email/copy</code>, this extends the list of properties that may be set in <span><a href="https://rfc-editor.org/rfc/rfc8621#section-4.7" class="relref">Section 4.7</a> of [<a href="#RFC8621" class="cite xref">RFC8621</a>]</span>. Copied metadata counts against quota (<a href="#quota" class="auto internal xref">Section 5</a>) as any other write.<a href="#section-3.4-1" class="pilcrow">¶</a></p>
-<p id="section-3.4-2">Copied values are not revalidated against the destination account: data in a copied namespace that is not supported there is handled as described in <a href="#namespace-removal" class="auto internal xref">Section 2.1.1</a>, and <code>maxDepth</code> applies only to values supplied in the create object. <code>privateMetadata</code> is not copied when the destination does not support it, and neither property is copied when the data type is not listed in the destination account. With <code>onSuccessDestroyOriginal</code>, other users' <code>privateMetadata</code> on the source object is destroyed together with it.<a href="#section-3.4-2" class="pilcrow">¶</a></p>
+<p id="section-3.4-2">Copied values are not revalidated against the destination account: data in a copied namespace that is not supported there is handled as described in <a href="#namespace-removal" class="auto internal xref">Section 2.1.2</a>, and <code>maxDepth</code> applies only to values supplied in the create object. <code>privateMetadata</code> is not copied when the destination does not support it, and neither property is copied when the data type is not listed in the destination account. With <code>onSuccessDestroyOriginal</code>, other users' <code>privateMetadata</code> on the source object is destroyed together with it.<a href="#section-3.4-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="querychanges">
@@ -1767,7 +1815,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <strong>path</strong>: <code>String</code>
 </dt>
           <dd style="margin-left: 1.5em" id="section-3.6-3.2">
-            <p id="section-3.6-3.2.1">The path within the metadata object to match against: a namespace identifier, optionally followed by a JSON Pointer <span>[<a href="#RFC6901" class="cite xref">RFC6901</a>]</span> into the namespace value (for example, <code>&lt;namespace&gt;</code>, <code>&lt;namespace&gt;/&lt;key&gt;</code> or <code>&lt;namespace&gt;/&lt;key&gt;/&lt;subkey&gt;</code>). Object members are addressed by name; a path that would traverse an array or a scalar addresses no value. A path that is not well formed (for example, one with an invalid <code>~</code> escape) <span class="bcp14">MUST</span> be rejected with an "invalidArguments" error.<a href="#section-3.6-3.2.1" class="pilcrow">¶</a></p>
+            <p id="section-3.6-3.2.1">The path within the metadata object to match against: a namespace identifier, optionally followed by a JSON Pointer <span>[<a href="#RFC6901" class="cite xref">RFC6901</a>]</span> into the namespace value (for example, <code>&lt;namespace&gt;</code>, <code>&lt;namespace&gt;/&lt;key&gt;</code> or <code>&lt;namespace&gt;/&lt;key&gt;/&lt;subkey&gt;</code>). Object members are addressed by name; a path that would traverse an array, a scalar or a Binary value (<a href="#binary-values" class="auto internal xref">Section 2.1.1</a>) addresses no value. A path that is not well formed (for example, one with an invalid <code>~</code> escape) <span class="bcp14">MUST</span> be rejected with an "invalidArguments" error.<a href="#section-3.6-3.2.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
 <dt id="section-3.6-3.3">
@@ -1835,7 +1883,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
             <p id="section-3.6-7.3.1">Any <code>privateMetadata*</code> condition (existence or text) <span class="bcp14">MUST</span> be rejected with an "unsupportedFilter" error if <code>supportsPrivate</code> is false for the data type.<a href="#section-3.6-7.3.1" class="pilcrow">¶</a></p>
 </li>
           <li class="normal" id="section-3.6-7.4">
-            <p id="section-3.6-7.4.1">Conditions are evaluated against the stored data whether or not the namespace is supported on the data type, so data stored under an unsupported namespace (<a href="#namespace-removal" class="auto internal xref">Section 2.1.1</a>) can still be found. A condition naming an unsupported namespace with no stored data, or a string that is not a valid namespace identifier, matches no objects; it does not produce an error.<a href="#section-3.6-7.4.1" class="pilcrow">¶</a></p>
+            <p id="section-3.6-7.4.1">Conditions are evaluated against the stored data whether or not the namespace is supported on the data type, so data stored under an unsupported namespace (<a href="#namespace-removal" class="auto internal xref">Section 2.1.2</a>) can still be found. A condition naming an unsupported namespace with no stored data, or a string that is not a valid namespace identifier, matches no objects; it does not produce an error.<a href="#section-3.6-7.4.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <p id="section-3.6-8">These conditions compose with the data type's existing filter conditions through the usual <code>AND</code>/<code>OR</code>/<code>NOT</code> operators (<span><a href="https://rfc-editor.org/rfc/rfc8620#section-5.5" class="relref">Section 5.5</a> of [<a href="#RFC8620" class="cite xref">RFC8620</a>]</span>). For example, a client may query for Email objects in a particular mailbox whose vendor metadata contains a search term in a single server-side query, as shown in <a href="#example-query" class="auto internal xref">Section 6.7</a>.<a href="#section-3.6-8" class="pilcrow">¶</a></p>
@@ -2467,6 +2515,10 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
         <dd>
 <span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a>&gt;</span>. </dd>
 <dd class="break"></dd>
+<dt id="RFC4648">[RFC4648]</dt>
+        <dd>
+<span class="refAuthor">Josefsson, S.</span>, <span class="refTitle">"The Base16, Base32, and Base64 Data Encodings"</span>, <span class="seriesInfo">RFC 4648</span>, <span class="seriesInfo">DOI 10.17487/RFC4648</span>, <time datetime="2006-10" class="refDate">October 2006</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4648">https://www.rfc-editor.org/rfc/rfc4648</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="RFC5051">[RFC5051]</dt>
         <dd>
 <span class="refAuthor">Crispin, M.</span>, <span class="refTitle">"i;unicode-casemap - Simple Unicode Collation Algorithm"</span>, <span class="seriesInfo">RFC 5051</span>, <span class="seriesInfo">DOI 10.17487/RFC5051</span>, <time datetime="2007-10" class="refDate">October 2007</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc5051">https://www.rfc-editor.org/rfc/rfc5051</a>&gt;</span>. </dd>
@@ -2506,7 +2558,7 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <dd class="break"></dd>
 <dt id="I-D.ietf-jmap-filenode">[I-D.ietf-jmap-filenode]</dt>
         <dd>
-<span class="refAuthor">Gondwana, B.</span>, <span class="refTitle">"JMAP File Storage extension"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-jmap-filenode-17</span>, <time datetime="2026-10-18" class="refDate">18 October 2026</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-17">https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-17</a>&gt;</span>. </dd>
+<span class="refAuthor">Gondwana, B.</span>, <span class="refTitle">"JMAP File Storage extension"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-jmap-filenode-18</span>, <time datetime="2026-10-20" class="refDate">20 October 2026</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-18">https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-18</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC4918">[RFC4918]</dt>
         <dd>
@@ -2547,109 +2599,115 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
 <a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-changes-2" class="section-name selfRef">Changes</a>
       </h2>
 <p id="appendix-A-1">[[This section to be removed by RFC Editor]]<a href="#appendix-A-1" class="pilcrow">¶</a></p>
-<p id="appendix-A-2"><strong>draft-ietf-jmap-metadata-04</strong><a href="#appendix-A-2" class="pilcrow">¶</a></p>
+<p id="appendix-A-2"><strong>draft-ietf-jmap-metadata-05</strong><a href="#appendix-A-2" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-3.1">
-          <p id="appendix-A-3.1.1">Replaced the mapping of metadata write access onto existing rights with a new <code>maySetMetadata</code> right.<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-3.2">
-          <p id="appendix-A-3.2.1">Relaxed the per-viewer state requirement for private writes to <span class="bcp14">SHOULD NOT</span>, while still forbidding other users' <code>/changes</code> and <code>/queryChanges</code> from reporting the object.<a href="#appendix-A-3.2.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-3.1.1">Added the Binary value, so namespaces can store bytes that are not UTF-8 text.<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="appendix-A-4"><strong>draft-ietf-jmap-metadata-03</strong><a href="#appendix-A-4" class="pilcrow">¶</a></p>
+<p id="appendix-A-4"><strong>draft-ietf-jmap-metadata-04</strong><a href="#appendix-A-4" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-5.1">
-          <p id="appendix-A-5.1.1">Clarified that metadata-only changes do not update server-maintained modification timestamps.<a href="#appendix-A-5.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.1.1">Replaced the mapping of metadata write access onto existing rights with a new <code>maySetMetadata</code> right.<a href="#appendix-A-5.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-5.2">
-          <p id="appendix-A-5.2.1">Defined behavior for requests that do not use the capability.<a href="#appendix-A-5.2.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.3">
-          <p id="appendix-A-5.3.1">Allowed patch paths at any depth, and placed "invalidPatch" in the <code>/set</code> validation order.<a href="#appendix-A-5.3.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.4">
-          <p id="appendix-A-5.4.1">Defined the interaction of <code>updatedProperties</code> and <code>ignoreMetadataOnlyChanges</code> with the Mailbox count properties.<a href="#appendix-A-5.4.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.5">
-          <p id="appendix-A-5.5.1">Added <code>/copy</code> behavior; excluded <code>/import</code> and <code>/parse</code> style methods.<a href="#appendix-A-5.5.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.6">
-          <p id="appendix-A-5.6.1">Excluded metadata from the <code>Email/get</code> default property list.<a href="#appendix-A-5.6.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.7">
-          <p id="appendix-A-5.7.1">Specified the "i;unicode-casemap" collation for <code>metadataTextContains</code>.<a href="#appendix-A-5.7.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.8">
-          <p id="appendix-A-5.8.1">Required lowercase domain-name namespace identifiers.<a href="#appendix-A-5.8.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.9">
-          <p id="appendix-A-5.9.1">Defined read and write rights for the data types of JMAP Mail, Calendars, Contacts, FileNode and Sieve, and the rule for objects in several containers.<a href="#appendix-A-5.9.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.10">
-          <p id="appendix-A-5.10.1">Clarified handling of data in unsupported namespaces in subselectors, filters, complete replacements and copies.<a href="#appendix-A-5.10.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.11">
-          <p id="appendix-A-5.11.1">Allowed filter condition paths at any depth below a namespace.<a href="#appendix-A-5.11.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.12">
-          <p id="appendix-A-5.12.1">Added terminology, defined depth recursively, and made editorial clarifications throughout.<a href="#appendix-A-5.12.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="appendix-A-5.13">
-          <p id="appendix-A-5.13.1">Recommended omitting the capability when no data type is listed, and noted that limits may count data from other protocols.<a href="#appendix-A-5.13.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-5.2.1">Relaxed the per-viewer state requirement for private writes to <span class="bcp14">SHOULD NOT</span>, while still forbidding other users' <code>/changes</code> and <code>/queryChanges</code> from reporting the object.<a href="#appendix-A-5.2.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="appendix-A-6"><strong>draft-ietf-jmap-metadata-02</strong><a href="#appendix-A-6" class="pilcrow">¶</a></p>
+<p id="appendix-A-6"><strong>draft-ietf-jmap-metadata-03</strong><a href="#appendix-A-6" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-7.1">
-          <p id="appendix-A-7.1.1">Redesigned the extension around two properties (<code>metadata</code> and <code>privateMetadata</code>) on each opted-in JMAP data type, rather than a separate <code>Metadata</code> data type with its own methods. Removed the <code>Metadata</code> data type, all <code>Metadata/*</code> methods, the related object types, the extended <code>/get</code>/<code>/set</code> arguments, and the uniqueness and cascading-deletion machinery.<a href="#appendix-A-7.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.1.1">Clarified that metadata-only changes do not update server-maintained modification timestamps.<a href="#appendix-A-7.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.2">
-          <p id="appendix-A-7.2.1">Added a per-data-type capability advertising IANA-registered namespace support (<code>namespaces</code>), vendor (domain-name) namespace support (<code>supportsVendorNamespaces</code>), private-metadata support (<code>supportsPrivate</code>), and a nesting limit (<code>maxDepth</code>).<a href="#appendix-A-7.2.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.2.1">Defined behavior for requests that do not use the capability.<a href="#appendix-A-7.2.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.3">
-          <p id="appendix-A-7.3.1">Added <code>updatedProperties</code> to <code>Foo/changes</code> for opted-in types, modelled on <code>Mailbox/changes</code> in RFC 8621. Specified per-viewer behavior for <code>/changes</code> and <code>/queryChanges</code> on shared objects carrying per-user private metadata.<a href="#appendix-A-7.3.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.3.1">Allowed patch paths at any depth, and placed "invalidPatch" in the <code>/set</code> validation order.<a href="#appendix-A-7.3.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.4">
-          <p id="appendix-A-7.4.1">Added FilterCondition fields to <code>Foo/query</code>: <code>metadataExists</code>, <code>privateMetadataExists</code>, <code>metadataTextContains</code>, <code>metadataTextEquals</code>, and the corresponding private variants. Servers <span class="bcp14">MAY</span> reject the text-match conditions with "unsupportedFilter" when implementation cost is prohibitive.<a href="#appendix-A-7.4.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.4.1">Defined the interaction of <code>updatedProperties</code> and <code>ignoreMetadataOnlyChanges</code> with the Mailbox count properties.<a href="#appendix-A-7.4.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.5">
-          <p id="appendix-A-7.5.1">Added an <code>ignoreMetadataOnlyChanges</code> argument to <code>Foo/changes</code>, letting metadata-uninterested clients skip wakeups for metadata-only changes on data types they otherwise care about.<a href="#appendix-A-7.5.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.5.1">Added <code>/copy</code> behavior; excluded <code>/import</code> and <code>/parse</code> style methods.<a href="#appendix-A-7.5.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.6">
-          <p id="appendix-A-7.6.1">Specified PatchObject semantics for <code>metadata</code> and <code>privateMetadata</code>, including handling of unknown namespaces, error ordering on <code>/set</code>, and the migration case where a namespace is removed from the server's advertised set after data has been written.<a href="#appendix-A-7.6.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.6.1">Excluded metadata from the <code>Email/get</code> default property list.<a href="#appendix-A-7.6.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-7.7">
-          <p id="appendix-A-7.7.1">Replaced the previous metadata-types and metadata-properties registries with a single "JMAP Metadata Namespaces" registry. This document defines no initial entries; bindings to other protocols (e.g., IMAP METADATA, WebDAV dead properties) are expected to be defined in separate specifications.<a href="#appendix-A-7.7.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-7.7.1">Specified the "i;unicode-casemap" collation for <code>metadataTextContains</code>.<a href="#appendix-A-7.7.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-7.8">
+          <p id="appendix-A-7.8.1">Required lowercase domain-name namespace identifiers.<a href="#appendix-A-7.8.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-7.9">
+          <p id="appendix-A-7.9.1">Defined read and write rights for the data types of JMAP Mail, Calendars, Contacts, FileNode and Sieve, and the rule for objects in several containers.<a href="#appendix-A-7.9.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-7.10">
+          <p id="appendix-A-7.10.1">Clarified handling of data in unsupported namespaces in subselectors, filters, complete replacements and copies.<a href="#appendix-A-7.10.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-7.11">
+          <p id="appendix-A-7.11.1">Allowed filter condition paths at any depth below a namespace.<a href="#appendix-A-7.11.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-7.12">
+          <p id="appendix-A-7.12.1">Added terminology, defined depth recursively, and made editorial clarifications throughout.<a href="#appendix-A-7.12.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-7.13">
+          <p id="appendix-A-7.13.1">Recommended omitting the capability when no data type is listed, and noted that limits may count data from other protocols.<a href="#appendix-A-7.13.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="appendix-A-8"><strong>draft-ietf-jmap-metadata-01</strong><a href="#appendix-A-8" class="pilcrow">¶</a></p>
+<p id="appendix-A-8"><strong>draft-ietf-jmap-metadata-02</strong><a href="#appendix-A-8" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-9.1">
-          <p id="appendix-A-9.1.1">Renamed <code>parentType</code> and <code>parentId</code> properties to <code>relatedType</code> and <code>relatedId</code> throughout the document to better reflect their purpose and avoid implying a strict hierarchy.<a href="#appendix-A-9.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-9.1.1">Redesigned the extension around two properties (<code>metadata</code> and <code>privateMetadata</code>) on each opted-in JMAP data type, rather than a separate <code>Metadata</code> data type with its own methods. Removed the <code>Metadata</code> data type, all <code>Metadata/*</code> methods, the related object types, the extended <code>/get</code>/<code>/set</code> arguments, and the uniqueness and cascading-deletion machinery.<a href="#appendix-A-9.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-9.2">
-          <p id="appendix-A-9.2.1">Added <code>filterRelatedType</code> and <code>filterMetadataType</code> optional parameters to Metadata/changes method to allow filtering changes by related object type and metadata type.<a href="#appendix-A-9.2.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-9.2.1">Added a per-data-type capability advertising IANA-registered namespace support (<code>namespaces</code>), vendor (domain-name) namespace support (<code>supportsVendorNamespaces</code>), private-metadata support (<code>supportsPrivate</code>), and a nesting limit (<code>maxDepth</code>).<a href="#appendix-A-9.2.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-9.3">
-          <p id="appendix-A-9.3.1">Changed the error type from "invalidProperties" to "alreadyExists" when a client attempts to create a Metadata object that violates the uniqueness constraint.<a href="#appendix-A-9.3.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-9.3.1">Added <code>updatedProperties</code> to <code>Foo/changes</code> for opted-in types, modelled on <code>Mailbox/changes</code> in RFC 8621. Specified per-viewer behavior for <code>/changes</code> and <code>/queryChanges</code> on shared objects carrying per-user private metadata.<a href="#appendix-A-9.3.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-9.4">
-          <p id="appendix-A-9.4.1">Added requirement that <code>relatedType</code> must be specified in the same FilterCondition object whenever <code>relatedIds</code> is used in Metadata/query.<a href="#appendix-A-9.4.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-9.4.1">Added FilterCondition fields to <code>Foo/query</code>: <code>metadataExists</code>, <code>privateMetadataExists</code>, <code>metadataTextContains</code>, <code>metadataTextEquals</code>, and the corresponding private variants. Servers <span class="bcp14">MAY</span> reject the text-match conditions with "unsupportedFilter" when implementation cost is prohibitive.<a href="#appendix-A-9.4.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-9.5">
-          <p id="appendix-A-9.5.1">Added <code>id</code> as a <span class="bcp14">MUST</span> support property for sorting in Metadata/query; other properties changed to <span class="bcp14">SHOULD</span> support.<a href="#appendix-A-9.5.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-9.5.1">Added an <code>ignoreMetadataOnlyChanges</code> argument to <code>Foo/changes</code>, letting metadata-uninterested clients skip wakeups for metadata-only changes on data types they otherwise care about.<a href="#appendix-A-9.5.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-9.6">
-          <p id="appendix-A-9.6.1">Replaced the <code>metadataTypes</code> argument with a <code>fetchMetadata</code> Boolean argument (default: false) in the extended /get method.<a href="#appendix-A-9.6.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-9.6.1">Specified PatchObject semantics for <code>metadata</code> and <code>privateMetadata</code>, including handling of unknown namespaces, error ordering on <code>/set</code>, and the migration case where a namespace is removed from the server's advertised set after data has been written.<a href="#appendix-A-9.6.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="appendix-A-9.7">
-          <p id="appendix-A-9.7.1">Added <code>onSuccessCreateMetadata</code> and <code>onSuccessUpdateMetadata</code> arguments to the extended /set method to enable transactional metadata operations that are conditional on the success of the related object operation.<a href="#appendix-A-9.7.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-9.7.1">Replaced the previous metadata-types and metadata-properties registries with a single "JMAP Metadata Namespaces" registry. This document defines no initial entries; bindings to other protocols (e.g., IMAP METADATA, WebDAV dead properties) are expected to be defined in separate specifications.<a href="#appendix-A-9.7.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="appendix-A-10"><strong>draft-ietf-jmap-metadata-00</strong><a href="#appendix-A-10" class="pilcrow">¶</a></p>
+<p id="appendix-A-10"><strong>draft-ietf-jmap-metadata-01</strong><a href="#appendix-A-10" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-A-11.1">
-          <p id="appendix-A-11.1.1">Initial version<a href="#appendix-A-11.1.1" class="pilcrow">¶</a></p>
+          <p id="appendix-A-11.1.1">Renamed <code>parentType</code> and <code>parentId</code> properties to <code>relatedType</code> and <code>relatedId</code> throughout the document to better reflect their purpose and avoid implying a strict hierarchy.<a href="#appendix-A-11.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-11.2">
+          <p id="appendix-A-11.2.1">Added <code>filterRelatedType</code> and <code>filterMetadataType</code> optional parameters to Metadata/changes method to allow filtering changes by related object type and metadata type.<a href="#appendix-A-11.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-11.3">
+          <p id="appendix-A-11.3.1">Changed the error type from "invalidProperties" to "alreadyExists" when a client attempts to create a Metadata object that violates the uniqueness constraint.<a href="#appendix-A-11.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-11.4">
+          <p id="appendix-A-11.4.1">Added requirement that <code>relatedType</code> must be specified in the same FilterCondition object whenever <code>relatedIds</code> is used in Metadata/query.<a href="#appendix-A-11.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-11.5">
+          <p id="appendix-A-11.5.1">Added <code>id</code> as a <span class="bcp14">MUST</span> support property for sorting in Metadata/query; other properties changed to <span class="bcp14">SHOULD</span> support.<a href="#appendix-A-11.5.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-11.6">
+          <p id="appendix-A-11.6.1">Replaced the <code>metadataTypes</code> argument with a <code>fetchMetadata</code> Boolean argument (default: false) in the extended /get method.<a href="#appendix-A-11.6.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-11.7">
+          <p id="appendix-A-11.7.1">Added <code>onSuccessCreateMetadata</code> and <code>onSuccessUpdateMetadata</code> arguments to the extended /set method to enable transactional metadata operations that are conditional on the success of the related object operation.<a href="#appendix-A-11.7.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="appendix-A-12"><strong>draft-ietf-jmap-metadata-00</strong><a href="#appendix-A-12" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-A-13.1">
+          <p id="appendix-A-13.1.1">Initial version<a href="#appendix-A-13.1.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 </section>
