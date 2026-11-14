@@ -237,7 +237,7 @@ class: full
   </div>
 </div>
 
-<div class="note">The operators of mailbox.org (Heinlein Group) sent detailed proposals that shaped -02.</div>
+<div class="note">The operators of mailbox.org (Heinlein Group) are one example of this demand.</div>
 
 ---
 
@@ -635,7 +635,7 @@ class: full
 
 <span class="pill">Next: Carsten and Manu</span>
 
-# Implementer proposals shaped -02
+# Carsten and Manu explain why operators need MTA Hooks
 
 <div class="bento">
   <div class="tile c-4">
@@ -663,7 +663,7 @@ class: full
     <p>Changes to each transmitted copy, at the <code>transmit</code> stage.</p>
   </div>
   <div class="tile tile--brand c-12">
-    <h3>Carsten Rosenberg and Manu Zurmühl, Heinlein Group (mailbox.org)</h3>
-    <p>The details of their proposals, from operating mail at scale.</p>
+    <h3>Carsten Rosenberg and Manu Zurmühl, Heinlein Group</h3>
+    <p>Why they need MTA Hooks, from operating mail at scale.</p>
   </div>
 </div>
