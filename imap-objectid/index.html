@@ -1703,9 +1703,10 @@ the SELECT or EXAMINE response for the current mailbox.<a href="#section-3-5.2.1
 </li>
       </ul>
 <p id="section-3-6">Identifiers that the server does not support are omitted rather
-than returned as NIL. This allows the compound format to
-self-describe the server's capabilities without requiring clients
-to handle placeholder values.<a href="#section-3-6" class="pilcrow">¶</a></p>
+than returned as NIL, so clients do not need to handle placeholder
+values.  A missing key means only that the server has no such
+identifier in the current context, not that the server will never
+return it in future.<a href="#section-3-6" class="pilcrow">¶</a></p>
 <p id="section-3-7">Clients <span class="bcp14">MUST</span> ignore any unrecognised key-value pairs in a compound
 OBJECTID response. This allows future extensions to add new
 identifier types without breaking existing clients.<a href="#section-3-7" class="pilcrow">¶</a></p>
@@ -1931,16 +1932,20 @@ name.  If the list
 contains MAILBOXID but not ACCOUNTID, the server <span class="bcp14">MUST</span> interpret
 the MAILBOXID as belonging to the account of the authenticated
 user's personal namespace.<a href="#section-7.1-6" class="pilcrow">¶</a></p>
-<p id="section-7.1-7">The server <span class="bcp14">MUST NOT</span> match a mailbox that the client is not
+<p id="section-7.1-7">Each key <span class="bcp14">MUST</span> appear at most once in the list.  The server <span class="bcp14">MUST</span>
+respond with BAD if a key appears more than once or if any value,
+including the value of a key that the server does not support, is
+not a valid ObjectID.<a href="#section-7.1-7" class="pilcrow">¶</a></p>
+<p id="section-7.1-8">The server <span class="bcp14">MUST NOT</span> match a mailbox that the client is not
 permitted to select by name, for example because the client lacks
 the necessary access rights.  In that case, the server selects the
 mailbox by name, so that the response does not reveal whether a
-mailbox with those identifiers exists.<a href="#section-7.1-7" class="pilcrow">¶</a></p>
-<p id="section-7.1-8">This mechanism allows clients to reliably reselect a mailbox
+mailbox with those identifiers exists.<a href="#section-7.1-8" class="pilcrow">¶</a></p>
+<p id="section-7.1-9">This mechanism allows clients to reliably reselect a mailbox
 after it has been renamed by another client, following the same
-pattern as the Sieve <code>:mailboxid</code> extension in <span>[<a href="#RFC9042" class="cite xref">RFC9042</a>]</span>.<a href="#section-7.1-8" class="pilcrow">¶</a></p>
-<p id="section-7.1-9">Example (activation only, no ID-based selection):<a href="#section-7.1-9" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-10">
+pattern as the Sieve <code>:mailboxid</code> extension in <span>[<a href="#RFC9042" class="cite xref">RFC9042</a>]</span>.<a href="#section-7.1-9" class="pilcrow">¶</a></p>
+<p id="section-7.1-10">Example (activation only, no ID-based selection):<a href="#section-7.1-10" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-11">
 <pre>
 C: 27 select "foo" (OBJECTID)
 S: * ENABLED OBJECTID+
@@ -1949,10 +1954,10 @@ S: * OK [OBJECTID (MAILBOXID F2212ea87-6097-4256-9d51-71338625 \
         ACCOUNTID u1a48e8e3)] Ok
 [...]
 S: 27 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-10" class="pilcrow">¶</a>
+</pre><a href="#section-7.1-11" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-11">Example (ID-based selection after a rename):<a href="#section-7.1-11" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-12">
+<p id="section-7.1-12">Example (ID-based selection after a rename):<a href="#section-7.1-12" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-13">
 <pre>
 C: 28 select "foo" (OBJECTID (MAILBOXID \
         F2212ea87-6097-4256-9d51-71338625 \
@@ -1962,13 +1967,13 @@ S: * OK [OBJECTID (MAILBOXID F2212ea87-6097-4256-9d51-71338625 \
         ACCOUNTID u1a48e8e3)] Ok
 [...]
 S: 28 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-12" class="pilcrow">¶</a>
+</pre><a href="#section-7.1-13" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-13">Here the mailbox was previously named "foo" but may have been
+<p id="section-7.1-14">Here the mailbox was previously named "foo" but may have been
 renamed.  The server locates it by MAILBOXID and ACCOUNTID
-regardless of its current name.<a href="#section-7.1-13" class="pilcrow">¶</a></p>
-<p id="section-7.1-14">Example (ID-based selection, fallback to name):<a href="#section-7.1-14" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-15">
+regardless of its current name.<a href="#section-7.1-14" class="pilcrow">¶</a></p>
+<p id="section-7.1-15">Example (ID-based selection, fallback to name):<a href="#section-7.1-15" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-16">
 <pre>
 C: 29 select "foo" (OBJECTID (MAILBOXID \
         Fno-longer-exists ACCOUNTID u1a48e8e3))
@@ -1977,25 +1982,21 @@ S: * OK [OBJECTID (MAILBOXID F9999new-id-for-foo \
         ACCOUNTID u1a48e8e3)] Ok
 [...]
 S: 29 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-15" class="pilcrow">¶</a>
+</pre><a href="#section-7.1-16" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-16">The MAILBOXID did not match any mailbox, so the server fell
+<p id="section-7.1-17">The MAILBOXID did not match any mailbox, so the server fell
 back to selecting "foo" by name.  The response contains the
-actual OBJECTID of the selected mailbox.<a href="#section-7.1-16" class="pilcrow">¶</a></p>
-<p id="section-7.1-17">When the server selects a mailbox via the provided identifiers
+actual OBJECTID of the selected mailbox.<a href="#section-7.1-17" class="pilcrow">¶</a></p>
+<p id="section-7.1-18">When the server selects a mailbox via the provided identifiers
 and the mailbox name in the command no longer refers to that
-mailbox, the response identifies the mailbox by its OBJECTID but
-does not directly convey its current name.  Clients can determine
-the current name using LIST: in IMAP4rev2 (<span>[<a href="#RFC9051" class="cite xref">RFC9051</a>]</span>), the
-OLDNAME extended data item on the LIST response (Section 6.3.9.7
-of <span>[<a href="#RFC9051" class="cite xref">RFC9051</a>]</span>) reports the former name alongside the current
-one, allowing the client to correlate its cached name with the
-renamed mailbox.  Clients implementing only IMAP4rev1
-(<span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span>) can reissue LIST with an appropriate reference and
-pattern and match the result by MAILBOXID via the OBJECTID return
-option (<a href="#list-objectid" class="auto internal xref">Section 7.5</a>) or the OBJECTID STATUS attribute.<a href="#section-7.1-17" class="pilcrow">¶</a></p>
-<p id="section-7.1-18">Example (shared mailbox with different ACCOUNTID):<a href="#section-7.1-18" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.1-19">
+mailbox, the untagged LIST response that IMAP4rev2 (<span>[<a href="#RFC9051" class="cite xref">RFC9051</a>]</span>)
+requires in the SELECT response <span class="bcp14">MUST</span> give the current name of the
+selected mailbox, not the name in the command.  IMAP4rev1
+(<span>[<a href="#RFC3501" class="cite xref">RFC3501</a>]</span>) has no such response; a client can instead reissue
+LIST and match the result by MAILBOXID via the OBJECTID return
+option (<a href="#list-objectid" class="auto internal xref">Section 7.5</a>) or the OBJECTID STATUS attribute.<a href="#section-7.1-18" class="pilcrow">¶</a></p>
+<p id="section-7.1-19">Example (shared mailbox with different ACCOUNTID):<a href="#section-7.1-19" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-20">
 <pre>
 C: 30 select "shared/team"
 [...]
@@ -2003,12 +2004,12 @@ S: * OK [OBJECTID (MAILBOXID F8839dca12-3ef8-4a72-b63d-54f9e8a1 \
         ACCOUNTID u2b59f9f4)] Ok
 [...]
 S: 30 OK [READ-WRITE] Completed
-</pre><a href="#section-7.1-19" class="pilcrow">¶</a>
+</pre><a href="#section-7.1-20" class="pilcrow">¶</a>
 </div>
-<p id="section-7.1-20">Note that in this example, the server does not send ENABLED
+<p id="section-7.1-21">Note that in this example, the server does not send ENABLED
 again because the extension was already activated.  The shared
 mailbox has a different ACCOUNTID, indicating it belongs to a
-different account.<a href="#section-7.1-20" class="pilcrow">¶</a></p>
+different account.<a href="#section-7.1-21" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="create-objectid">
@@ -2397,6 +2398,7 @@ objectid-compound = "OBJECTID" SP "(" [objectid-kvpair
 
 select-param =/ "OBJECTID" [SP "(" [objectid-kvpair
         *(SP objectid-kvpair)] ")"]
+        ; each key at most once
         ; without arguments or with an empty list:
         ;   activation only
         ; with arguments: ID-based mailbox selection
@@ -2508,6 +2510,11 @@ combination of ACCOUNTID and any other object identifier being
 unique within the IMAP session, even when the backends assign
 identifiers independently and those identifiers might otherwise
 collide.<a href="#section-11.2-2" class="pilcrow">¶</a></p>
+<p id="section-11.2-3">Activation of OBJECTID+ (<a href="#activation" class="auto internal xref">Section 2.2</a>) applies to the whole
+session.  A proxy that passes commands to a backend without parsing
+them can see the backend activate OBJECTID+; the proxy then needs to
+activate it for the session and on every other backend it uses for
+that session.<a href="#section-11.2-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="client-usage">
@@ -2536,6 +2543,12 @@ include the accountId property. By correlating the accountId from a
 push notification with the ACCOUNTID, clients can efficiently
 determine which IMAP mailbox corresponds to a newly delivered message
 without requiring additional synchronization operations.<a href="#section-11.3-5" class="pilcrow">¶</a></p>
+<p id="section-11.3-6">There is no separate discovery of which identifiers a server
+supports.  Clients should keep requesting OBJECTID and handle any
+key being absent, including an empty compound.  The absence of a key
+in one response does not mean that the server never returns it: it
+can be missing for one mailbox or message and present for another,
+and a server can start returning it later.<a href="#section-11.3-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="interaction-with-the-objectid-capability">
@@ -2557,7 +2570,9 @@ in <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span>.  Such a serv
 OBJECTID format defined in this specification.<a href="#section-11.4-2" class="pilcrow">¶</a></p>
 <p id="section-11.4-3">When a server advertises both capabilities, the OBJECTID compound
 is functionally equivalent to requesting each of its constituent
-identifiers individually.  The server <span class="bcp14">MUST</span> return the same value
+identifiers individually.  If a command requests both the OBJECTID
+item and an individual identifier item, the server returns both.
+The server <span class="bcp14">MUST</span> return the same value
 for a given identifier whether it is requested individually (as
 defined in <span>[<a href="#RFC8474" class="cite xref">RFC8474</a>]</span>) or as part of an OBJECTID compound.  For
 example, the MAILBOXID returned within an OBJECTID STATUS response
@@ -3073,6 +3088,11 @@ is explicitly intended to be visible.<a href="#section-14.7-1" class="pilcrow">�
         <li class="normal" id="appendix-A-2.3">
           <p id="appendix-A-2.3.1">Hash of the JMAP accountId (if JMAP integration is provided)<a href="#appendix-A-2.3.1" class="pilcrow">¶</a></p>
 </li>
+        <li class="normal" id="appendix-A-2.4">
+          <p id="appendix-A-2.4.1">Hash or encoding of the username; a username itself is often
+not a valid ObjectID, as it may contain characters such as "@"
+or "."<a href="#appendix-A-2.4.1" class="pilcrow">¶</a></p>
+</li>
       </ul>
 <p id="appendix-A-3">Ideas for calculating mailbox identifiers:<a href="#appendix-A-3" class="pilcrow">¶</a></p>
 <ul class="normal">
@@ -3181,6 +3201,30 @@ working group for their contributions to this specification.<a href="#appendix-C
           <p id="appendix-D-3.1.1">ACCOUNTID <span class="bcp14">SHOULD NOT</span> change across sessions; if it does, the
 client <span class="bcp14">MUST</span> discard cached identifiers for that account
 (<a href="#accountid" class="auto internal xref">Section 4</a>)<a href="#appendix-D-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.2">
+          <p id="appendix-D-3.2.1">Each key appears at most once in the OBJECTID parameter on SELECT
+and EXAMINE; a repeated key or an invalid value gets BAD
+(<a href="#select-objectid" class="auto internal xref">Section 7.1</a>)<a href="#appendix-D-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.3">
+          <p id="appendix-D-3.3.1">After selection by identifier, the IMAP4rev2 LIST response in the
+SELECT response gives the mailbox's current name<a href="#appendix-D-3.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.4">
+          <p id="appendix-D-3.4.1">Requesting both OBJECTID and an individual identifier item
+returns both<a href="#appendix-D-3.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.5">
+          <p id="appendix-D-3.5.1">Noted that a proxy relaying commands unparsed must propagate
+OBJECTID+ activation across the session<a href="#appendix-D-3.5.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.6">
+          <p id="appendix-D-3.6.1">Advised against using a username directly as an ACCOUNTID<a href="#appendix-D-3.6.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-D-3.7">
+          <p id="appendix-D-3.7.1">Clients discover supported identifiers by continuing to request
+OBJECTID and handling absent keys<a href="#appendix-D-3.7.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="appendix-D-4"><strong>draft-ietf-mailmaint-imap-objectid-bis-08</strong><a href="#appendix-D-4" class="pilcrow">¶</a></p>
