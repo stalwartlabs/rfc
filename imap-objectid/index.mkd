@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-08
+docname: draft-ietf-mailmaint-imap-objectid-bis-09
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051, RFC9698
@@ -233,9 +233,10 @@ The contents of the compound OBJECTID vary by context:
   the SELECT or EXAMINE response for the current mailbox.
 
 Identifiers that the server does not support are omitted rather
-than returned as NIL. This allows the compound format to
-self-describe the server's capabilities without requiring clients
-to handle placeholder values.
+than returned as NIL, so clients do not need to handle placeholder
+values.  A missing key means only that the server has no such
+identifier in the current context, not that the server will never
+return it in future.
 
 Clients MUST ignore any unrecognised key-value pairs in a compound
 OBJECTID response. This allows future extensions to add new
@@ -272,11 +273,14 @@ A mailbox in a shared namespace might not be owned by any user.
 If the server returns identifiers for such a mailbox, its
 ACCOUNTID MUST differ from the ACCOUNTID of every user.
 
-The ACCOUNTID is immutable for a given account within an
-IMAP session. However, if the underlying account is deleted or the
-user's access to that account is revoked, the associated mailboxes will
-no longer be accessible via IMAP, and their ACCOUNTIDs become
-irrelevant.
+The ACCOUNTID for an account MUST NOT change within an IMAP session
+and SHOULD NOT change across sessions.  As with UIDVALIDITY, if the
+ACCOUNTID for an account changes, the client MUST discard all object
+identifiers it has cached for that account and resynchronize.
+
+If the underlying account is deleted or the user's access to that
+account is revoked, the associated mailboxes will no longer be
+accessible via IMAP, and their ACCOUNTIDs become irrelevant.
 
 When OBJECTID+ has been activated ({{activation}}), the server
 returns ACCOUNTID within the compound OBJECTID response code for
@@ -462,6 +466,11 @@ contains MAILBOXID but not ACCOUNTID, the server MUST interpret
 the MAILBOXID as belonging to the account of the authenticated
 user's personal namespace.
 
+Each key MUST appear at most once in the list.  The server MUST
+respond with BAD if a key appears more than once or if any value,
+including the value of a key that the server does not support, is
+not a valid ObjectID.
+
 The server MUST NOT match a mailbox that the client is not
 permitted to select by name, for example because the client lacks
 the necessary access rights.  In that case, the server selects the
@@ -519,15 +528,11 @@ actual OBJECTID of the selected mailbox.
 
 When the server selects a mailbox via the provided identifiers
 and the mailbox name in the command no longer refers to that
-mailbox, the response identifies the mailbox by its OBJECTID but
-does not directly convey its current name.  Clients can determine
-the current name using LIST: in IMAP4rev2 ({{RFC9051}}), the
-OLDNAME extended data item on the LIST response (Section 6.3.9.7
-of {{RFC9051}}) reports the former name alongside the current
-one, allowing the client to correlate its cached name with the
-renamed mailbox.  Clients implementing only IMAP4rev1
-({{RFC3501}}) can reissue LIST with an appropriate reference and
-pattern and match the result by MAILBOXID via the OBJECTID return
+mailbox, the untagged LIST response that IMAP4rev2 ({{RFC9051}})
+requires in the SELECT response MUST give the current name of the
+selected mailbox, not the name in the command.  IMAP4rev1
+({{RFC3501}}) has no such response; a client can instead reissue
+LIST and match the result by MAILBOXID via the OBJECTID return
 option ({{list-objectid}}) or the OBJECTID STATUS attribute.
 
 Example (shared mailbox with different ACCOUNTID):
@@ -926,6 +931,7 @@ objectid-compound = "OBJECTID" SP "(" [objectid-kvpair
 
 select-param =/ "OBJECTID" [SP "(" [objectid-kvpair
         *(SP objectid-kvpair)] ")"]
+        ; each key at most once
         ; without arguments or with an empty list:
         ;   activation only
         ; with arguments: ID-based mailbox selection
@@ -1024,6 +1030,12 @@ unique within the IMAP session, even when the backends assign
 identifiers independently and those identifiers might otherwise
 collide.
 
+Activation of OBJECTID+ ({{activation}}) applies to the whole
+session.  A proxy that passes commands to a backend without parsing
+them can see the backend activate OBJECTID+; the proxy then needs to
+activate it for the session and on every other backend it uses for
+that session.
+
 ## Client Usage
 
 Servers that implement both {{RFC6154}} and this specification should
@@ -1052,6 +1064,13 @@ push notification with the ACCOUNTID, clients can efficiently
 determine which IMAP mailbox corresponds to a newly delivered message
 without requiring additional synchronization operations.
 
+There is no separate discovery of which identifiers a server
+supports.  Clients should keep requesting OBJECTID and handle any
+key being absent, including an empty compound.  The absence of a key
+in one response does not mean that the server never returns it: it
+can be missing for one mailbox or message and present for another,
+and a server can start returning it later.
+
 ## Interaction with the OBJECTID Capability
 
 A server MAY advertise both OBJECTID and OBJECTID+ to provide
@@ -1070,7 +1089,9 @@ OBJECTID format defined in this specification.
 
 When a server advertises both capabilities, the OBJECTID compound
 is functionally equivalent to requesting each of its constituent
-identifiers individually.  The server MUST return the same value
+identifiers individually.  If a command requests both the OBJECTID
+item and an individual identifier item, the server returns both.
+The server MUST return the same value
 for a given identifier whether it is requested individually (as
 defined in {{RFC8474}}) or as part of an OBJECTID compound.  For
 example, the MAILBOXID returned within an OBJECTID STATUS response
@@ -1375,6 +1396,9 @@ Ideas for calculating account identifiers:
 * Universally Unique Identifier (UUID) {{RFC4122}}
 * Server-assigned sequence number (guaranteed not to be reused)
 * Hash of the JMAP accountId (if JMAP integration is provided)
+* Hash or encoding of the username; a username itself is often
+  not a valid ObjectID, as it may contain characters such as "@"
+  or "."
 
 Ideas for calculating mailbox identifiers:
 
@@ -1459,6 +1483,24 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-09**
+
+* ACCOUNTID SHOULD NOT change across sessions; if it does, the
+  client MUST discard cached identifiers for that account
+  ({{accountid}})
+* Each key appears at most once in the OBJECTID parameter on SELECT
+  and EXAMINE; a repeated key or an invalid value gets BAD
+  ({{select-objectid}})
+* After selection by identifier, the IMAP4rev2 LIST response in the
+  SELECT response gives the mailbox's current name
+* Requesting both OBJECTID and an individual identifier item
+  returns both
+* Noted that a proxy relaying commands unparsed must propagate
+  OBJECTID+ activation across the session
+* Advised against using a username directly as an ACCOUNTID
+* Clients discover supported identifiers by continuing to request
+  OBJECTID and handling absent keys
 
 **draft-ietf-mailmaint-imap-objectid-bis-08**
 
