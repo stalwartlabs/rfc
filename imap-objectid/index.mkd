@@ -1,7 +1,7 @@
 ---
 title: IMAP Extension for Object Identifiers
 abbrev: IMAP OBJECTID+
-docname: draft-ietf-mailmaint-imap-objectid-bis-08
+docname: draft-ietf-mailmaint-imap-objectid-bis-09
 submissionType: IETF
 category: std
 updates: RFC3501, RFC9051, RFC9698
@@ -272,11 +272,14 @@ A mailbox in a shared namespace might not be owned by any user.
 If the server returns identifiers for such a mailbox, its
 ACCOUNTID MUST differ from the ACCOUNTID of every user.
 
-The ACCOUNTID is immutable for a given account within an
-IMAP session. However, if the underlying account is deleted or the
-user's access to that account is revoked, the associated mailboxes will
-no longer be accessible via IMAP, and their ACCOUNTIDs become
-irrelevant.
+The ACCOUNTID for an account MUST NOT change within an IMAP session
+and SHOULD NOT change across sessions.  As with UIDVALIDITY, if the
+ACCOUNTID for an account changes, the client MUST discard all object
+identifiers it has cached for that account and resynchronize.
+
+If the underlying account is deleted or the user's access to that
+account is revoked, the associated mailboxes will no longer be
+accessible via IMAP, and their ACCOUNTIDs become irrelevant.
 
 When OBJECTID+ has been activated ({{activation}}), the server
 returns ACCOUNTID within the compound OBJECTID response code for
@@ -1459,6 +1462,12 @@ working group for their contributions to this specification.
 # Changes
 
 \[\[This section to be removed by RFC Editor\]\]
+
+**draft-ietf-mailmaint-imap-objectid-bis-09**
+
+* ACCOUNTID SHOULD NOT change across sessions; if it does, the
+  client MUST discard cached identifiers for that account
+  ({{accountid}})
 
 **draft-ietf-mailmaint-imap-objectid-bis-08**
 
